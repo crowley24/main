@@ -1035,6 +1035,73 @@ Lampa.SettingsApi.addParam({
         });
        }
       });
+
+       Lampa.SettingsApi.addParam({
+    component: 'add_plugin',
+    param: {
+        name: 'Перемикач балансерів', // Назва параметра
+        type: 'select',
+        values: {
+            1: 'Встановити',
+            2: 'Видалити',
+        },
+    },
+    field: {
+        name: 'Перемикач балансерів',
+        description: 'Виводить список балансерів при натисканні вправо' // Ваш опис
+    },
+    onChange: function (value, item) { 
+        // Посилання на ваш JS файл через GitHub Pages
+        var pluginUrl = 'https://crowley24.github.io/main/Balancer_changer.js';
+        var pluginName = 'Перемикач балансерів';
+        var index = $(item).data('nthChildIndex'); 
+
+        if (value == '1') {
+            itemON(pluginUrl, pluginName, '@crowley', pluginName, index); 
+        }
+        
+        if (value == '2') {
+            deletePlugin(pluginUrl, index);
+        }
+    },
+    onRender: function (item) { 
+        $('.settings-param__name', item).css('color', '#f3d900');
+        hideInstall();
+        
+        var pluginUrl = 'https://crowley24.github.io/main/Balancer_changer.js';
+        var pluginName = 'Перемикач балансерів';
+        var myResult = checkPlugin(pluginUrl);
+        var pluginsArray = Lampa.Storage.get('plugins') || [];
+        
+        setTimeout(function () {
+            // Відображення статусу (кружечка) біля назви
+            $('div[data-name="' + pluginName + '"]').append('<div class="settings-param__status one"></div>');
+            var pluginStatus = null;
+            
+            for (var i = 0; i < pluginsArray.length; i++) {
+                if (pluginsArray[i].url === pluginUrl) {
+                    pluginStatus = pluginsArray[i].status;
+                    break;
+                }
+            }
+            
+            var statusElem = $('div[data-name="' + pluginName + '"]').find('.settings-param__status');
+            
+            if (myResult && pluginStatus !== 0) {
+                statusElem.removeClass('active error').css('background', 'linear-gradient(45deg, #11e400, #36a700)');
+            } else if (pluginStatus === 0) {
+                statusElem.removeClass('active error').css('background', 'linear-gradient(45deg, #ff8c00, #d96e00)');
+            } else {
+                statusElem.removeClass('active error').css('background', 'linear-gradient(45deg, #ff0000, #c40000)');
+            }
+        }, 100);
+
+        item.on("hover:enter", function (event) {
+            var localNthChildIndex = focus_back(event);
+            $(this).data('nthChildIndex', localNthChildIndex);
+        });
+    }
+});
         
           Lampa.SettingsApi.addParam({
             component: 'add_plugin',
@@ -1204,6 +1271,140 @@ Lampa.SettingsApi.addParam({
                 });
                }
               });
+
+        Lampa.SettingsApi.addParam({
+    component: 'add_plugin',
+    param: {
+        name: 'NewStyle Vertical', // Назва в списку
+        type: 'select',
+        values: {
+            1: 'Встановити',
+            2: 'Видалити',
+        },
+    },
+    field: {
+        name: 'NewStyle Vertical',
+        description: 'Новий інтерфейс з вертикальними іконками фільмів' // Ваш опис
+    },
+    onChange: function (value, item) { 
+        // Посилання на ваш JS файл
+        var pluginUrl = 'https://crowley24.github.io/main/New_Style_V.js';
+        var pluginName = 'NewStyle Vertical';
+        var index = $(item).data('nthChildIndex'); 
+
+        if (value == '1') {
+            itemON(pluginUrl, pluginName, '@crowley', pluginName, index); 
+        }
+        
+        if (value == '2') {
+            deletePlugin(pluginUrl, index);
+        }
+    },
+    onRender: function (item) { 
+        $('.settings-param__name', item).css('color', '#f3d900');
+        hideInstall();
+        
+        var pluginUrl = 'https://crowley24.github.io/main/New_Style_V.js';
+        var pluginName = 'NewStyle Vertical';
+        var myResult = checkPlugin(pluginUrl);
+        var pluginsArray = Lampa.Storage.get('plugins') || [];
+        
+        setTimeout(function () {
+            // Створюємо індикатор статусу
+            $('div[data-name="' + pluginName + '"]').append('<div class="settings-param__status one"></div>');
+            var pluginStatus = null;
+            
+            for (var i = 0; i < pluginsArray.length; i++) {
+                if (pluginsArray[i].url === pluginUrl) {
+                    pluginStatus = pluginsArray[i].status;
+                    break;
+                }
+            }
+            
+            var statusElem = $('div[data-name="' + pluginName + '"]').find('.settings-param__status');
+            
+            if (myResult && pluginStatus !== 0) {
+                statusElem.removeClass('active error').css('background', 'linear-gradient(45deg, #11e400, #36a700)');
+            } else if (pluginStatus === 0) {
+                statusElem.removeClass('active error').css('background', 'linear-gradient(45deg, #ff8c00, #d96e00)');
+            } else {
+                statusElem.removeClass('active error').css('background', 'linear-gradient(45deg, #ff0000, #c40000)');
+            }
+        }, 100);
+
+        item.on("hover:enter", function (event) {
+            var localNthChildIndex = focus_back(event);
+            $(this).data('nthChildIndex', localNthChildIndex);
+        });
+    }
+});
+
+       Lampa.SettingsApi.addParam({
+    component: 'add_plugin',
+    param: {
+        name: 'NewStyle Horizontal', // Назва в списку
+        type: 'select',
+        values: {
+            1: 'Встановити',
+            2: 'Видалити',
+        },
+    },
+    field: {
+        name: 'NewStyle Horizontal',
+        description: 'Новий інтерфейс з горизонтальними іконками фільмів' // Ваш опис
+    },
+    onChange: function (value, item) { 
+        // Посилання на ваш JS файл
+        var pluginUrl = 'https://crowley24.github.io/main/New_Style_H.js';
+        var pluginName = 'NewStyle Horizontal';
+        var index = $(item).data('nthChildIndex'); 
+
+        if (value == '1') {
+            itemON(pluginUrl, pluginName, '@crowley', pluginName, index); 
+        }
+        
+        if (value == '2') {
+            deletePlugin(pluginUrl, index);
+        }
+    },
+    onRender: function (item) { 
+        $('.settings-param__name', item).css('color', '#f3d900');
+        hideInstall();
+        
+        var pluginUrl = 'https://crowley24.github.io/main/New_Style_H.js';
+        var pluginName = 'NewStyle Horizontal';
+        var myResult = checkPlugin(pluginUrl);
+        var pluginsArray = Lampa.Storage.get('plugins') || [];
+        
+        setTimeout(function () {
+            // Створюємо індикатор статусу (кружечок)
+            $('div[data-name="' + pluginName + '"]').append('<div class="settings-param__status one"></div>');
+            var pluginStatus = null;
+            
+            for (var i = 0; i < pluginsArray.length; i++) {
+                if (pluginsArray[i].url === pluginUrl) {
+                    pluginStatus = pluginsArray[i].status;
+                    break;
+                }
+            }
+            
+            var statusElem = $('div[data-name="' + pluginName + '"]').find('.settings-param__status');
+            
+            if (myResult && pluginStatus !== 0) {
+                statusElem.removeClass('active error').css('background', 'linear-gradient(45deg, #11e400, #36a700)');
+            } else if (pluginStatus === 0) {
+                statusElem.removeClass('active error').css('background', 'linear-gradient(45deg, #ff8c00, #d96e00)');
+            } else {
+                statusElem.removeClass('active error').css('background', 'linear-gradient(45deg, #ff0000, #c40000)');
+            }
+        }, 100);
+
+        item.on("hover:enter", function (event) {
+            var localNthChildIndex = focus_back(event);
+            $(this).data('nthChildIndex', localNthChildIndex);
+        });
+    }
+});
 
         Lampa.SettingsApi.addParam({
             component: 'add_plugin',
