@@ -436,7 +436,7 @@
     },
     onChange: function (value, item) { 
         // Посилання на Raw-файл v1
-        var pluginUrl = 'https://raw.githubusercontent.com/crowley24/main/main/New_quality_v1.js';
+        var pluginUrl = 'https://github.com/crowley24/main/blob/main/New_quality_v1.js';
         var pluginName = 'Якість в картці фільму';
         var index = $(item).data('nthChildIndex'); 
 
@@ -452,7 +452,7 @@
         $('.settings-param__name', item).css('color', '#f3d900');
         hideInstall();
         
-        var pluginUrl = 'https://raw.githubusercontent.com/crowley24/main/main/New_quality_v1.js';
+        var pluginUrl = 'https://github.com/crowley24/main/blob/main/New_quality_v1.js';
         var pluginName = 'Якість в картці фільму';
         var myResult = checkPlugin(pluginUrl);
         var pluginsArray = Lampa.Storage.get('plugins') || [];
