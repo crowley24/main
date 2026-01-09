@@ -78,31 +78,41 @@ const translations = {
     // Додаємо налаштування плагіна
     function addSettings() {
         // Ініціалізуємо значення за замовчуванням
-       if (Lampa.Storage.get('applecation_show_ratings') === undefined) {
-            Lampa.Storage.set('applecation_show_ratings', false);
+        if (Lampa.Storage.get('applecation_show_ratings') === undefined) Lampa.Storage.set('applecation_show_ratings', false);
+        if (Lampa.Storage.get('applecation_ratings_position') === undefined) Lampa.Storage.set('applecation_ratings_position', 'card');
+        if (Lampa.Storage.get('applecation_logo_scale') === undefined) Lampa.Storage.set('applecation_logo_scale', '100');
+        if (Lampa.Storage.get('applecation_text_scale') === undefined) Lampa.Storage.set('applecation_text_scale', '100');
+        if (Lampa.Storage.get('applecation_spacing_scale') === undefined) Lampa.Storage.set('applecation_spacing_scale', '100');
+        
+        // Ініціалізація зуму (Ken Burns)
+        if (Lampa.Storage.get('applecation_apple_zoom') === undefined) {
+            Lampa.Storage.set('applecation_apple_zoom', true);
         }
-        if (Lampa.Storage.get('applecation_ratings_position') === undefined) {
-            Lampa.Storage.set('applecation_ratings_position', 'card');
-        }
-        if (Lampa.Storage.get('applecation_logo_scale') === undefined) {
-            Lampa.Storage.set('applecation_logo_scale', '100');
-        }
-        if (Lampa.Storage.get('applecation_text_scale') === undefined) {
-            Lampa.Storage.set('applecation_text_scale', '100');
-        }
-        if (Lampa.Storage.get('applecation_spacing_scale') === undefined) {
-            Lampa.Storage.set('applecation_spacing_scale', '100');
-        }
-        // Видалено ініціалізацію 'applecation_reverse_episodes'
 
-        // Створюємо розділ налаштувань
         Lampa.SettingsApi.addComponent({
             component: 'applecation_settings',
-            name: 'NewCard', // Перейменовано
+            name: 'NewCard',
             icon: PLUGIN_ICON
         });
+
+        // ПАРАМЕТР: Плаваючий зум фону
+        Lampa.SettingsApi.addParam({
+            component: 'applecation_settings',
+            param: {
+                name: 'applecation_apple_zoom',
+                type: 'trigger',
+                default: true
+            },
+            field: {
+                name: 'Плаваючий зум фону',
+                description: 'Повільна анімація наближення фонового зображення'
+            },
+            onChange: function(value) {
+                updateZoomState();
+            }
+        });
         
-        // Показувати рейтинги
+        // Параметр: Показувати рейтинги
         Lampa.SettingsApi.addParam({
             component: 'applecation_settings',
             param: {
@@ -115,14 +125,10 @@ const translations = {
                 description: t('show_ratings_desc')
             },
             onChange: function(value) {
-                if (value) {
-                    $('body').removeClass('applecation--hide-ratings');
-                } else {
-                    $('body').addClass('applecation--hide-ratings');
-                }
+                $('body').toggleClass('applecation--hide-ratings', !value);
             }
         });
-
+        
         // Розташування рейтингів
         Lampa.SettingsApi.addParam({
             component: 'applecation_settings',
@@ -143,12 +149,12 @@ const translations = {
                 Lampa.Storage.set('applecation_ratings_position', value);
                 $('body').removeClass('applecation--ratings-card applecation--ratings-corner');
                 $('body').addClass('applecation--ratings-' + value);
-                // Оновлюємо шаблон і перезавантажуємо активність
                 addCustomTemplate();
                 Lampa.Activity.back();
             }
         });
-       // Показати реакції (Налаштування залишено, але переклади видалено, оскільки воно не має onChange)
+
+        // Показувати реакції Lampa
         Lampa.SettingsApi.addParam({
             component: 'applecation_settings',
             param: {
@@ -157,8 +163,8 @@ const translations = {
                 default: true
             },
             field: {
-                name: 'Показувати реакції Lampa', // Використовуємо тут фіксований текст
-                description: 'Відображати блок з реакціями на картці' // Використовуємо тут фіксований текст
+                name: 'Показувати реакції Lampa',
+                description: 'Відображати блок з реакціями на картці'
             }
         });
 
@@ -168,22 +174,7 @@ const translations = {
             param: {
                 name: 'applecation_logo_scale',
                 type: 'select',
-                values: {
-                    '50': '50%',
-                    '60': '60%',
-                    '70': '70%',
-                    '80': '80%',
-                    '90': '90%',
-                    '100': t('scale_default'),
-                    '110': '110%',
-                    '120': '120%',
-                    '130': '130%',
-                    '140': '140%',
-                    '150': '150%',
-                    '160': '160%',
-                    '170': '170%',
-                    '180': '180%'
-                },
+                values: {'50':'50%','60':'60%','70':'70%','80':'80%','90':'90%','100':t('scale_default'),'110':'110%','120':'120%','130':'130%','140':'140%','150':'150%','160':'160%','170':'170%','180':'180%'},
                 default: '100'
             },
             field: {
@@ -202,22 +193,7 @@ const translations = {
             param: {
                 name: 'applecation_text_scale',
                 type: 'select',
-                values: {
-                    '50': '50%',
-                    '60': '60%',
-                    '70': '70%',
-                    '80': '80%',
-                    '90': '90%',
-                    '100': t('scale_default'),
-                    '110': '110%',
-                    '120': '120%',
-                    '130': '130%',
-                    '140': '140%',
-                    '150': '150%',
-                    '160': '160%',
-                    '170': '170%',
-                    '180': '180%'
-                },
+                values: {'50':'50%','60':'60%','70':'70%','80':'80%','90':'90%','100':t('scale_default'),'110':'110%','120':'120%','130':'130%','140':'140%','150':'150%','160':'160%','170':'170%','180':'180%'},
                 default: '100'
             },
             field: {
@@ -230,31 +206,13 @@ const translations = {
             }
         });
 
-        // відступ між нядками
+        // Відступи
         Lampa.SettingsApi.addParam({
             component: 'applecation_settings',
             param: {
                 name: 'applecation_spacing_scale',
                 type: 'select',
-                values: {
-                    '50': '50%',
-                    '60': '60%',
-                    '70': '70%',
-                    '80': '80%',
-                    '90': '90%',
-                    '100': t('scale_default'),
-                    '110': '110%',
-                    '120': '120%',
-                    '130': '130%',
-                    '140': '140%',
-                    '150': '150%',
-                    '160': '160%',
-                    '170': '170%',
-                    '180': '180%',
-                    '200': '200%',
-                    '250': '250%',
-                    '300': '300%'
-                },
+                values: {'50':'50%','60':'60%','70':'70%','80':'80%','90':'90%','100':t('scale_default'),'110':'110%','120':'120%','130':'130%','140':'140%','150':'150%','160':'160%','170':'170%','180':'180%','200':'200%','250':'250%','300':'300%'},
                 default: '100'
             },
             field: {
@@ -267,12 +225,57 @@ const translations = {
             }
         });
 
-        // Застосовуємо налаштування 
+        // ЗАПУСК ПЕРЕВІРОК ПРИ СТАРТІ
+        updateZoomState();
         if (!Lampa.Storage.get('applecation_show_ratings', false)) {
             $('body').addClass('applecation--hide-ratings');
         }
         $('body').addClass('applecation--ratings-' + Lampa.Storage.get('applecation_ratings_position', 'card'));
         applyScales();
+    }
+
+    // Функція керування зумом
+   function updateZoomState() {
+    let enabled = Lampa.Storage.get('applecation_apple_zoom', true);
+    $('body').toggleClass('applecation--zoom-enabled', enabled); 
+}
+
+    // Применяем масштабирование контента
+    function applyScales() {
+        const logoScale = parseInt(Lampa.Storage.get('applecation_logo_scale', '100'));
+        const textScale = parseInt(Lampa.Storage.get('applecation_text_scale', '100'));
+        const spacingScale = parseInt(Lampa.Storage.get('applecation_spacing_scale', '100'));
+
+        $('style[data-id="applecation_scales"]').remove();
+
+        const scaleStyles = `
+            <style data-id="applecation_scales">
+                .applecation .applecation__logo img {
+                    max-width: ${35 * logoScale / 100}vw !important;
+                    max-height: ${180 * logoScale / 100}px !important;
+                }
+                .applecation .applecation__content-wrapper {
+                    font-size: ${textScale}% !important;
+                }
+                .applecation .full-start-new__title {
+                    margin-bottom: ${0.5 * spacingScale / 100}em !important;
+                }
+                .applecation .applecation__meta {
+                    margin-bottom: ${0.5 * spacingScale / 100}em !important;
+                }
+                .applecation .applecation__ratings {
+                    margin-bottom: ${0.5 * spacingScale / 100}em !important;
+                }
+                .applecation .applecation__description {
+                    max-width: ${35 * textScale / 100}vw !important;
+                    margin-bottom: ${0.5 * spacingScale / 100}em !important;
+                }
+                .applecation .applecation__info {
+                    margin-bottom: ${0.5 * spacingScale / 100}em !important;
+                }
+            </style>
+        `;
+        $('body').append(scaleStyles);
     }
 
     // Применяем масштабирование контента
@@ -783,38 +786,57 @@ body.applecation--ratings-corner:not(.applecation--hide-reactions) .applecation_
     pointer-events: none;
 }
 
-/* 1. Стиль для фону (лише картинка) */
+/* 1. Визначаємо анімацію Ken Burns */
+@keyframes kenBurns {
+    0% { transform: scale(1.0); }
+    50% { transform: scale(1.1); }
+    100% { transform: scale(1.0); }
+}
+
+/* 2. Базовий стиль фону (без анімації за замовчуванням) */
 .full-start__background {
     height: calc(100% + 6em);
     left: 0 !important;
     opacity: 0 !important;
-    transition: opacity 0.6s ease-out, filter 0.3s ease-out !important;
-    animation: none !important;
-    transform: none !important;
-    will-change: opacity, filter;
-    z-index: 0 !important; /* Найнижчий шар */
+    transition: opacity 0.8s ease-out, filter 0.3s ease-out !important;
+    animation: none !important; /* Спочатку анімації немає */
+    will-change: transform, opacity, filter;
+    z-index: 0 !important;
+    position: absolute;
+    width: 100%;
+    transform-origin: center center;
 }
 
-/* 2. Створюємо НОВИЙ шар затемнення, який не залежить від фону */
+/* 3. Фон з'являється, коли завантажений */
+.full-start__background.loaded:not(.dim) {
+    opacity: 1 !important;
+}
+
+/* 4. Анімація вмикається ТІЛЬКИ якщо у body є клас з налаштувань */
+/* Важливо: назва класу має бути applecation--zoom-enabled, як у вашому JS */
+body.applecation--zoom-enabled .full-start__background.loaded:not(.dim) {
+    animation: kenBurns 40s linear infinite !important;
+}
+
+/* 5. Шар затемнення лівої частини */
 .full-start__details::before {
     content: '';
     position: absolute;
-    top: -100px; /* Перекриваємо з запасом зверху */
-    left: -100px; /* Перекриваємо з запасом зліва */
-    width: 150%;  /* Широкий градієнт */
-    height: 150%;
-    /* Ті самі кольори Apple TV: чорний -> прозорий */
+    top: -150px; 
+    left: -150px; 
+    width: 200%;  
+    height: 200%;
     background: linear-gradient(90deg, 
         rgba(0, 0, 0, 1) 0%, 
         rgba(0, 0, 0, 0.8) 25%, 
         rgba(0, 0, 0, 0.4) 50%, 
         rgba(0, 0, 0, 0) 100%
     );
-    z-index: -1; /* Він буде під текстом деталей, але над фоном */
+    z-index: -1; 
     pointer-events: none;
 }
 
-/* 3. Гарантуємо, що контент (логотип, текст) буде зверху */
+/* 3. Гарантуємо, що контент буде зверху */
 .applecation__logo, 
 .applecation__meta, 
 .applecation__info, 
@@ -824,11 +846,7 @@ body.applecation--ratings-corner:not(.applecation--hide-reactions) .applecation_
     z-index: 2;
 }
 
-/* Стандартні стани завантаження */
-.full-start__background.loaded:not(.dim) {
-    opacity: 1 !important;
-}
-
+/* Затемнення фону при відкритті меню */
 .full-start__background.dim {
     filter: brightness(0.3);
 }
@@ -837,7 +855,7 @@ body.applecation--ratings-corner:not(.applecation--hide-reactions) .applecation_
     opacity: 1 !important;
 }
 
-/* Приховуємо зайві елементи */
+/* Приховуємо статус */
 .applecation .full-start__status {
     display: none;
 }
