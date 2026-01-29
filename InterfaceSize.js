@@ -9,6 +9,14 @@
   };    
   Lampa.Manifest.plugins = manifest;    
     
+  // Додаємо переклади для нового параметра  
+  if (Lampa.Lang && Lampa.Lang.add) {  
+    Lampa.Lang.add({  
+      settings_interface_text_size: 'Розмір тексту',  
+      settings_interface_text_size_descr: 'Незалежний розмір тексту елементів інтерфейсу'  
+    });  
+  }  
+    
   // Розширені опції розміру з дробовими значеннями    
   Lampa.Params.select('interface_size', {     
     '09': '9',     
