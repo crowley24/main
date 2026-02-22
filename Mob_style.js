@@ -1,705 +1,262 @@
-(function() {
-
+(function () {
     'use strict';
 
+    // 1. Ініціалізація налаштувань
+    var settings_list = [
+        { id: 'mobile_interface_animation', default: true },
+        { id: 'mobile_interface_studios', default: true },
+        { id: 'mobile_interface_quality', default: true }
+    ];
 
+    settings_list.forEach(function (opt) {
+        if (Lampa.Storage.get(opt.id, 'unset') === 'unset') {
+            Lampa.Storage.set(opt.id, opt.default);
+        }
+    });
 
-    let observer;
+    var pluginPath = 'https://crowley24.github.io/Icons/';
+    var svgIcons = {
+        '4K': pluginPath + '4K.svg',
+        '2K': pluginPath + '2K.svg',
+        'FULL HD': pluginPath + 'FULL HD.svg',
+        'HD': pluginPath + 'HD.svg',
+        'HDR': pluginPath + 'HDR.svg',
+        'Dolby Vision': pluginPath + 'Dolby Vision.svg',
+        '7.1': pluginPath + '7.1.svg',
+        '5.1': pluginPath + '5.1.svg',
+        '4.0': pluginPath + '4.0.svg',
+        '2.0': pluginPath + '2.0.svg',
+        'DUB': pluginPath + 'DUB.svg',
+        'UKR': pluginPath + 'UKR.svg'
+    };
 
-    window.logoplugin = true;
+    // 2. Стилі
+    function applyStyles() {
+        var oldStyle = document.getElementById('mobile-interface-styles');
+        if (oldStyle) oldStyle.parentNode.removeChild(oldStyle);
 
-
-
-    function log(...args) {
-
-        if (window.logoplugin) console.log('[combined-plugin]', ...args);
-
-    }
-
-
-
-    // ===== ОСНОВНЫЕ СТИЛИ =====
-
-    function applyBaseStyles() {
-
-        var oldStyle = document.getElementById('no-blur-plugin-styles');
-
-        if (oldStyle) oldStyle.remove();
-
-        
-
+        var isAnimationEnabled = Lampa.Storage.get('mobile_interface_animation');
         var style = document.createElement('style');
-
-        style.id = 'no-blur-plugin-styles';
-
-        style.textContent = `
-
-            @media screen and (max-width: 480px) {
-
-                .full-start__poster,
-
-                .full-start-new__poster,
-
-                .full-start__poster img,
-
-                .full-start-new__poster img,
-
-                .screensaver__slides-slide img,
-
-                .screensaver__bg,
-
-                .card--collection .card__img {
-
-                    filter: none !important;
-
-                    -webkit-filter: none !important;
-
-                }
-
-                
-
-                .background {
-
-                    background: #000 !important;
-
-                }
-
-                
-
-                .full-start-new__right {
-
-                    background: none !important;
-
-                    border: none !important;
-
-                    border-radius: 0 !important;
-
-                    box-shadow: none !important;
-
-                    outline: none !important;
-
-                }
-
-                .full-start-new__right::before, 
-
-                .full-start-new__right::after {
-
-                    background: none !important;
-
-                    box-shadow: none !important;
-
-                    border: none !important;
-
-                    opacity: 0 !important;
-
-                    content: unset !important;
-
-                }
-
-                
-
-                .full-start-new__title {
-
-                    position: relative !important;
-
-                    width: 100% !important;
-
-                    display: flex !important;
-
-                    justify-content: center !important;
-
-                    align-items: center !important;
-
-                    min-height: 70px !important;
-
-                    margin: 0 auto !important;
-
-                    box-sizing: border-box !important;
-
-                }
-
-                
-
-                .full-start-new__poster {
-
-                    position: relative !important;
-
-                    overflow: visible !important;
-
-                }
-
-                
-
-                .full-start-new__poster img,
-
-                .full--poster {
-
-                    mask-image: linear-gradient(to bottom, 
-
-                        rgba(0, 0, 0, 1) 0%,
-
-                        rgba(0, 0, 0, 1) 50%,
-
-                        rgba(0, 0, 0, 0.8) 70%,
-
-                        rgba(0, 0, 0, 0.4) 85%,
-
-                        rgba(0, 0, 0, 0) 100%) !important;
-
-                    -webkit-mask-image: linear-gradient(to bottom, 
-
-                        rgba(0, 0, 0, 1) 0%,
-
-                        rgba(0, 0, 0, 1) 50%,
-
-                        rgba(0, 0, 0, 0.8) 70%,
-
-                        rgba(0, 0, 0, 0.4) 85%,
-
-                        rgba(0, 0, 0, 0) 100%) !important;
-
-                }
-
-                
-
-                .full-start-new__img {
-
-                    border-radius: 0 !important;
-
-                    mask-image: linear-gradient(to bottom, 
-
-                        rgba(0, 0, 0, 0) 0%,
-
-                        rgba(0, 0, 0, 0.3) 5%,
-
-                        rgba(0, 0, 0, 0.6) 12%,
-
-                        rgba(0, 0, 0, 0.85) 20%,
-
-                        rgba(0, 0, 0, 1) 30%,
-
-                        rgba(0, 0, 0, 1) 70%,
-
-                        rgba(0, 0, 0, 0.8) 85%,
-
-                        rgba(0, 0, 0, 0.4) 95%,
-
-                        rgba(0, 0, 0, 0) 100%) !important;
-
-                    -webkit-mask-image: linear-gradient(to bottom, 
-
-                        rgba(0, 0, 0, 0) 0%,
-
-                        rgba(0, 0, 0, 0.3) 5%,
-
-                        rgba(0, 0, 0, 0.6) 12%,
-
-                        rgba(0, 0, 0, 0.85) 20%,
-
-                        rgba(0, 0, 0, 1) 30%,
-
-                        rgba(0, 0, 0, 1) 70%,
-
-                        rgba(0, 0, 0, 0.8) 85%,
-
-                        rgba(0, 0, 0, 0.4) 95%,
-
-                        rgba(0, 0, 0, 0) 100%) !important;
-
-                }
-
-                
-
-                .full-start-new__head {
-
-                    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8), 0 0 8px rgba(0, 0, 0, 0.6) !important;
-
-                }
-
-                
-
-                .full-start-new__right, .full-start__left {
-
-                    display: flex !important;
-
-                    flex-direction: column !important;
-
-                    justify-content: center !important;
-
-                    align-items: center !important;
-
-                }
-
-                
-
-                .full-start-new__buttons, .full-start-new__rate-line, .full-start__buttons, .full-start__details {
-
-                    justify-content: center !important;
-
-                    align-items: center !important;
-
-                    display: flex !important;
-
-                    flex-direction: row !important;
-
-                    gap: 0.5em !important;
-
-                    flex-wrap: wrap !important;
-
-                }
-
-                
-
-                .full-start-new__details, .full-descr__details, .full-descr__tags {
-
-                    justify-content: center !important;
-
-                    align-items: center !important;
-
-                    display: flex !important;
-
-                    flex-direction: row !important;
-
-                    flex-wrap: wrap !important;
-
-                }
-
-                
-
-                .full-descr__text, .full-start-new__title, .full-start-new__tagline, .full-start__title, .full-start__title-original {
-
-                    display: flex !important;
-
-                    flex-direction: row !important;
-
-                    justify-content: center !important;
-
-                    align-items: center !important;
-
-                    text-align: center !important;
-
-                }
-
-            }
-
-        `;
-
+        style.id = 'mobile-interface-styles';
+        
+        var css = '@keyframes kenBurnsEffect { 0% { transform: scale(1); } 50% { transform: scale(1.15); } 100% { transform: scale(1); } } ';
+        css += '@keyframes qb_in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } } ';
+        css += '@media screen and (max-width: 480px) { ';
+        css += '.background { background: #000 !important; } ';
+        css += '.full-start-new__poster { position: relative !important; overflow: hidden !important; touch-action: none !important; pointer-events: none !important; } ';
+        css += '.full-start-new__poster img { ';
+        css += (isAnimationEnabled ? 'animation: kenBurnsEffect 30s ease-in-out infinite !important; ' : 'animation: none !important; ');
+        css += 'transform-origin: center center !important; ';
+        css += 'mask-image: linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,1) 50%, rgba(0,0,0,0.8) 70%, rgba(0,0,0,0.4) 85%, rgba(0,0,0,0) 100%) !important; ';
+        css += '-webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,1) 50%, rgba(0,0,0,0.8) 70%, rgba(0,0,0,0.4) 85%, rgba(0,0,0,0) 100%) !important; } ';
+        css += '.full-start-new__img { border-radius: 0 !important; mask-image: linear-gradient(to bottom, rgba(0,0,0,0) 0%, rgba(0,0,0,1) 30%, rgba(0,0,0,1) 70%, rgba(0,0,0,0) 100%) !important; -webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,0) 0%, rgba(0,0,0,1) 30%, rgba(0,0,0,1) 70%, rgba(0,0,0,0) 100%) !important; } ';
+        css += '.full-start-new__right { background: none !important; border: none !important; box-shadow: none !important; margin-top: -120px !important; z-index: 2 !important; display: flex !important; flex-direction: column !important; align-items: center !important; } ';
+        css += '.full-start-new__right::before, .full-start-new__right::after { content: unset !important; } ';
+        css += '.full-start-new__title { width: 100%; display: flex; justify-content: center; min-height: 70px; } ';
+        css += '.full-start-new__buttons, .full-start-new__details, .full-descr__text, .full-start-new__tagline { justify-content: center !important; text-align: center !important; display: flex !important; } ';
+        
+        css += '.full-start-new__tagline { font-style: italic; opacity: 0.8; font-size: 0.95em; margin-bottom: 12px !important; color: #fff; } ';
+
+        css += '.quality-badges-container { display: flex; align-items: center; justify-content: center; gap: 0.6em; margin: 12px 0; flex-wrap: wrap; width: 100%; min-height: 2em; } ';
+        css += '.quality-badge { height: 1.3em; opacity: 0; animation: qb_in 0.4s ease forwards; display: flex; align-items: center; } ';
+        css += '.studio-logo { height: 1.8em !important; margin-right: 4px; } ';
+        css += '.quality-badge img { height: 100%; width: auto; display: block; } ';
+        css += '} ';
+
+        style.textContent = css;
         document.head.appendChild(style);
-
-        
-
-        return true;
-
     }
 
-
-
-    function initBlurPlugin() {
-
-        applyBaseStyles();
-
-
-
-        setTimeout(applyBaseStyles, 100);
-
-        setTimeout(applyBaseStyles, 300);
-
-        setTimeout(applyBaseStyles, 500);
-
-        setTimeout(applyBaseStyles, 1000);
-
-
-
-        setInterval(function() {
-
-            if (window.innerWidth <= 480) {
-
-                if (window.lampa_settings && window.lampa_settings.blur_poster !== false) {
-
-                    window.lampa_settings.blur_poster = false;
-
-                }
-
-            }
-
-        }, 1000);
-
-    }
-
-
-
-    // ===== ФУНКЦИИ ДЛЯ МОБИЛЬНЫХ СТИЛЕЙ =====
-
-    function initMobileStyles() {
-
-        if (window.innerWidth > 480) return;
-
-        
-
-        applyMobileStyles();
-
-        
-
-        if (typeof Lampa.Listener !== 'undefined' && typeof Lampa.Listener.follow === 'function') {
-
-            Lampa.Listener.follow('app', function(e) {
-
-                if (window.innerWidth > 480) return;
-
-                
-
-                if (e.type === 'full' || e.type === 'card') {
-
-                    applyMobileStyles();
-
-                    setTimeout(applyMobileStyles, 50);
-
-                    setTimeout(applyMobileStyles, 150);
-
-                    setTimeout(applyMobileStyles, 400);
-
-                    setTimeout(applyMobileStyles, 800);
-
-                    startDOMObserver();
-
-                }
-
-                
-
-                if (e.type === 'hide' || e.type === 'component_hide') {
-
-                    stopDOMObserver();
-
-                }
-
-            });
-
-        }
-
-
-
-        startDOMObserver();
-
-        
-
-        setTimeout(applyMobileStyles, 200);
-
-        setTimeout(applyMobileStyles, 500);
-
-        setTimeout(applyMobileStyles, 1000);
-
-        setTimeout(applyMobileStyles, 1500);
-
-    }
-
-
-
-    function startDOMObserver() {
-
-        if (window.innerWidth > 480) return;
-
-        
-
-        stopDOMObserver();
-
-        
-
-        observer = new MutationObserver(function(mutations) {
-
-            if (window.innerWidth > 480) return;
-
-            
-
-            let shouldApplyStyles = false;
-
-            
-
-            mutations.forEach(function(mutation) {
-
-                if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
-
-                    for (let node of mutation.addedNodes) {
-
-                        if (node.nodeType === 1) {
-
-                            if (node.classList && (
-
-                                node.classList.contains('full-start-new__right') ||
-
-                                node.classList.contains('full-start__left') ||
-
-                                node.classList.contains('items-line__head') ||
-
-                                node.classList.contains('full-start-new__poster') ||
-
-                                node.querySelector('.full-start-new__right') ||
-
-                                node.querySelector('.full-start__left') ||
-
-                                node.querySelector('.items-line__head') ||
-
-                                node.querySelector('.full-start-new__poster')
-
-                            )) {
-
-                                shouldApplyStyles = true;
-
-                            }
-
-                        }
-
+    // 3. Рендер логотипів студій
+    function renderStudioLogos(container, data) {
+        if (!Lampa.Storage.get('mobile_interface_studios')) return;
+        var logos = [];
+        var sources = [data.networks, data.production_companies];
+        sources.forEach(function (source) {
+            if (source && source.length) {
+                source.forEach(function (item) {
+                    if (item.logo_path) {
+                        var logoUrl = Lampa.Api.img(item.logo_path, 'w200');
+                        var exists = false;
+                        for(var i=0; i<logos.length; i++) { if(logos[i].url === logoUrl) exists = true; }
+                        if (!exists) logos.push({ url: logoUrl, name: item.name });
                     }
+                });
+            }
+        });
 
-                }
+        logos.forEach(function (logo) {
+            var imgId = 'logo_' + Math.random().toString(36).substr(2, 9);
+            container.append('<div class="quality-badge studio-logo" id="' + imgId + '"><img src="' + logo.url + '" title="' + logo.name + '"></div>');
+            var img = new Image();
+            img.crossOrigin = 'anonymous';
+            img.onload = function () {
+                var canvas = document.createElement('canvas');
+                var ctx = canvas.getContext('2d');
+                canvas.width = this.width; canvas.height = this.height;
+                ctx.drawImage(this, 0, 0);
+                try {
+                    var pixels = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+                    var r = 0, g = 0, b = 0, cnt = 0;
+                    for (var i = 0; i < pixels.length; i += 4) { if (pixels[i + 3] > 50) { r += pixels[i]; g += pixels[i + 1]; b += pixels[i + 2]; cnt++; } }
+                    if (cnt > 0 && (0.299 * (r / cnt) + 0.587 * (g / cnt) + 0.114 * (b / cnt)) < 40) {
+                        $('#' + imgId + ' img').css({ 'filter': 'brightness(0) invert(1)', 'opacity': '0.9' });
+                    }
+                } catch (e) { }
+            };
+            img.src = logo.url;
+        });
+    }
 
-                
+    // 4. Аналіз якості
+    function getBest(results) {
+        var best = { resolution: null, hdr: false, dolbyVision: false, audio: null, dub: false, ukr: false };
+        var resOrder = ['HD', 'FULL HD', '2K', '4K'];
+        var audioOrder = ['2.0', '4.0', '5.1', '7.1'];
+        
+        var limit = Math.min(results.length, 30);
+        for (var i = 0; i < limit; i++) {
+            var item = results[i];
+            var title = (item.Title || '').toLowerCase();
 
-                if (mutation.type === 'attributes' && 
+            if (title.indexOf('ukr') >= 0 || title.indexOf('укр') >= 0 || title.indexOf('ua') >= 0) best.ukr = true;
+            if (title.indexOf('dub') >= 0 || title.indexOf('дубл') >= 0) best.dub = true;
 
-                    mutation.target.classList && 
+            var foundRes = null;
+            if (title.indexOf('4k') >= 0 || title.indexOf('2160') >= 0 || title.indexOf('uhd') >= 0) foundRes = '4K';
+            else if (title.indexOf('2k') >= 0 || title.indexOf('1440') >= 0) foundRes = '2K';
+            else if (title.indexOf('1080') >= 0 || title.indexOf('fhd') >= 0 || title.indexOf('full hd') >= 0) foundRes = 'FULL HD';
+            else if (title.indexOf('720') >= 0 || title.indexOf('hd') >= 0) foundRes = 'HD';
 
-                    (mutation.target.classList.contains('full-start-new__poster'))) {
+            if (foundRes && (!best.resolution || resOrder.indexOf(foundRes) > resOrder.indexOf(best.resolution))) best.resolution = foundRes;
 
-                    shouldApplyStyles = true;
-
-                }
-
-            });
-
-            
-
-            if (shouldApplyStyles) {
-
-                applyMobileStyles();
-
-                setTimeout(applyMobileStyles, 50);
-
-                setTimeout(applyMobileStyles, 100);
-
-                setTimeout(applyBaseStyles, 150);
-
+            if (item.ffprobe && Array.isArray(item.ffprobe)) {
+                item.ffprobe.forEach(function(stream) {
+                    if (stream.codec_type === 'video') {
+                        if (stream.side_data_list && JSON.stringify(stream.side_data_list).indexOf('Vision') >= 0) best.dolbyVision = true;
+                        if (stream.color_transfer === 'smpte2084' || stream.color_transfer === 'arib-std-b67') best.hdr = true;
+                    }
+                    if (stream.codec_type === 'audio' && stream.channels) {
+                        var ch = parseInt(stream.channels);
+                        var aud = (ch >= 8) ? '7.1' : (ch >= 6) ? '5.1' : (ch >= 4) ? '4.0' : '2.0';
+                        if (!best.audio || audioOrder.indexOf(aud) > audioOrder.indexOf(best.audio)) best.audio = aud;
+                    }
+                });
             }
 
-        });
-
-        
-
-        observer.observe(document.body, {
-
-            childList: true,
-
-            subtree: true,
-
-            attributes: true,
-
-            attributeFilter: ['class', 'style']
-
-        });
-
-    }
-
-
-
-    function stopDOMObserver() {
-
-        if (observer) {
-
-            observer.disconnect();
-
-            observer = null;
-
+            if (title.indexOf('vision') >= 0 || title.indexOf('dovi') >= 0 || title.indexOf(' dv ') >= 0) best.dolbyVision = true;
+            if (title.indexOf('hdr') >= 0) best.hdr = true;
+            
+            if (!best.audio) {
+                var fA = null;
+                if (title.indexOf('7.1') >= 0) fA = '7.1';
+                else if (title.indexOf('5.1') >= 0 || title.indexOf('6ch') >= 0 || title.indexOf('ac3') >= 0) fA = '5.1';
+                else if (title.indexOf('4.0') >= 0) fA = '4.0';
+                else if (title.indexOf('2.0') >= 0 || title.indexOf('2ch') >= 0) fA = '2.0';
+                if (fA && (!best.audio || audioOrder.indexOf(fA) > audioOrder.indexOf(best.audio))) best.audio = fA;
+            }
         }
-
+        if (best.dolbyVision) best.hdr = true;
+        return best;
     }
 
-
-
-    function applyMobileStyles() {
-
-        if (window.innerWidth > 480) return;
-
-        
-
-        applySectionHeadStyles();
-
+    function createBadgeImg(type, index) {
+        var iconPath = svgIcons[type];
+        if (!iconPath) return '';
+        var delay = (index * 0.08) + 's';
+        return '<div class="quality-badge" style="animation-delay: ' + delay + '"><img src="' + iconPath + '" draggable="false"></div>';
     }
 
+    // 5. Реєстрація налаштувань
+    function addSettings() {
+        Lampa.SettingsApi.addComponent({
+            component: 'mobile_interface',
+            icon: '<svg height="36" viewBox="0 0 24 24" width="36" xmlns="http://www.w3.org/2000/svg"><path d="M17 1.01L7 1c-1.1 0-2 .9-2 2v18c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2V3c0-1.1-.9-1.99-2-1.99zM17 19H7V5h10v14z" fill="white"/></svg>',
+            name: 'Мобільний інтерфейс'
+        });
 
-
-    function applySectionHeadStyles() {
-
-        if (window.innerWidth > 480) return;
-
-        
-
-        const sectionTitles = [
-
-            'Рекомендации',
-
-            'Режиссер', 
-
-            'Актеры',
-
-            'Подробно',
-
-            'Похожие',
-
-            'Коллекция'
-
+        var params = [
+            { id: 'mobile_interface_animation', label: 'Анімація постера', desc: 'Ефект наближення фону' },
+            { id: 'mobile_interface_studios', label: 'Логотипи студій', desc: 'Показувати іконки Netflix, Disney тощо' },
+            { id: 'mobile_interface_quality', label: 'Значки якості', desc: 'Показувати 4K, HDR, UKR (потрібен парсер)' }
         ];
 
-
-
-        document.querySelectorAll('.items-line__head').forEach(element => {
-
-            const text = element.textContent.trim();
-
-            
-
-            if (text && (
-
-                sectionTitles.includes(text) ||
-
-                text.includes('Сезон')
-
-            )) {
-
-                element.style.display = 'flex';
-
-                element.style.justifyContent = 'center';
-
-                element.style.alignItems = 'center';
-
-                element.style.width = '100%';
-
-            }
-
+        params.forEach(function (p) {
+            Lampa.SettingsApi.addParam({
+                component: 'mobile_interface',
+                param: { name: p.id, type: 'trigger', default: true },
+                field: { name: p.label, description: p.desc },
+                onChange: function () { applyStyles(); }
+            });
         });
-
     }
 
+    // 6. Логіка завантаження Лого фільму та Якості
+    function initLogoAndBadges() {
+        Lampa.Listener.follow('full', function (e) {
+            if (window.innerWidth <= 480 && (e.type === 'complite' || e.type === 'complete')) {
+                var movie = e.data.movie;
+                var $render = e.object.activity.render();
+                var $details = $render.find('.full-start-new__details');
+                var $title = $render.find('.full-start-new__title');
 
-
-    // ===== ФУНКЦИИ ДЛЯ ЛОГОТИПОВ =====
-
-    function initLogoPlugin() {
-
-        Lampa.Listener.follow('full', function(e) {
-
-            if (window.innerWidth > 480) return;
-
-            
-
-            if (e.type === 'complite') {
-
-                var data = e.data.movie;
-
-                var type = data.name ? 'tv' : 'movie';
-
+                var lang = Lampa.Storage.get('language') || 'uk';
+                var type = movie.name ? 'tv' : 'movie';
+                var apiKey = Lampa.TMDB.key();
                 
-
-                if (data.id !== '') {
-
-                    var url = Lampa.TMDB.api(type + '/' + data.id + '/images?api_key=' + Lampa.TMDB.key() + '&language=' + Lampa.Storage.get('language'));
-
-                    
-
-                    $.get(url, function(data) {
-
-                        if (data.logos && data.logos[0]) {
-
-                            var logo = data.logos[0].file_path;
-
-                            
-
-                            if (logo !== '') {
-
-                                e.object.activity.render().find('.full-start-new__title').html(
-
-                                    '<div style="display: flex; justify-content: center; align-items: center; width: 100%;">' +
-
-                                    '<img style="margin-top: 5px; max-height: 125px;" src="' + Lampa.TMDB.image('/t/p/w300' + logo.replace('.svg', '.png')) + '"/>' +
-
-                                    '</div>'
-
-                                );
-
-                            }
-
-                        }
-
-                    }).fail(function() {
-
-                        log('Failed to load logo');
-
-                    });
-
-                }
-
-            }
-
-        });
-
-    }
-
-
-
-    // ===== ОБЩАЯ ИНИЦИАЛИЗАЦИЯ =====
-
-    function initAllPlugins() {
-
-        initBlurPlugin();
-
-        initMobileStyles();
-
-        initLogoPlugin();
-
-    }
-
-
-
-    function startPlugin() {
-
-        if (window.appready) {
-
-            initAllPlugins();
-
-        } else {
-
-            if (typeof Lampa.Listener !== 'undefined' && typeof Lampa.Listener.follow === 'function') {
-
-                Lampa.Listener.follow('app', function(e) {
-
-                    if (e.type === 'ready') {
-
-                        setTimeout(initAllPlugins, 500);
-
+                $.ajax({
+                    url: 'https://api.themoviedb.org/3/' + type + '/' + movie.id + '/images?api_key=' + apiKey + '&language=' + lang,
+                    success: function(res) {
+                        if (res.logos && res.logos.length > 0) renderLogo(res.logos[0].file_path);
+                        else $.ajax({ url: 'https://api.themoviedb.org/3/' + type + '/' + movie.id + '/images?api_key=' + apiKey + '&language=en', success: function(re) { if(re.logos && re.logos[0]) renderLogo(re.logos[0].file_path); }});
                     }
-
                 });
 
-            } else {
+                function renderLogo(p) {
+                    var imgUrl = Lampa.TMDB.image('/t/p/w300' + p.replace('.svg', '.png'));
+                    $title.html('<img src="' + imgUrl + '" style="max-height: 120px; object-fit: contain; position: relative; z-index: 10;">');
+                }
 
-                setTimeout(initAllPlugins, 2000);
+                if ($details.length) {
+                    $('.quality-badges-container').remove();
+                    $details.after('<div class="quality-badges-container"></div>');
+                    var container = $('.quality-badges-container');
+                    
+                    renderStudioLogos(container, movie);
 
+                    if (Lampa.Storage.get('mobile_interface_quality') && Lampa.Storage.field('parser_use')) {
+                        Lampa.Parser.get({ search: movie.title || movie.name, movie: movie, page: 1 }, function (response) {
+                            if (response && response.Results) {
+                                var best = getBest(response.Results);
+                                var badgeList = [];
+                                
+                                if (best.resolution) badgeList.push(best.resolution);
+                                if (best.dolbyVision) badgeList.push('Dolby Vision');
+                                if (best.hdr && !best.dolbyVision) badgeList.push('HDR'); 
+                                if (best.audio) badgeList.push(best.audio);
+                                if (best.dub) badgeList.push('DUB');
+                                if (best.ukr) badgeList.push('UKR');
+
+                                var htmlBadges = badgeList.map(function(type, i) {
+                                    return createBadgeImg(type, i);
+                                });
+                                
+                                container.append(htmlBadges.join(''));
+                            }
+                        });
+                    }
+                }
             }
-
-        }
-
+        });
     }
 
-
-
-    if (typeof Lampa.Timer !== 'undefined' && typeof Lampa.Timer.add === 'function') {
-
-        Lampa.Timer.add(500, startPlugin, true);
-
-    } else {
-
-        setTimeout(startPlugin, 500);
-
+    function start() {
+        applyStyles();
+        addSettings();
+        initLogoAndBadges();
+        setInterval(function () { if (window.innerWidth <= 480 && window.lampa_settings) window.lampa_settings.blur_poster = false; }, 1000);
     }
 
-
-
+    if (window.appready) start();
+    else Lampa.Listener.follow('app', function (e) { if (e.type === 'ready') start(); });
 })();
