@@ -26,7 +26,7 @@
         '2.0': pluginPath + '2.0.svg', 'DUB': pluginPath + 'DUB.svg', 'UKR': pluginPath + 'UKR.svg'
     };
 
-    // 2. Стилі з м'якою підсвіткою
+    // 2. Стилі
     function applyStyles() {
         var oldStyle = document.getElementById('mobile-interface-styles');
         if (oldStyle) oldStyle.parentNode.removeChild(oldStyle);
@@ -56,14 +56,8 @@
         
         css += '.studio-item { height: 2.2em; opacity: 0; animation: qb_in 0.4s ease forwards; } ';
         css += '.quality-item { height: 1.25em; opacity: 0; animation: qb_in 0.4s ease forwards; } ';
-        
-        /* Змінено на м'який "димчастий" ареол для балансу кольорових та темних лого */
-        css += '.studio-item img { ';
-        css += 'height: 100%; width: auto; object-fit: contain; ';
-        css += 'filter: drop-shadow(0px 0px 4px rgba(255,255,255,0.4)) drop-shadow(0px 0px 1px rgba(255,255,255,0.6)); ';
-        css += '} ';
-        
-        css += '.quality-item img { height: 100%; width: auto; object-fit: contain; } ';
+        /* Додано drop-shadow для видимості темних логотипів на темному фоні */
+        css += '.studio-item img, .quality-item img { height: 100%; width: auto; object-fit: contain; filter: drop-shadow(0px 0px 1px rgba(255,255,255,0.5)); } ';
         css += '} ';
 
         style.textContent = css;
@@ -159,6 +153,7 @@
                                 var logoUrl = Lampa.Api.img(s.logo_path, 'w200');
                                 var $item = $('<div class="studio-item"><img src="' + logoUrl + '"></div>');
                                 $infoBlock.find('.studio-row').append($item);
+                                // ПРОБЛЕМНИЙ БЛОК АНАЛІЗУ ПІКСЕЛІВ ВИДАЛЕНО
                             }
                         });
                     }
@@ -254,3 +249,4 @@
     if (window.appready) start();
     else Lampa.Listener.follow('app', function (e) { if (e.type === 'ready') start(); });
 })();
+                
