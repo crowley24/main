@@ -1600,7 +1600,7 @@ Lampa.SettingsApi.addParam({
         Lampa.SettingsApi.addParam({
             component: 'add_plugin',
             param: {
-                name: 'Стильний інтерфейс (mobile)',
+                name: 'Мобільний інтерфейс',
                 type: 'select',
                 values: {
                     1: 'Встановити',
@@ -1608,16 +1608,16 @@ Lampa.SettingsApi.addParam({
                 },
             },
             field: {
-                name: 'Стильний інтерфейс (mobile)',
+                name: 'Мобільний інтерфейс',
                 description: 'Стильний інтерфейс в картці фільму на мобільних пристроях'
             },
             onChange: function (value, item) { 
-                var pluginUrl = 'https://crowley24.github.io/mob_style.js';
-                var pluginName = 'Стильний інтерфейс (mobile)';
+                var pluginUrl = 'https://crowley24.github.io/main/Mob_style.js';
+                var pluginName = 'Мобільний інтерфейс';
                 var index = $(item).data('nthChildIndex'); 
 
                 if (value == '1') {
-                    itemON(pluginUrl, pluginName, '@author', pluginName, index); 
+                    itemON(pluginUrl, pluginName, 'Crowley', pluginName, index); 
                 }
                 
                 if (value == '2') {
@@ -1625,8 +1625,8 @@ Lampa.SettingsApi.addParam({
                 }
             },
             onRender: function (item) { $('.settings-param__name', item).css('color', 'f3d900'); hideInstall()
-                var pluginUrl = 'https://crowley24.github.io/mob_style.js';
-                var pluginName = 'Стильний інтерфейс (mobile)';
+                var pluginUrl = 'https://crowley24.github.io/main/Mob_style.js';
+                var pluginName = 'Мобільний інтерфейс';
                 var myResult = checkPlugin(pluginUrl);
                 var pluginsArray = Lampa.Storage.get('plugins');
                 
