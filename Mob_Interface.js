@@ -26,7 +26,7 @@
         '2.0': pluginPath + '2.0.svg', 'DUB': pluginPath + 'DUB.svg', 'UKR': pluginPath + 'UKR.svg'
     };
 
-    // 2. Стилі з виправленням накладання
+    // 2. Стилі з м'якою підсвіткою
     function applyStyles() {
         var oldStyle = document.getElementById('mobile-interface-styles');
         if (oldStyle) oldStyle.parentNode.removeChild(oldStyle);
@@ -49,27 +49,31 @@
         css += '.full-start-new__title { width: 100%; display: flex; justify-content: center; min-height: 80px; margin-bottom: 5px; } ';
         css += '.full-start-new__title img { max-height: 100px; object-fit: contain; filter: drop-shadow(0 0 8px rgba(0,0,0,0.6)); } ';
         
-        // Повернутий стиль Tagline
         css += '.full-start-new__tagline { font-style: italic !important; opacity: 0.9 !important; font-size: 1.05em !important; margin: 5px 0 15px !important; color: #fff !important; text-align: center !important; text-shadow: 0 2px 4px rgba(0,0,0,0.8); } ';
 
-        // Контейнер для розділення Студій та Якості
         css += '.plugin-info-block { display: flex; flex-direction: column; align-items: center; gap: 12px; margin: 15px 0; width: 100%; } ';
         css += '.studio-row, .quality-row { display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 10px; width: 100%; } ';
         
         css += '.studio-item { height: 2.2em; opacity: 0; animation: qb_in 0.4s ease forwards; } ';
         css += '.quality-item { height: 1.25em; opacity: 0; animation: qb_in 0.4s ease forwards; } ';
-        css += '.studio-item img, .quality-item img { height: 100%; width: auto; object-fit: contain; } ';
+        
+        /* Змінено на м'який "димчастий" ареол для балансу кольорових та темних лого */
+        css += '.studio-item img { ';
+        css += 'height: 100%; width: auto; object-fit: contain; ';
+        css += 'filter: drop-shadow(0px 0px 4px rgba(255,255,255,0.4)) drop-shadow(0px 0px 1px rgba(255,255,255,0.6)); ';
+        css += '} ';
+        
+        css += '.quality-item img { height: 100%; width: auto; object-fit: contain; } ';
         css += '} ';
 
         style.textContent = css;
         document.head.appendChild(style);
     }
 
-    // 3. Аналіз якості (Повна версія)
+    // 3. Аналіз якості
     function getBest(results) {
         var best = { resolution: null, hdr: false, dolbyVision: false, audio: null, dub: false, ukr: false };
         var resOrder = ['HD', 'FULL HD', '2K', '4K'];
-        var audioOrder = ['2.0', '4.0', '5.1', '7.1'];
         var limit = Math.min(results.length, 30);
         for (var i = 0; i < limit; i++) {
             var item = results[i];
@@ -128,7 +132,6 @@
                 var $render = e.object.activity.render();
                 var $details = $render.find('.full-start-new__details');
                 
-                // Лого та Слайд-шоу
                 $.ajax({
                     url: 'https://api.themoviedb.org/3/' + (movie.name ? 'tv' : 'movie') + '/' + movie.id + '/images?api_key=' + Lampa.TMDB.key(),
                     success: function(res) {
@@ -142,7 +145,6 @@
                     }
                 });
 
-                // Вивід інформації (Студії + Якість)
                 if ($details.length) {
                     $('.plugin-info-block').remove();
                     var $infoBlock = $('<div class="plugin-info-block"><div class="studio-row"></div><div class="quality-row"></div></div>');
@@ -157,17 +159,6 @@
                                 var logoUrl = Lampa.Api.img(s.logo_path, 'w200');
                                 var $item = $('<div class="studio-item"><img src="' + logoUrl + '"></div>');
                                 $infoBlock.find('.studio-row').append($item);
-                                
-                                var img = new Image();
-                                img.crossOrigin = "Anonymous";
-                                img.onload = function() {
-                                    var canvas = document.createElement('canvas');
-                                    var ctx = canvas.getContext('2d');
-                                    canvas.width = 1; canvas.height = 1;
-                                    ctx.drawImage(img, 0, 0, 1, 1);
-                                    if (ctx.getImageData(0,0,1,1).data[0] < 40) $item.find('img').css('filter', 'brightness(0) invert(1)');
-                                };
-                                img.src = logoUrl;
                             }
                         });
                     }
@@ -197,7 +188,7 @@
         });
     }
 
-    // 6. Реєстрація налаштувань (Повна версія)
+    // 6. Реєстрація налаштувань
     function addSettings() {
         Lampa.SettingsApi.addComponent({
             component: 'mobile_interface',
@@ -257,11 +248,9 @@
         applyStyles();
         addSettings();
         initPlugin();
-        // Примусове вимкнення блюру в налаштуваннях самої Лампи для мобілок
         setInterval(function () { if (window.innerWidth <= 480 && window.lampa_settings) window.lampa_settings.blur_poster = false; }, 2000);
     }
 
     if (window.appready) start();
     else Lampa.Listener.follow('app', function (e) { if (e.type === 'ready') start(); });
 })();
-                            
