@@ -1,10 +1,10 @@
 (function () {
     'use strict';
 
-    // 1. Ініціалізація налаштувань
     var settings_list = [
         { id: 'mobile_interface_animation', default: true },
         { id: 'mobile_interface_studios', default: true },
+        { id: 'mobile_interface_studios_bg_opacity', default: '0.15' },
         { id: 'mobile_interface_quality', default: true },
         { id: 'mobile_interface_slideshow', default: true },
         { id: 'mobile_interface_slideshow_time', default: '10000' }, 
@@ -26,12 +26,12 @@
         '2.0': pluginPath + '2.0.svg', 'DUB': pluginPath + 'DUB.svg', 'UKR': pluginPath + 'UKR.svg'
     };
 
-    // 2. Стилі
     function applyStyles() {
         var oldStyle = document.getElementById('mobile-interface-styles');
         if (oldStyle) oldStyle.parentNode.removeChild(oldStyle);
 
         var isAnimationEnabled = Lampa.Storage.get('mobile_interface_animation');
+        var bgOpacity = Lampa.Storage.get('mobile_interface_studios_bg_opacity', '0.15');
         var style = document.createElement('style');
         style.id = 'mobile-interface-styles';
         
@@ -51,20 +51,27 @@
         
         css += '.full-start-new__tagline { font-style: italic !important; opacity: 0.9 !important; font-size: 1.05em !important; margin: 5px 0 15px !important; color: #fff !important; text-align: center !important; text-shadow: 0 2px 4px rgba(0,0,0,0.8); } ';
 
-        css += '.plugin-info-block { display: flex; flex-direction: column; align-items: center; gap: 12px; margin: 15px 0; width: 100%; } ';
+        css += '.plugin-info-block { display: flex; flex-direction: column; align-items: center; gap: 14px; margin: 15px 0; width: 100%; } ';
         css += '.studio-row, .quality-row { display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 10px; width: 100%; } ';
         
-        css += '.studio-item { height: 2.2em; opacity: 0; animation: qb_in 0.4s ease forwards; } ';
-        css += '.quality-item { height: 1.25em; opacity: 0; animation: qb_in 0.4s ease forwards; } ';
-        /* Додано drop-shadow для видимості темних логотипів на темному фоні */
-        css += '.studio-item img, .quality-item img { height: 100%; width: auto; object-fit: contain; filter: drop-shadow(0px 0px 1px rgba(255,255,255,0.5)); } ';
+        // Підкладка з урахуванням вимкнення
+        css += '.studio-item { height: 3.2em; opacity: 0; animation: qb_in 0.4s ease forwards; padding: 6px 12px; border-radius: 12px; display: flex; align-items: center; justify-content: center; ';
+        if (bgOpacity !== '0') {
+            css += 'background: rgba(255, 255, 255, ' + bgOpacity + '); ';
+            css += 'backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); ';
+            css += 'box-shadow: 0 2px 10px rgba(0,0,0,0.2); ';
+        }
+        css += '} ';
+
+        css += '.quality-item { height: 1.4em; opacity: 0; animation: qb_in 0.4s ease forwards; } ';
+        css += '.studio-item img { height: 100%; width: auto; object-fit: contain; filter: contrast(1.1); } ';
+        css += '.quality-item img { height: 100%; width: auto; object-fit: contain; filter: drop-shadow(0px 0px 1px rgba(255,255,255,0.4)); } ';
         css += '} ';
 
         style.textContent = css;
         document.head.appendChild(style);
     }
 
-    // 3. Аналіз якості
     function getBest(results) {
         var best = { resolution: null, hdr: false, dolbyVision: false, audio: null, dub: false, ukr: false };
         var resOrder = ['HD', 'FULL HD', '2K', '4K'];
@@ -92,7 +99,6 @@
         return best;
     }
 
-    // 4. Слайд-шоу
     function startSlideshow($poster, backdrops) {
         if (!Lampa.Storage.get('mobile_interface_slideshow') || backdrops.length < 2) return;
         var index = 0;
@@ -117,7 +123,6 @@
         }, interval);
     }
 
-    // 5. Основна логіка
     function initPlugin() {
         Lampa.Listener.follow('full', function (e) {
             if (e.type === 'destroy') clearInterval(slideshowTimer);
@@ -151,9 +156,7 @@
                             if (s.logo_path && addedLogos.indexOf(s.logo_path) === -1) {
                                 addedLogos.push(s.logo_path);
                                 var logoUrl = Lampa.Api.img(s.logo_path, 'w200');
-                                var $item = $('<div class="studio-item"><img src="' + logoUrl + '"></div>');
-                                $infoBlock.find('.studio-row').append($item);
-                                // ПРОБЛЕМНИЙ БЛОК АНАЛІЗУ ПІКСЕЛІВ ВИДАЛЕНО
+                                $infoBlock.find('.studio-row').append('<div class="studio-item"><img src="' + logoUrl + '"></div>');
                             }
                         });
                     }
@@ -183,7 +186,6 @@
         });
     }
 
-    // 6. Реєстрація налаштувань
     function addSettings() {
         Lampa.SettingsApi.addComponent({
             component: 'mobile_interface',
@@ -212,24 +214,19 @@
                 values: { '10000': '10 сек', '15000': '15 сек', '20000': '20 сек' }, 
                 default: '10000' 
             },
-            field: { name: 'Інтервал слайд-шоу', description: 'Час між зміною зображень' }
+            field: { name: 'Інтервал слайд-шоу' }
         });
 
         Lampa.SettingsApi.addParam({
             component: 'mobile_interface',
             param: { 
-                name: 'mobile_interface_slideshow_quality', 
+                name: 'mobile_interface_studios_bg_opacity', 
                 type: 'select', 
-                values: { 'w300': '300p', 'w780': '780p', 'w1280': '1280p', 'original': 'Оригінал' }, 
-                default: 'w780' 
+                values: { '0': 'Вимкнено', '0.05': 'Мінімальна', '0.15': 'Легка', '0.3': 'Середня', '0.5': 'Густа' }, 
+                default: '0.15' 
             },
-            field: { name: 'Якість слайд-шоу', description: 'Роздільна здатність картинок' }
-        });
-
-        Lampa.SettingsApi.addParam({
-            component: 'mobile_interface',
-            param: { name: 'mobile_interface_studios', type: 'trigger', default: true },
-            field: { name: 'Логотипи студій', description: 'Показувати іконки Netflix, Disney тощо' }
+            field: { name: 'Фон студій', description: 'Інтенсивність підкладки для логотипів' },
+            onChange: function () { applyStyles(); }
         });
 
         Lampa.SettingsApi.addParam({
@@ -243,10 +240,11 @@
         applyStyles();
         addSettings();
         initPlugin();
-        setInterval(function () { if (window.innerWidth <= 480 && window.lampa_settings) window.lampa_settings.blur_poster = false; }, 2000);
+        setInterval(function () { 
+            if (window.innerWidth <= 480 && window.lampa_settings) window.lampa_settings.blur_poster = false; 
+        }, 2000);
     }
 
     if (window.appready) start();
     else Lampa.Listener.follow('app', function (e) { if (e.type === 'ready') start(); });
 })();
-                
