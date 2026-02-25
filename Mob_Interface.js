@@ -54,7 +54,6 @@
         css += '.plugin-info-block { display: flex; flex-direction: column; align-items: center; gap: 14px; margin: 15px 0; width: 100%; } ';
         css += '.studio-row, .quality-row { display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 10px; width: 100%; } ';
         
-        // Підкладка з урахуванням вимкнення
         css += '.studio-item { height: 3.2em; opacity: 0; animation: qb_in 0.4s ease forwards; padding: 6px 12px; border-radius: 12px; display: flex; align-items: center; justify-content: center; ';
         if (bgOpacity !== '0') {
             css += 'background: rgba(255, 255, 255, ' + bgOpacity + '); ';
@@ -75,25 +74,39 @@
     function getBest(results) {
         var best = { resolution: null, hdr: false, dolbyVision: false, audio: null, dub: false, ukr: false };
         var resOrder = ['HD', 'FULL HD', '2K', '4K'];
-        var limit = Math.min(results.length, 30);
+        var audioOrder = ['2.0', '4.0', '5.1', '7.1'];
+        
+        var limit = Math.min(results.length, 20);
         for (var i = 0; i < limit; i++) {
             var item = results[i];
             var title = (item.Title || '').toLowerCase();
+
             if (title.indexOf('ukr') >= 0 || title.indexOf('укр') >= 0 || title.indexOf('ua') >= 0) best.ukr = true;
-            if (title.indexOf('dub') >= 0 || title.indexOf('дубл') >= 0) best.dub = true;
+
             var foundRes = null;
-            if (title.indexOf('4k') >= 0 || title.indexOf('2160') >= 0) foundRes = '4K';
+            if (title.indexOf('4k') >= 0 || title.indexOf('2160') >= 0 || title.indexOf('uhd') >= 0) foundRes = '4K';
             else if (title.indexOf('2k') >= 0 || title.indexOf('1440') >= 0) foundRes = '2K';
-            else if (title.indexOf('1080') >= 0 || title.indexOf('fhd') >= 0) foundRes = 'FULL HD';
+            else if (title.indexOf('1080') >= 0 || title.indexOf('fhd') >= 0 || title.indexOf('full hd') >= 0) foundRes = 'FULL HD';
             else if (title.indexOf('720') >= 0 || title.indexOf('hd') >= 0) foundRes = 'HD';
+
             if (foundRes && (!best.resolution || resOrder.indexOf(foundRes) > resOrder.indexOf(best.resolution))) best.resolution = foundRes;
-            if (item.ffprobe) {
-                var str = JSON.stringify(item.ffprobe);
-                if (str.indexOf('Vision') >= 0) best.dolbyVision = true;
-                if (str.indexOf('smpte2084') >= 0) best.hdr = true;
+
+            if (item.ffprobe && Array.isArray(item.ffprobe)) {
+                item.ffprobe.forEach(function(stream) {
+                    if (stream.codec_type === 'video') {
+                        if (stream.side_data_list && JSON.stringify(stream.side_data_list).indexOf('Vision') >= 0) best.dolbyVision = true;
+                        if (stream.color_transfer === 'smpte2084' || stream.color_transfer === 'arib-std-b67') best.hdr = true;
+                    }
+                    if (stream.codec_type === 'audio' && stream.channels) {
+                        var ch = parseInt(stream.channels);
+                        var aud = (ch >= 8) ? '7.1' : (ch >= 6) ? '5.1' : (ch >= 4) ? '4.0' : '2.0';
+                        if (!best.audio || audioOrder.indexOf(aud) > audioOrder.indexOf(best.audio)) best.audio = aud;
+                    }
+                });
             }
-            if (title.indexOf('vision') >= 0 || title.indexOf('dovi') >= 0) best.dolbyVision = true;
+            if (title.indexOf('vision') >= 0 || title.indexOf('dovi') >= 0 || title.indexOf(' dv ') >= 0) best.dolbyVision = true;
             if (title.indexOf('hdr') >= 0) best.hdr = true;
+            if (title.indexOf('dub') >= 0 || title.indexOf('дубл') >= 0) best.dub = true;
         }
         if (best.dolbyVision) best.hdr = true;
         return best;
@@ -162,15 +175,17 @@
                     }
 
                     if (Lampa.Storage.get('mobile_interface_quality') && Lampa.Parser.get) {
-                        Lampa.Parser.get({ search: movie.title || movie.name, movie: movie }, function(res) {
+                        Lampa.Parser.get({ search: movie.title || movie.name, movie: movie, page: 1 }, function(res) {
                             if (res && res.Results) {
                                 var best = getBest(res.Results);
                                 var list = [];
+                                
                                 if (best.resolution) list.push(best.resolution);
                                 if (best.dolbyVision) list.push('Dolby Vision');
                                 else if (best.hdr) list.push('HDR');
+                                if (best.audio) list.push(best.audio);
                                 if (best.dub) list.push('DUB');
-                                if (best.ukr) list.push('UKR');
+                                if (best.ukr) list.push('UKR'); // Тепер UKR завжди останній
                                 
                                 list.forEach((type, i) => {
                                     if (svgIcons[type]) {
@@ -232,7 +247,7 @@
         Lampa.SettingsApi.addParam({
             component: 'mobile_interface',
             param: { name: 'mobile_interface_quality', type: 'trigger', default: true },
-            field: { name: 'Значки якості', description: 'Показувати 4K, HDR, UKR' }
+            field: { name: 'Значки якості', description: 'Показувати 4K, HDR, Audio, UKR' }
         });
     }
 
@@ -248,3 +263,4 @@
     if (window.appready) start();
     else Lampa.Listener.follow('app', function (e) { if (e.type === 'ready') start(); });
 })();
+                        
