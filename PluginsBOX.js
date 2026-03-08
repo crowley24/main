@@ -1174,61 +1174,6 @@ Lampa.SettingsApi.addParam({
     }
 });
         
-          Lampa.SettingsApi.addParam({
-            component: 'add_plugin',
-            param: {
-                name: 'Rating_omdb', 
-                type: 'select',
-                values: {
-                    1: 'Встановити', // Локалізація
-                    2: 'Видалити', // Локалізація
-                },
-                //default: '1',
-            },
-            field: {
-                name: 'Rating_omdb', 
-                description: 'Цей плагін "Combined Ratings" для Lampa інтегрує рейтинги з OMDB API (Rotten Tomatoes, Metacritic, IMDB) на сторінку повного опису (full), розраховує зважену середню (IMDB/TMDB по 40%, MC/RT по 10%), додає кількість Оскарів, локалізовані вікові рейтинги (3+/6+ тощо), з анімацією завантаження та кешуванням на 3 дні'
-            },
-            onChange: function (value) {
-                if (value == '1') {
-                    itemON('https://tvigl.info/plugins/rating_omdb.js', 'Rating_omdb', '@author', 'Rating_omdb');
-                    // console.log("nthChildIndex, переданный в itemON:", nthChildIndex);
-                }
-                if (value == '2') {
-                    var pluginToRemoveUrl = "https://tvigl.info/plugins/rating_omdb.js";
-                    deletePlugin(pluginToRemoveUrl);
-                    // console.log("nthChildIndex, переданный в deletePlugin:", nthChildIndex);
-                }
-            },
-            onRender: function (item) { $('.settings-param__name', item).css('color', 'f3d900'); hideInstall()
-                var myResult = checkPlugin('https://tvigl.info/plugins/rating_omdb.js');
-                var pluginsArray = Lampa.Storage.get('plugins');
-                setTimeout(function () {
-                    $('div[data-name="Rating_omdb"]').append('<div class="settings-param__status one"></div>');
-                    var pluginStatus = null;
-                    for (var i = 0; i < pluginsArray.length; i++) {
-                        if (pluginsArray[i].url === 'https://tvigl.info/plugins/rating_omdb.js') {
-                            pluginStatus = pluginsArray[i].status;
-                            break;
-                        }
-                    }
-                    if (myResult && pluginStatus !== 0) {
-                        // Встановлено та Активно (Зелений градієнт)
-                        $('div[data-name="Rating_omdb"]').find('.settings-param__status').removeClass('active error').css('background', 'linear-gradient(45deg, #11e400, #36a700)');
-                    } else if (pluginStatus === 0) {
-                        // Відключено (Помаранчевий градієнт)
-                        $('div[data-name="Rating_omdb"]').find('.settings-param__status').removeClass('active error').css('background', 'linear-gradient(45deg, #ff8c00, #d96e00)');
-                    } else {
-                        // Не встановлено (Червоний градієнт)
-                        $('div[data-name="Rating_omdb"]').find('.settings-param__status').removeClass('active error').css('background', 'linear-gradient(45deg, #ff0000, #c40000)');
-                    }
-                }, 100);
-                item.on("hover:enter", function (event) {
-                    nthChildIndex = focus_back(event); // Зберігаємо елемент у змінній
-                });
-               }
-              });
-
         Lampa.SettingsApi.addParam({
             component: 'add_plugin',
             param: {
@@ -1612,7 +1557,7 @@ Lampa.SettingsApi.addParam({
                 description: 'Стильний інтерфейс в картці фільму на мобільних пристроях'
             },
             onChange: function (value, item) { 
-                var pluginUrl = 'https://crowley24.github.io/main/Mob_style.js';
+                var pluginUrl = 'https://crowley24.github.io/main/Mob_Interface.js';
                 var pluginName = 'Мобільний інтерфейс';
                 var index = $(item).data('nthChildIndex'); 
 
@@ -1625,7 +1570,7 @@ Lampa.SettingsApi.addParam({
                 }
             },
             onRender: function (item) { $('.settings-param__name', item).css('color', 'f3d900'); hideInstall()
-                var pluginUrl = 'https://crowley24.github.io/main/Mob_style.js';
+                var pluginUrl = 'https://crowley24.github.io/main/Mob_Interface.js';
                 var pluginName = 'Мобільний інтерфейс';
                 var myResult = checkPlugin(pluginUrl);
                 var pluginsArray = Lampa.Storage.get('plugins');
