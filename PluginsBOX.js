@@ -689,7 +689,7 @@
         description: 'Оновлений інтерфейс в повній карточці фільму' // Новий опис
     },
     onChange: function (value, item) {
-        var pluginUrl = 'https://crowley24.github.io/NewCard.js'; // Нова URL-адреса
+        var pluginUrl = 'https://crowley24.github.io/main/NewCard.js'; // Нова URL-адреса
         var pluginName = 'NewCard'; // Нова назва
         var index = $(item).data('nthChildIndex');
 
@@ -704,7 +704,7 @@
     onRender: function (item) {
         $('.settings-param__name', item).css('color', '#f3d900');
         hideInstall();
-        var pluginUrl = 'https://crowley24.github.io/NewCard.js'; // Нова URL-адреса
+        var pluginUrl = 'https://crowley24.github.io/main/NewCard.js'; // Нова URL-адреса
         var pluginName = 'NewCard'; // Нова назва
         var myResult = checkPlugin(pluginUrl);
         var pluginsArray = Lampa.Storage.get('plugins');
