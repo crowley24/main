@@ -6,7 +6,7 @@
      */
     var logoCache = {}; 
     var slideshowTimer; 
-    var pluginPath = 'https://crowley24.github.io/NewIcons/';
+    var pluginPath = 'https://crowley24.github.io/Icons/';
     
     var settings_list = [
         { id: 'mobile_interface_animation', default: true },
