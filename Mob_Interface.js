@@ -6,7 +6,7 @@
      */
     var logoCache = {}; 
     var slideshowTimer; 
-    var pluginPath = 'https://crowley24.github.io/NewIcons/';
+    var pluginPath = 'https://crowley24.github.io/Icons/';
     
     var settings_list = [
         { id: 'mobile_interface_animation', default: true },
@@ -84,19 +84,29 @@
         css += '.full-start-new__title { width: 100% !important; display: flex !important; justify-content: center !important; align-items: center !important; margin: 5px 0 !important; min-height: 60px; order: 2; overflow: visible !important; } ';
         css += '.full-start-new__title img { height: auto !important; max-height: ' + lHeight + 'px !important; width: auto !important; max-width: 90vw !important; object-fit: contain !important; filter: drop-shadow(0 0 15px rgba(0,0,0,0.8)); margin: 0 !important; } ';
         css += '.full-start-new__tagline { display: ' + (showTagline ? 'block' : 'none') + ' !important; font-style: italic !important; opacity: 0.85 !important; font-size: 1.1em !important; margin: 0 !important; color: #fff !important; text-align: center !important; order: 3; } ';
-        css += '.plugin-ratings-row { display: flex; justify-content: center; align-items: center; gap: 15px; margin: 0 !important; font-size: calc(' + rSize + ' * 2.8); width: 100%; order: 4; } ';
-        css += '.plugin-rating-item { display: flex; align-items: center; gap: 6px; font-weight: 700; color: #fff; } ';
+        
+        // Рядок 1: Рейтинги, Час, Жанри
+        css += '.plugin-ratings-row { display: flex; justify-content: center; align-items: center; flex-wrap: nowrap; gap: 12px; margin: 0 !important; font-size: calc(' + rSize + ' * 2.8); width: 100%; order: 5; color: #fff; font-family: "Inter", -apple-system, system-ui, sans-serif; letter-spacing: 0.02em; } ';
+        css += '.plugin-rating-item { display: flex; align-items: center; gap: 4px; font-weight: 700; } ';
         css += '.plugin-rating-item img { height: 1.1em; width: auto; } ';
-        css += '.plugin-info-block { display: flex; flex-direction: column; align-items: center; gap: ' + blocksGap + '; margin: 0 !important; width: 100%; order: 5; } ';
-        css += '.studio-row, .quality-row { display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 8px; width: 100%; } ';
-        css += '.studio-item { height: 3.2em !important; opacity: 0; animation: qb_in 0.4s ease forwards; padding: 5px 12px; border-radius: 10px; display: flex; align-items: center; justify-content: center; ';
+        css += '.info-text-item { opacity: 0.9; font-weight: 500; font-size: 0.85em; white-space: nowrap; } ';
+        css += '.info-separator { opacity: 0.4; font-size: 0.8em; margin: 0 -2px; } ';
+
+        // Рядок 2: Якість (окремий підрядок)
+        css += '.quality-row-inline { display: flex; justify-content: center; align-items: center; gap: 8px; width: 100%; order: 6; margin-top: 2px !important; opacity: 0.75; } '; 
+        css += '.quality-item { height: 1.4em; opacity: 0; animation: qb_in 0.4s ease forwards; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3)); } '; 
+        css += '.quality-item img { height: 100%; width: auto; object-fit: contain; } ';
+
+        css += '.plugin-info-block { display: flex; flex-direction: column; align-items: center; gap: ' + blocksGap + '; margin: 0 !important; width: 100%; order: 4; } ';
+        css += '.studio-row { display: flex; justify-content: center; align-items: center; flex-wrap: nowrap !important; overflow: hidden; gap: 12px; width: 100%; } ';
+        css += '.studio-item { height: 2.2em !important; opacity: 0; animation: qb_in 0.4s ease forwards; padding: 4px 10px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; ';
         if (bgOpacity !== '0') {
             css += 'background: rgba(255, 255, 255, ' + bgOpacity + '); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); ';
         }
         css += '} ';
-        css += '.quality-item { height: 2.0em; opacity: 0; animation: qb_in 0.4s ease forwards; } '; 
-        css += '.studio-item img, .quality-item img { height: 100%; width: auto; object-fit: contain; } ';
-        css += '.full-start-new__buttons { display: flex !important; justify-content: center !important; gap: 10px !important; width: 100% !important; margin-top: 5px !important; order: 6; } ';
+        css += '.studio-item img { height: 100%; width: auto; object-fit: contain; } ';
+
+        css += '.full-start-new__buttons { display: flex !important; justify-content: center !important; gap: 10px !important; width: 100% !important; margin-top: 5px !important; order: 7; } ';
         css += '.full-start-new .full-start__button { background: none !important; border: none !important; box-shadow: none !important; display: flex !important; flex-direction: column !important; align-items: center !important; width: 60px !important; } ';
         css += '.full-start-new .full-start__button svg, .full-start-new .full-start__button img { width: 24px !important; height: 24px !important; margin-bottom: 5px !important; fill: #fff !important; } ';
         css += '.full-start-new .full-start__button span { font-size: 8px !important; text-transform: uppercase !important; opacity: 0.7 !important; } ';
@@ -107,7 +117,7 @@
     }
 
     /**
-     * ЛОГІКА РЕЙТИНГІВ
+     * ЛОГІКА РЕЙТИНГІВ, ЧАСУ ТА ЖАНРІВ
      */
     function getRatingColor(val) {
         var n = parseFloat(val);
@@ -115,6 +125,13 @@
         if (n >= 6) return '#feca57';
         if (n > 0) return '#ff4d4d';
         return '#fff';
+    }
+
+    function formatTime(mins) {
+        if (!mins) return '';
+        var h = Math.floor(mins / 60);
+        var m = mins % 60;
+        return (h > 0 ? h + 'г ' : '') + m + 'хв';
     }
 
     function getCubRating(e) {
@@ -132,20 +149,48 @@
     }
 
     function renderRatings(container, e) {
-        if (!Lampa.Storage.get('mobile_interface_ratings')) return;
         container.find('.plugin-ratings-row').remove();
+        container.find('.quality-row-inline').remove(); // Чистимо старі рядки
+        
         var $row = $('<div class="plugin-ratings-row"></div>');
+        var sep = '<span class="info-separator">•</span>';
+        
+        // 1. TMDB
         var tmdb = parseFloat(e.data.movie.vote_average || 0).toFixed(1);
-        if (tmdb > 0) $row.append('<div class="plugin-rating-item"><img src="'+ratingIcons.tmdb+'"> <span style="color:'+getRatingColor(tmdb)+'">'+tmdb+'</span></div>');
+        if (tmdb > 0) {
+            $row.append('<div class="plugin-rating-item"><img src="'+ratingIcons.tmdb+'"> <span style="color:'+getRatingColor(tmdb)+'">'+tmdb+'</span></div>');
+        }
+        
+        // 2. CUB
         var cub = getCubRating(e);
-        if (cub) $row.append('<div class="plugin-rating-item"><img src="' + ratingIcons.cub + '"> <span style="color:' + getRatingColor(cub) + '">' + cub + '</span></div>');
-        var $target = container.find('.full-start-new__tagline');
-        if (!$target.length || !Lampa.Storage.get('mobile_interface_show_tagline')) $target = container.find('.full-start-new__title');
-        $target.after($row);
+        if (cub) {
+            if ($row.children().length > 0) $row.append(sep);
+            $row.append('<div class="plugin-rating-item"><img src="' + ratingIcons.cub + '"> <span style="color:' + getRatingColor(cub) + '">' + cub + '</span></div>');
+        }
+        
+        // 3. Тривалість
+        var runtime = e.data.movie.runtime || (e.data.movie.episode_run_time ? e.data.movie.episode_run_time[0] : 0);
+        if (runtime) {
+            if ($row.children().length > 0) $row.append(sep);
+            $row.append('<div class="info-text-item">' + formatTime(runtime) + '</div>');
+        }
+
+        // 4. Жанри
+        if (e.data.movie.genres && e.data.movie.genres.length > 0) {
+            if ($row.children().length > 0) $row.append(sep);
+            var genres = e.data.movie.genres.slice(0, 2).map(g => g.name).join(', ');
+            $row.append('<div class="info-text-item">' + genres + '</div>');
+        }
+
+        // 5. Окремий рядок для якості
+        var $qRow = $('<div class="quality-row-inline"></div>');
+
+        var $target = container.find('.plugin-info-block'); 
+        $target.after($qRow).after($row);
     }
 
     /**
-     * ЛОГІКА СТУДІЙ ТА ЯКОСТІ
+     * ЛОГІКА СТУДІЙ ТА ЯКОСТІ (АЯКС)
      */
     function renderStudioLogos(container, data) {
         if (!Lampa.Storage.get('mobile_interface_studios')) return;
@@ -159,9 +204,9 @@
             });
         });
 
-        logos.forEach(function(logo) {
+        logos.slice(0, 4).forEach(function(logo, index) {
             var id = 'lg_' + Math.random().toString(36).substr(2, 9);
-            container.append('<div class="studio-item" id="'+id+'"><img src="'+logo.url+'"></div>');
+            container.append('<div class="studio-item" id="'+id+'" style="animation-delay: '+(index * 0.1)+'s"><img src="'+logo.url+'"></div>');
             var img = new Image(); img.crossOrigin = 'anonymous';
             img.onload = function() {
                 var canvas = document.createElement('canvas'), ctx = canvas.getContext('2d');
@@ -231,12 +276,16 @@
             if (e.type === 'destroy') clearInterval(slideshowTimer);
             if (window.innerWidth <= 480 && (e.type === 'complite' || e.type === 'complete')) {
                 var movie = e.data.movie, $render = e.object.activity.render();
+                
                 loadMovieLogo(movie, $render.find('.full-start-new__title'));
-                renderRatings($render.find('.full-start-new__right'), e);
+                
                 $('.plugin-info-block').remove();
-                var $info = $('<div class="plugin-info-block"><div class="studio-row"></div><div class="quality-row"></div></div>');
+                var $info = $('<div class="plugin-info-block"><div class="studio-row"></div></div>');
                 $render.find('.full-start-new__right').append($info);
+                
                 renderStudioLogos($info.find('.studio-row'), movie);
+                renderRatings($render.find('.full-start-new__right'), e);
+
                 if (Lampa.Storage.get('mobile_interface_quality') && Lampa.Parser.get) {
                     Lampa.Parser.get({ search: movie.title || movie.name, movie: movie, page: 1 }, function(res) {
                         if (res && res.Results) {
@@ -244,7 +293,11 @@
                             if (b.resolution) list.push(b.resolution);
                             if (b.dolbyVision) list.push('Dolby Vision'); else if (b.hdr) list.push('HDR');
                             if (b.dub) list.push('DUB'); if (b.ukr) list.push('UKR');
-                            list.forEach(function(t, i) { if (svgIcons[t]) $info.find('.quality-row').append('<div class="quality-item" style="animation-delay:'+(i*0.1)+'s"><img src="'+svgIcons[t]+'"></div>'); });
+                            
+                            var $qRow = $render.find('.quality-row-inline');
+                            list.forEach(function(t, i) { 
+                                if (svgIcons[t]) $qRow.append('<div class="quality-item" style="animation-delay:'+(i*0.1)+'s"><img src="'+svgIcons[t]+'"></div>'); 
+                            });
                         }
                     });
                 }
@@ -255,23 +308,12 @@
     /**
      * ПАНЕЛЬ НАЛАШТУВАНЬ
      */
-    function setupSettings() {
+function setupSettings() {
         Lampa.SettingsApi.addComponent({ component: 'mobile_interface', name: 'Мобільний інтерфейс', icon: '<svg height="36" viewBox="0 0 24 24" width="36" xmlns="http://www.w3.org/2000/svg"><path d="M17 1.01L7 1c-1.1 0-2 .9-2 2v18c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2V3c0-1.1-.9-1.99-2-1.99zM17 19H7V5h10v14z" fill="white"/></svg>' });
-
         Lampa.SettingsApi.addParam({ component: 'mobile_interface', param: { name: 'mobile_interface_animation', type: 'trigger', default: true }, field: { name: 'Анімація постера' }, onChange: applyStyles });
         Lampa.SettingsApi.addParam({ component: 'mobile_interface', param: { name: 'mobile_interface_slideshow', type: 'trigger', default: true }, field: { name: 'Слайд-шоу постера' } });
         Lampa.SettingsApi.addParam({ component: 'mobile_interface', param: { name: 'mobile_interface_slideshow_time', type: 'select', values: { '10000': '10с', '15000': '15с', '20000': '20с' }, default: '10000' }, field: { name: 'Інтервал слайд-шоу' } });
-        Lampa.SettingsApi.addParam({ component: 'mobile_interface', param: { name: 'mobile_interface_slideshow_quality', type: 'select', values: { 'w300': '300px', 'w780': '780px', 'w1280': '1280px', 'original': 'Оригінал' }, default: 'w780' }, field: { name: 'Якість фону слайд-шоу' } });
-        
-        // Оновлені класичні назви для тих самих значень розмірів
-        Lampa.SettingsApi.addParam({ 
-            component: 'mobile_interface', 
-            param: { name: 'mobile_interface_logo_size_v2', type: 'select', values: { '125': 'Малий', '150': 'Середній', '180': 'Стандартний', '210': 'Великий' }, default: '125' }, 
-            field: { name: 'Висота логотипу' }, 
-            onChange: applyStyles 
-        });
-        
-        Lampa.SettingsApi.addParam({ component: 'mobile_interface', param: { name: 'mobile_interface_logo_quality', type: 'select', values: { 'w300': '300px', 'w500': '500px', 'original': 'Оригінал' }, default: 'w500' }, field: { name: 'Якість логотипу' } });
+        Lampa.SettingsApi.addParam({ component: 'mobile_interface', param: { name: 'mobile_interface_logo_size_v2', type: 'select', values: { '125': 'Малий', '150': 'Середній', '180': 'Стандартний', '210': 'Великий' }, default: '125' }, field: { name: 'Висота логотипу' }, onChange: applyStyles });
         Lampa.SettingsApi.addParam({ component: 'mobile_interface', param: { name: 'mobile_interface_show_tagline', type: 'trigger', default: true }, field: { name: 'Показувати слоган' }, onChange: applyStyles });
         Lampa.SettingsApi.addParam({ component: 'mobile_interface', param: { name: 'mobile_interface_blocks_gap', type: 'select', values: { '8px': 'Компактний', '12px': 'Стандартний', '18px': 'Просторий', '24px': 'Панорамний' }, default: '8px' }, field: { name: 'Відступи між блоками' }, onChange: applyStyles });
         Lampa.SettingsApi.addParam({ component: 'mobile_interface', param: { name: 'mobile_interface_ratings_size', type: 'select', values: { '0.4em': 'Малий', '0.45em': 'Середній', '0.5em': 'Великий', '0.55em': 'Максимальний' }, default: '0.45em' }, field: { name: 'Розмір рейтингів' }, onChange: applyStyles });
@@ -287,4 +329,4 @@
 
     if (window.appready) startPlugin();
     else Lampa.Listener.follow('app', function (e) { if (e.type === 'ready') startPlugin(); });
-})();
+})();                                                                                                                                             
