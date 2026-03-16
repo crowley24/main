@@ -232,22 +232,40 @@
         return best;
     }
 
-    function loadMovieLogo(movie, $container) {
-        var movieId = movie.id + (movie.name ? '_tv' : '_movie');
-        if (logoCache[movieId]) { $container.html('<img src="' + logoCache[movieId] + '">'); return; }
-        $.ajax({
-            url: 'https://api.themoviedb.org/3/' + (movie.name ? 'tv' : 'movie') + '/' + movie.id + '/images?api_key=' + Lampa.TMDB.key(),
-            success: function(res) {
-                var lang = Lampa.Storage.get('language') || 'uk';
-                var logo = res.logos.filter(l => l.iso_639_1 === lang)[0] || res.logos.filter(l => l.iso_639_1 === 'en')[0] || res.logos[0];
-                if (logo) {
-                    var url = Lampa.TMDB.image('/t/p/' + Lampa.Storage.get('mobile_interface_logo_quality', 'w500') + logo.file_path.replace('.svg', '.png'));
-                    logoCache[movieId] = url; $container.html('<img src="' + url + '">');
-                }
-                if (res.backdrops && res.backdrops.length > 1) startPosterSlideshow($('.full-start-new__poster'), res.backdrops.slice(0, 15));
-            }
-        });
+   // Оновлена функція завантаження лого та фільтрації слайд-шоу
+function loadMovieLogo(movie, $container) {
+    var movieId = movie.id + (movie.name ? '_tv' : '_movie');
+    if (logoCache[movieId]) { 
+        $container.html('<img src="' + logoCache[movieId] + '">'); 
+        return; 
     }
+    $.ajax({
+        url: 'https://api.themoviedb.org/3/' + (movie.name ? 'tv' : 'movie') + '/' + movie.id + '/images?api_key=' + Lampa.TMDB.key(),
+        success: function(res) {
+            var lang = Lampa.Storage.get('language') || 'uk';
+            var logo = res.logos.filter(l => l.iso_639_1 === lang)[0] || res.logos.filter(l => l.iso_639_1 === 'en')[0] || res.logos[0];
+            
+            if (logo) {
+                var url = Lampa.TMDB.image('/t/p/' + Lampa.Storage.get('mobile_interface_logo_quality', 'w500') + logo.file_path.replace('.svg', '.png'));
+                logoCache[movieId] = url; 
+                $container.html('<img src="' + url + '">');
+            }
+
+            if (res.backdrops && res.backdrops.length > 1) {
+                // ФІЛЬТРАЦІЯ: Прибираємо все, що не є широким фоном (коефіцієнт > 1.5)
+                // Це автоматично відсіє вертикальні постери та більшість кадрів з великим текстом
+                var cleanBackdrops = res.backdrops.filter(function(b) {
+                    return b.aspect_ratio > 1.5; 
+                });
+
+                if (cleanBackdrops.length > 0) {
+                    startPosterSlideshow($('.full-start-new__poster'), cleanBackdrops.slice(0, 15));
+                }
+            }
+        }
+    });
+}
+    
 
     function startPosterSlideshow($poster, items) {
         if (!Lampa.Storage.get('mobile_interface_slideshow')) return;
