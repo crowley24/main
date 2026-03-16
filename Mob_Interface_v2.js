@@ -10,7 +10,7 @@
     
     var settings_list = [
         { id: 'mobile_interface_animation', default: true },
-        { id: 'mobile_interface_ui_anim', default: true }, // Нова настройка для анімації елементів
+        { id: 'mobile_interface_ui_anim', default: true },
         { id: 'mobile_interface_slideshow', default: true },
         { id: 'mobile_interface_slideshow_time', default: '10000' },
         { id: 'mobile_interface_slideshow_quality', default: 'w780' },
@@ -81,18 +81,21 @@
         css += (isPosterAnim ? 'animation: kenBurnsEffect 25s ease-in-out infinite !important; ' : '');
         css += 'transform-origin: center center !important; transition: opacity 1.5s ease-in-out !important; position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; ';
         css += 'mask-image: linear-gradient(to bottom, #000 0%, #000 60%, transparent 100%) !important; -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 60%, transparent 100%) !important; } ';
+        
         css += '.full-start-new__right { background: none !important; margin-top: -160px !important; z-index: 2 !important; display: flex !important; flex-direction: column !important; align-items: center !important; padding: 0 10px !important; gap: ' + blocksGap + ' !important; } ';
         
-        // Клас для анімації елементів
         var uiAnimClass = isUIAnim ? 'animation: ui_reveal 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; opacity: 0; ' : '';
 
-        css += '.full-start-new__title { ' + uiAnimClass + ' animation-delay: 0.1s; width: 100% !important; display: flex !important; justify-content: center !important; align-items: center !important; margin: 5px 0 !important; min-height: 60px; order: 2; overflow: visible !important; } ';
+        // Виправлення відстані між роком/країною та назвою
+        css += '.full-start-new__right > div:first-child { ' + uiAnimClass + ' margin: 0 0 -5px 0 !important; font-size: 0.9em !important; opacity: 0.8; order: 1; } ';
+
+        css += '.full-start-new__title { ' + uiAnimClass + ' animation-delay: 0.1s; width: 100% !important; display: flex !important; justify-content: center !important; align-items: center !important; margin: 0 !important; min-height: 60px; order: 2; overflow: visible !important; } ';
         css += '.full-start-new__title img { height: auto !important; max-height: ' + lHeight + 'px !important; width: auto !important; max-width: 90vw !important; object-fit: contain !important; filter: drop-shadow(0 0 15px rgba(0,0,0,0.8)); margin: 0 !important; } ';
-        css += '.full-start-new__tagline { ' + uiAnimClass + ' animation-delay: 0.2s; display: ' + (showTagline ? 'block' : 'none') + ' !important; font-style: italic !important; opacity: 0.85 !important; font-size: 1.1em !important; margin: 0 !important; color: #fff !important; text-align: center !important; order: 3; } ';
+        css += '.full-start-new__tagline { ' + uiAnimClass + ' animation-delay: 0.15s; display: ' + (showTagline ? 'block' : 'none') + ' !important; font-style: italic !important; opacity: 0.85 !important; font-size: 1.1em !important; margin: -2px 0 0 0 !important; color: #fff !important; text-align: center !important; order: 3; } ';
         
-        css += '.plugin-info-block { ' + uiAnimClass + ' animation-delay: 0.3s; display: flex; flex-direction: column; align-items: center; gap: ' + blocksGap + '; margin: 0 !important; width: 100%; order: 4; } ';
-        css += '.plugin-ratings-row { ' + uiAnimClass + ' animation-delay: 0.4s; display: flex; justify-content: center; align-items: center; flex-wrap: nowrap; gap: 12px; margin: 0 !important; font-size: calc(' + rSize + ' * 2.8); width: 100%; order: 5; color: #fff; font-family: "Inter", -apple-system, system-ui, sans-serif; letter-spacing: 0.02em; } ';
-        css += '.quality-row-inline { ' + uiAnimClass + ' animation-delay: 0.5s; display: flex; justify-content: center; align-items: center; gap: 8px; width: 100%; order: 6; margin-top: 2px !important; opacity: 0.75; } '; 
+        css += '.plugin-info-block { ' + uiAnimClass + ' animation-delay: 0.25s; display: flex; flex-direction: column; align-items: center; gap: ' + blocksGap + '; margin: 0 !important; width: 100%; order: 4; } ';
+        css += '.plugin-ratings-row { ' + uiAnimClass + ' animation-delay: 0.35s; display: flex; justify-content: center; align-items: center; flex-wrap: nowrap; gap: 12px; margin: 0 !important; font-size: calc(' + rSize + ' * 2.8); width: 100%; order: 5; color: #fff; font-family: "Inter", -apple-system, system-ui, sans-serif; letter-spacing: 0.02em; } ';
+        css += '.quality-row-inline { ' + uiAnimClass + ' animation-delay: 0.45s; display: flex; justify-content: center; align-items: center; gap: 8px; width: 100%; order: 6; margin-top: 2px !important; opacity: 0.75; } '; 
         
         css += '.plugin-rating-item { display: flex; align-items: center; gap: 4px; font-weight: 700; } ';
         css += '.plugin-rating-item img { height: 1.1em; width: auto; } ';
@@ -109,7 +112,7 @@
         css += '} ';
         css += '.studio-item img { height: 100%; width: auto; object-fit: contain; } ';
 
-        css += '.full-start-new__buttons { ' + uiAnimClass + ' animation-delay: 0.6s; display: flex !important; justify-content: center !important; gap: 10px !important; width: 100% !important; margin-top: 5px !important; order: 7; } ';
+        css += '.full-start-new__buttons { ' + uiAnimClass + ' animation-delay: 0.55s; display: flex !important; justify-content: center !important; gap: 10px !important; width: 100% !important; margin-top: 5px !important; order: 7; } ';
         css += '.full-start-new .full-start__button { background: none !important; border: none !important; box-shadow: none !important; display: flex !important; flex-direction: column !important; align-items: center !important; width: 60px !important; } ';
         css += '.full-start-new .full-start__button svg, .full-start-new .full-start__button img { width: 24px !important; height: 24px !important; margin-bottom: 5px !important; fill: #fff !important; } ';
         css += '.full-start-new .full-start__button span { font-size: 8px !important; text-transform: uppercase !important; opacity: 0.7 !important; } ';
