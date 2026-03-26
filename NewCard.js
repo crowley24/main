@@ -334,7 +334,7 @@
             background: transparent !important;       
             border: none !important;       
             max-width: 450px;       
-            max-height: 300px;       
+            max-height: 200px;       
             width: auto;      
             height: auto;      
             transform: scale(var(--cas-logo-scale));       
