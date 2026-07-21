@@ -104,25 +104,25 @@
         
         var uiAnimClass = isUIAnim ? 'animation: premium_ui_reveal 0.75s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; will-change: transform, opacity, filter; ' : '';
 
-        // Початковий мета-блок (Рік, Країна, Вік)
-        css += '.full-start-new__right > div:first-child { ' + uiAnimClass + ' animation-delay: 0.08s; margin: 0 0 -2px 0 !important; font-size: 0.88em !important; opacity: 0; order: 1; display: flex; align-items: center; gap: 6px; } ';
+        // Початковий мета-блок (Логотип студії, Рік, Країна, Вік)
+        css += '.full-start-new__right > div:first-child { ' + uiAnimClass + ' animation-delay: 0.08s; margin: 0 0 2px 0 !important; font-size: 0.88em !important; display: flex !important; align-items: center !important; justify-content: center !important; gap: 6px !important; flex-wrap: wrap !important; } ';
+
+        // Стилі основного бейджа студії (Зверху)
+        css += '.main-studio-badge { display: inline-flex; align-items: center; justify-content: center; background: rgba(255, 255, 255, 0.15); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.25); border-radius: 6px; padding: 3px 8px; margin-right: 4px; } ';
+        css += '.main-studio-badge img { height: 0.95em !important; width: auto; max-width: 80px; object-fit: contain; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.5)); } ';
 
         // Назва / Логотип
-        css += '.full-start-new__title { ' + uiAnimClass + ' animation-delay: 0.16s; width: 100% !important; display: flex !important; justify-content: center !important; align-items: center !important; margin: 0 !important; min-height: 55px; order: 2; overflow: visible !important; } ';
+        css += '.full-start-new__title { ' + uiAnimClass + ' animation-delay: 0.16s; width: 100% !important; display: flex !important; justify-content: center !important; align-items: center !important; margin: 0 !important; min-height: 55px; overflow: visible !important; } ';
         css += '.full-start-new__title img { height: auto !important; max-height: ' + lHeight + 'px !important; width: auto !important; max-width: 90vw !important; object-fit: contain !important; filter: drop-shadow(0 4px 20px rgba(0,0,0,0.9)); margin: 0 !important; } ';
-        
-        // Поодинокий плаваючий логотип студії під назвою (Оригінальний колір + бейдж)
-        css += '.main-studio-badge { ' + uiAnimClass + ' animation-delay: 0.22s; order: 3; display: flex; align-items: center; justify-content: center; background: rgba(255, 255, 255, 0.14); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 8px; padding: 4px 12px; margin-top: -2px; } ';
-        css += '.main-studio-badge img { height: 1.1em !important; width: auto; max-width: 100px; object-fit: contain; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5)); } ';
 
         // Слоган
-        css += '.full-start-new__tagline { ' + uiAnimClass + ' animation-delay: 0.28s; display: ' + (showTagline ? 'block' : 'none') + ' !important; font-style: italic !important; opacity: 0; font-size: 0.98em !important; margin: 0 !important; color: rgba(255,255,255,0.8) !important; text-align: center !important; order: 4; } ';
+        css += '.full-start-new__tagline { ' + uiAnimClass + ' animation-delay: 0.24s; display: ' + (showTagline ? 'block' : 'none') + ' !important; font-style: italic !important; font-size: 0.98em !important; margin: 0 !important; color: rgba(255,255,255,0.8) !important; text-align: center !important; } ';
         
         // Блок рейтингів
-        css += '.plugin-ratings-row { ' + uiAnimClass + ' animation-delay: 0.34s; display: flex; justify-content: center; align-items: center; flex-wrap: nowrap; gap: 10px; margin: 0 !important; font-size: calc(' + rSize + ' * 2.8); width: 100%; order: 5; color: #fff; font-family: "Inter", -apple-system, system-ui, sans-serif; letter-spacing: 0.02em; } ';
+        css += '.plugin-ratings-row { ' + uiAnimClass + ' animation-delay: 0.32s; display: flex; justify-content: center; align-items: center; flex-wrap: nowrap; gap: 10px; margin: 0 !important; font-size: calc(' + rSize + ' * 2.8); width: 100%; color: #fff; font-family: "Inter", -apple-system, system-ui, sans-serif; letter-spacing: 0.02em; } ';
         
         // Іконки якості
-        css += '.quality-row-inline { ' + uiAnimClass + ' animation-delay: 0.42s; display: flex; justify-content: center; align-items: center; gap: 8px; width: 100%; order: 6; margin-top: 2px !important; opacity: 0.8; } '; 
+        css += '.quality-row-inline { ' + uiAnimClass + ' animation-delay: 0.40s; display: flex; justify-content: center; align-items: center; gap: 8px; width: 100%; margin-top: 2px !important; opacity: 0.8; } '; 
         
         css += '.plugin-rating-item { display: flex; align-items: center; gap: 4px; font-weight: 700; } ';
         css += '.plugin-rating-item img { height: 1.1em; width: auto; } ';
@@ -133,7 +133,7 @@
         css += '.age-badge { background: rgba(255,255,255,0.2); padding: 1px 5px; border-radius: 4px; font-size: 0.75em; font-weight: 600; line-height: 1; } ';
 
         // Кнопки дій
-        css += '.full-start-new__buttons { ' + uiAnimClass + ' animation-delay: 0.50s; display: flex !important; justify-content: center !important; gap: 12px !important; width: 100% !important; margin-top: 6px !important; order: 7; } ';
+        css += '.full-start-new__buttons { ' + uiAnimClass + ' animation-delay: 0.48s; display: flex !important; justify-content: center !important; gap: 12px !important; width: 100% !important; margin-top: 6px !important; } ';
         css += '.full-start-new .full-start__button { background: none !important; border: none !important; box-shadow: none !important; display: flex !important; flex-direction: column !important; align-items: center !important; width: 60px !important; transition: transform 0.2s ease, opacity 0.2s ease; } ';
         css += '.full-start-new .full-start__button:active { transform: scale(0.9); opacity: 0.7; } ';
         css += '.full-start-new .full-start__button svg, .full-start-new .full-start__button img { width: 24px !important; height: 24px !important; margin-bottom: 5px !important; fill: #fff !important; filter: drop-shadow(0 2px 8px rgba(0,0,0,0.5)); } ';
@@ -240,20 +240,18 @@
                     }
                 }
 
-                // 3. Збагачуємо верхній блок метаданими (Країна та Віковий рейтинг)
+                // 3. Шукаємо головний логотип студії ТА додаємо нагору
                 var $topMeta = $render.find('.full-start-new__right > div:first-child');
-                if ($topMeta.length) {
-                    if (data.production_countries && data.production_countries.length > 0) {
-                        var country = data.production_countries[0].iso_3166_1;
-                        $topMeta.append('<span class="info-separator">•</span><span>' + country + '</span>');
-                    }
-                    if (data.adult !== undefined) {
-                        var age = data.adult ? '18+' : (movie.first_air_date ? '12+' : '16+');
-                        $topMeta.append('<span class="age-badge">' + age + '</span>');
-                    }
+                
+                if (data.production_countries && data.production_countries.length > 0) {
+                    var country = data.production_countries[0].iso_3166_1;
+                    $topMeta.append('<span class="info-separator">•</span><span>' + country + '</span>');
+                }
+                if (data.adult !== undefined) {
+                    var age = data.adult ? '18+' : (movie.first_air_date ? '12+' : '16+');
+                    $topMeta.append('<span class="age-badge">' + age + '</span>');
                 }
 
-                // 4. Шукаємо та виводимо ОДИН ГОЛОВНИЙ логотип студії
                 if (!Lampa.Storage.get('mobile_interface_studios')) return;
 
                 $render.find('.main-studio-badge').remove();
@@ -267,10 +265,13 @@
                 }
 
                 if (mainStudio && mainStudio.logo_path) {
-                    var logoUrl = Lampa.TMDB.image('/t/p/w200' + mainStudio.logo_path);
-                    var $badge = $('<div class="main-studio-badge"><img src="' + logoUrl + '" alt="' + (mainStudio.name || '') + '"></div>');
+                    var studioLogoUrl = Lampa.TMDB.image('/t/p/w200' + mainStudio.logo_path);
+                    var $badge = $('<div class="main-studio-badge"><img src="' + studioLogoUrl + '" alt="' + (mainStudio.name || '') + '"></div>');
+                    
                     $badge.find('img').on('error', function() { $badge.remove(); });
-                    $render.find('.full-start-new__title').after($badge);
+                    
+                    // Вставляємо ТОЧНО НА ПОЧАТОК найверхнього мета-блоку
+                    $topMeta.prepend($badge);
                 }
             }
         });
