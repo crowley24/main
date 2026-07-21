@@ -122,7 +122,6 @@
         var blocksGap = Lampa.Storage.get('mobile_interface_blocks_gap', '8px');
         var btnSizePx = parseInt(Lampa.Storage.get('mobile_interface_buttons_size', '48px'), 10);
         
-        // Розраховуємо пропорційні розміри для іконки та тексту на кнопці
         var btnIconSize = Math.round(btnSizePx * 0.46) + 'px';
         var btnFontSize = Math.max(8, Math.round(btnSizePx * 0.17)) + 'px';
 
@@ -157,7 +156,7 @@
         css += 'transform-origin: center center !important; transition: opacity 1.2s ease-in-out !important; position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; ';
         css += 'mask-image: linear-gradient(to bottom, #000 0%, #000 55%, transparent 100%) !important; -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 55%, transparent 100%) !important; } ';
         
-        // Головний контейнер з жорстким центруванням
+        // Головний контейнер
         css += '.full-start-new__right { background: none !important; margin-top: -150px !important; z-index: 2 !important; display: flex !important; flex-direction: column !important; align-items: center !important; text-align: center !important; padding: 0 10px !important; gap: ' + blocksGap + ' !important; box-sizing: border-box !important; width: 100% !important; margin-left: auto !important; margin-right: auto !important; } ';
         
         var uiAnimClass = isUIAnim ? 'animation: premium_ui_reveal 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; will-change: transform, opacity, filter; transform: translateZ(0); ' : '';
@@ -189,12 +188,13 @@
         css += '.quality-item { height: 1.25em; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3)); } '; 
         css += '.quality-item img { height: 100%; width: auto; object-fit: contain; } ';
 
-        // Кнопки дій (Динамічний розмір)
-        css += '.full-start-new__buttons { ' + uiAnimClass + ' animation-delay: 0.42s; display: flex !important; justify-content: center !important; align-items: center !important; flex-wrap: wrap !important; gap: 8px !important; width: 100% !important; max-width: 100% !important; box-sizing: border-box !important; margin: 4px auto 0 auto !important; order: 6; } ';
+        // Кнопки дій: Блок від краю до краю екрану + перенос кнопок при потребі
+        css += '.full-start-new__buttons { ' + uiAnimClass + ' animation-delay: 0.42s; display: flex !important; justify-content: center !important; align-items: center !important; flex-wrap: wrap !important; gap: 6px 8px !important; width: 100vw !important; max-width: 100vw !important; margin-left: calc(-50vw + 50%) !important; padding: 0 8px !important; box-sizing: border-box !important; margin-top: 4px !important; order: 6; } ';
+        
         css += '.full-start-new .full-start__button { background: none !important; border: none !important; box-shadow: none !important; display: flex !important; flex-direction: column !important; align-items: center !important; justify-content: center !important; width: ' + btnSizePx + 'px !important; min-width: ' + btnSizePx + 'px !important; padding: 4px 0 !important; margin: 0 !important; transition: transform 0.2s ease, opacity 0.2s ease; } ';
         css += '.full-start-new .full-start__button:active { transform: scale(0.9); opacity: 0.7; } ';
         css += '.full-start-new .full-start__button svg, .full-start-new .full-start__button img { width: ' + btnIconSize + ' !important; height: ' + btnIconSize + ' !important; margin-bottom: 3px !important; fill: #fff !important; filter: drop-shadow(0 2px 8px rgba(0,0,0,0.5)); } ';
-        css += '.full-start-new .full-start__button span { font-size: ' + btnFontSize + ' !important; text-transform: uppercase !important; opacity: 0.75 !important; font-weight: 600; letter-spacing: 0.02em; white-space: nowrap !important; text-align: center !important; } ';
+        css += '.full-start-new .full-start__button span { font-size: ' + btnFontSize + ' !important; text-transform: uppercase !important; opacity: 0.75 !important; font-weight: 600; letter-spacing: 0.02em; white-space: nowrap !important; text-align: center !important; width: 100% !important; overflow: hidden !important; text-overflow: ellipsis !important; } ';
         css += '} ';
 
         style.textContent = css;
