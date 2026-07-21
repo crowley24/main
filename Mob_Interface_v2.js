@@ -107,7 +107,7 @@
     }
 
     /**
-     * СТИЛІ ІНТЕРФЕЙСУ (CSS)
+     * СТИЛІ ІНТЕРФЕЙСУ (CSS) - З ОПТИМІЗОВАНОЮ ПРЕМІУМ-АНІМАЦІЄЮ
      */
     function applyStyles() {
         var oldStyle = document.getElementById('mobile-interface-styles');
@@ -127,13 +127,14 @@
         
         css += '@keyframes kenBurnsEffect { 0% { transform: scale(1); } 50% { transform: scale(1.08); } 100% { transform: scale(1); } } ';
         
+        // Покращена анімація з відчуттям маси та м'яким розмиттям (Apple Fluid Feel)
         css += '@keyframes premium_ui_reveal { ';
-        css += '  0% { opacity: 0; transform: translateY(22px) scale(0.96); filter: blur(8px); } ';
-        css += '  100% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0px); } ';
+        css += '  0% { opacity: 0; transform: translate3d(0, 25px, 0) scale(0.95); filter: blur(10px); } ';
+        css += '  100% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); filter: blur(0px); } ';
         css += '} ';
 
         css += '@keyframes poster_fade_in { ';
-        css += '  0% { opacity: 0; transform: scale(1.04); } ';
+        css += '  0% { opacity: 0; transform: scale(1.05); } ';
         css += '  100% { opacity: 1; transform: scale(1); } ';
         css += '} ';
         
@@ -153,25 +154,26 @@
         
         css += '.full-start-new__right { background: none !important; margin-top: -160px !important; z-index: 2 !important; display: flex !important; flex-direction: column !important; align-items: center !important; padding: 0 10px !important; gap: ' + blocksGap + ' !important; } ';
         
-        var uiAnimClass = isUIAnim ? 'animation: premium_ui_reveal 0.75s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; will-change: transform, opacity, filter; ' : '';
+        // Підключаємо GPU прискорення для анімацій
+        var uiAnimClass = isUIAnim ? 'animation: premium_ui_reveal 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; will-change: transform, opacity, filter; transform: translateZ(0); ' : '';
 
         // Логотип студії
-        css += '.studio-header-brand { ' + uiAnimClass + ' animation-delay: 0.10s; order: 1; width: 100%; display: flex; justify-content: flex-start; align-items: center; padding-left: 5vw; margin-bottom: -2px !important; } ';
+        css += '.studio-header-brand { ' + uiAnimClass + ' animation-delay: 0.08s; order: 1; width: 100%; display: flex; justify-content: flex-start; align-items: center; padding-left: 5vw; margin-bottom: -2px !important; } ';
         css += '.studio-header-brand img { height: 18px !important; width: auto; max-width: 110px; object-fit: contain; filter: drop-shadow(0 2px 5px rgba(0,0,0,0.9)); opacity: 0.95; } ';
         css += '.studio-header-brand img.is-dark-logo { filter: brightness(0) invert(1) drop-shadow(0 2px 4px rgba(0,0,0,0.8)) !important; } ';
 
         // Назва / Логотип фільму
-        css += '.full-start-new__title { ' + uiAnimClass + ' animation-delay: 0.16s; width: 100% !important; display: flex !important; justify-content: center !important; align-items: center !important; margin: 0 !important; min-height: 50px; order: 2; overflow: visible !important; } ';
+        css += '.full-start-new__title { ' + uiAnimClass + ' animation-delay: 0.15s; width: 100% !important; display: flex !important; justify-content: center !important; align-items: center !important; margin: 0 !important; min-height: 50px; order: 2; overflow: visible !important; } ';
         css += '.full-start-new__title img { height: auto !important; max-height: ' + lHeight + 'px !important; width: auto !important; max-width: 90vw !important; object-fit: contain !important; filter: drop-shadow(0 4px 20px rgba(0,0,0,0.9)); margin: 0 !important; } ';
 
         // Слоган
         css += '.full-start-new__tagline { ' + uiAnimClass + ' animation-delay: 0.22s; display: ' + (showTagline ? 'block' : 'none') + ' !important; font-style: italic !important; font-size: 0.9em !important; margin: 0 !important; color: rgba(255,255,255,0.8) !important; text-align: center !important; order: 3; } ';
         
         // Блок 1: Мета-інформація
-        css += '.plugin-meta-row { ' + uiAnimClass + ' animation-delay: 0.26s; display: flex; justify-content: center; align-items: center; flex-wrap: nowrap; gap: 8px; margin: 0 !important; font-size: calc(' + rSize + ' * 2.5); width: 100%; order: 4; color: rgba(255,255,255,0.85); font-family: "Inter", -apple-system, system-ui, sans-serif; } ';
+        css += '.plugin-meta-row { ' + uiAnimClass + ' animation-delay: 0.28s; display: flex; justify-content: center; align-items: center; flex-wrap: nowrap; gap: 8px; margin: 0 !important; font-size: calc(' + rSize + ' * 2.5); width: 100%; order: 4; color: rgba(255,255,255,0.85); font-family: "Inter", -apple-system, system-ui, sans-serif; } ';
         
         // Блок 2: Рейтинги + Якість
-        css += '.plugin-ratings-quality-row { ' + uiAnimClass + ' animation-delay: 0.32s; display: flex; justify-content: center; align-items: center; flex-wrap: nowrap; gap: 12px; margin: 0 !important; width: 100%; order: 5; font-size: calc(' + rSize + ' * 2.8); } ';
+        css += '.plugin-ratings-quality-row { ' + uiAnimClass + ' animation-delay: 0.35s; display: flex; justify-content: center; align-items: center; flex-wrap: nowrap; gap: 12px; margin: 0 !important; width: 100%; order: 5; font-size: calc(' + rSize + ' * 2.8); } ';
         css += '.plugin-ratings-group { display: flex; align-items: center; gap: 10px; } ';
         css += '.quality-row-inline { display: flex; align-items: center; gap: 6px; opacity: 0.9; } '; 
         
@@ -183,7 +185,7 @@
         css += '.quality-item img { height: 100%; width: auto; object-fit: contain; } ';
 
         // Кнопки дій
-        css += '.full-start-new__buttons { ' + uiAnimClass + ' animation-delay: 0.38s; display: flex !important; justify-content: center !important; gap: 12px !important; width: 100% !important; margin-top: 6px !important; order: 6; } ';
+        css += '.full-start-new__buttons { ' + uiAnimClass + ' animation-delay: 0.42s; display: flex !important; justify-content: center !important; gap: 12px !important; width: 100% !important; margin-top: 6px !important; order: 6; } ';
         css += '.full-start-new .full-start__button { background: none !important; border: none !important; box-shadow: none !important; display: flex !important; flex-direction: column !important; align-items: center !important; width: 60px !important; transition: transform 0.2s ease, opacity 0.2s ease; } ';
         css += '.full-start-new .full-start__button:active { transform: scale(0.9); opacity: 0.7; } ';
         css += '.full-start-new .full-start__button svg, .full-start-new .full-start__button img { width: 24px !important; height: 24px !important; margin-bottom: 5px !important; fill: #fff !important; filter: drop-shadow(0 2px 8px rgba(0,0,0,0.5)); } ';
@@ -232,7 +234,6 @@
         
         var sep = '<span class="info-separator">•</span>';
         
-        // --- 1. ВЕРХНІЙ РЯДОК: Мета-інформація (Рік • Країна • Тривалість • Жанри) ---
         var $metaRow = $('<div class="plugin-meta-row"></div>');
         
         var year = (e.data.movie.release_date || e.data.movie.first_air_date || '').substring(0, 4);
@@ -264,7 +265,6 @@
             $metaRow.append('<div class="info-text-item">' + genres + '</div>');
         }
 
-        // --- 2. НИЖНІЙ РЯДОК: Рейтинги + Якість ---
         var $rqRow = $('<div class="plugin-ratings-quality-row"></div>');
         var $ratingsGroup = $('<div class="plugin-ratings-group"></div>');
         
@@ -294,7 +294,6 @@
             type: 'GET',
             dataType: 'json',
             success: function(data) {
-                // 1. Ставимо логотип фільму
                 if (data.images && data.images.logos && data.images.logos.length > 0) {
                     var lang = Lampa.Storage.get('language') || 'uk';
                     var logo = data.images.logos.filter(function(l) { return l.iso_639_1 === lang; })[0] || 
@@ -307,7 +306,6 @@
                     }
                 }
 
-                // 2. Ставимо логотип студії
                 if (Lampa.Storage.get('mobile_interface_studios')) {
                     $render.find('.studio-header-brand').remove();
                     var studio = null;
@@ -336,7 +334,6 @@
                     }
                 }
 
-                // 3. Слайдшоу бекдропів
                 if (data.images && data.images.backdrops && data.images.backdrops.length > 1) {
                     var cleanBackdrops = data.images.backdrops.filter(function(b) { return b.aspect_ratio > 1.5; });
                     if (cleanBackdrops.length > 0) {
@@ -422,7 +419,7 @@
     }
 
     /**
-     * ПАНЕЛЬ НАЛАШТУВАНЬ (Оновлені зрозумілі назви)
+     * ПАНЕЛЬ НАЛАШТУВАНЬ
      */
     function setupSettings() {
         Lampa.SettingsApi.addComponent({ 
