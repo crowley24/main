@@ -97,7 +97,7 @@
         css += '.rate--tmdb, .rate--imdb, .rate--kp, .full-start__rates { display: none !important; } ';
         css += '.background { background: #000 !important; } ';
         
-        // Постер із примусовим вимкненням стандартного блуру та м'яким стартом
+        // Постер
         css += '.full-start-new__poster { position: relative !important; overflow: hidden !important; background: #000; z-index: 1; height: 62vh !important; pointer-events: none !important; ';
         css += (isUIAnim ? 'animation: poster_fade_in 0.9s cubic-bezier(0.16, 1, 0.3, 1) forwards; ' : '') + '} ';
         
@@ -110,24 +110,23 @@
         
         var uiAnimClass = isUIAnim ? 'animation: premium_ui_reveal 0.75s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; will-change: transform, opacity, filter; ' : '';
 
-        /* ПЕРЕПИСАНА ПОСЛІДОВНІСТЬ З ПОКРОКОВОЮ ЗАТРИМКОЮ (STAGGER) */
-        // 1. Рік / Країна
+        // Послідовність елементів (Staggering)
         css += '.full-start-new__right > div:first-child { ' + uiAnimClass + ' animation-delay: 0.08s; margin: 0 0 -5px 0 !important; font-size: 0.9em !important; opacity: 0; order: 1; } ';
 
-        // 2. Логотип / Назва
+        // Логотип / Назва
         css += '.full-start-new__title { ' + uiAnimClass + ' animation-delay: 0.16s; width: 100% !important; display: flex !important; justify-content: center !important; align-items: center !important; margin: 0 !important; min-height: 60px; order: 2; overflow: visible !important; } ';
         css += '.full-start-new__title img { height: auto !important; max-height: ' + lHeight + 'px !important; width: auto !important; max-width: 90vw !important; object-fit: contain !important; filter: drop-shadow(0 4px 20px rgba(0,0,0,0.9)); margin: 0 !important; } ';
         
-        // 3. Слоган
+        // Слоган
         css += '.full-start-new__tagline { ' + uiAnimClass + ' animation-delay: 0.24s; display: ' + (showTagline ? 'block' : 'none') + ' !important; font-style: italic !important; opacity: 0; font-size: 1.05em !important; margin: -2px 0 0 0 !important; color: rgba(255,255,255,0.85) !important; text-align: center !important; order: 3; } ';
         
-        // 4. Блок студій
+        // Блок студій
         css += '.plugin-info-block { ' + uiAnimClass + ' animation-delay: 0.32s; display: flex; flex-direction: column; align-items: center; gap: ' + blocksGap + '; margin: 0 !important; width: 100%; order: 4; } ';
         
-        // 5. Рейтинги, тривалість, жанри
+        // Рейтинги, тривалість, жанри
         css += '.plugin-ratings-row { ' + uiAnimClass + ' animation-delay: 0.40s; display: flex; justify-content: center; align-items: center; flex-wrap: nowrap; gap: 12px; margin: 0 !important; font-size: calc(' + rSize + ' * 2.8); width: 100%; order: 5; color: #fff; font-family: "Inter", -apple-system, system-ui, sans-serif; letter-spacing: 0.02em; } ';
         
-        // 6. Іконки якості
+        // Іконки якості
         css += '.quality-row-inline { ' + uiAnimClass + ' animation-delay: 0.48s; display: flex; justify-content: center; align-items: center; gap: 8px; width: 100%; order: 6; margin-top: 2px !important; opacity: 0.75; } '; 
         
         css += '.plugin-rating-item { display: flex; align-items: center; gap: 4px; font-weight: 700; } ';
@@ -137,15 +136,16 @@
         css += '.quality-item { height: 1.4em; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3)); } '; 
         css += '.quality-item img { height: 100%; width: auto; object-fit: contain; } ';
 
+        // Стилі студій
         css += '.studio-row { display: flex; justify-content: center; align-items: center; flex-wrap: nowrap !important; overflow: hidden; gap: 12px; width: 100%; } ';
         css += '.studio-item { height: 2.2em !important; padding: 4px 10px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; ';
         if (bgOpacity !== '0') {
             css += 'background: rgba(255, 255, 255, ' + bgOpacity + '); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); ';
         }
         css += '} ';
-        css += '.studio-item img { height: 100%; width: auto; object-fit: contain; filter: drop-shadow(0 1px 3px rgba(0,0,0,0.5)); } ';
+        css += '.studio-item img { height: 100%; width: auto; max-height: 100%; object-fit: contain; filter: drop-shadow(0 1px 3px rgba(0,0,0,0.5)); } ';
 
-        // 7. Кнопки дій
+        // Кнопки дій
         css += '.full-start-new__buttons { ' + uiAnimClass + ' animation-delay: 0.56s; display: flex !important; justify-content: center !important; gap: 12px !important; width: 100% !important; margin-top: 6px !important; order: 7; } ';
         css += '.full-start-new .full-start__button { background: none !important; border: none !important; box-shadow: none !important; display: flex !important; flex-direction: column !important; align-items: center !important; width: 60px !important; transition: transform 0.2s ease, opacity 0.2s ease; } ';
         css += '.full-start-new .full-start__button:active { transform: scale(0.9); opacity: 0.7; } ';
@@ -215,7 +215,7 @@
 
         if (e.data.movie.genres && e.data.movie.genres.length > 0) {
             if ($row.children().length > 0) $row.append(sep);
-            var genres = e.data.movie.genres.slice(0, 2).map(g => g.name).join(', ');
+            var genres = e.data.movie.genres.slice(0, 2).map(function(g) { return g.name; }).join(', ');
             $row.append('<div class="info-text-item">' + genres + '</div>');
         }
 
@@ -224,20 +224,36 @@
         $target.after($qRow).after($row);
     }
 
-    function renderStudioLogos(container, data) {
+    function renderStudioLogos($container, data) {
         if (!Lampa.Storage.get('mobile_interface_studios')) return;
+        $container.empty();
+        
         var logos = [];
         [data.networks, data.production_companies].forEach(function(source) {
-            if (source) source.forEach(function(item) {
-                if (item.logo_path) {
-                    var url = Lampa.Api.img(item.logo_path, 'w200');
-                    if (!logos.some(function(l) { return l.url === url; })) logos.push({ url: url, name: item.name });
-                }
-            });
+            if (source && Array.isArray(source)) {
+                source.forEach(function(item) {
+                    if (item && item.logo_path) {
+                        var url = Lampa.TMDB.image('/t/p/w200' + item.logo_path);
+                        if (!logos.some(function(l) { return l.url === url; })) {
+                            logos.push({ url: url, name: item.name });
+                        }
+                    }
+                });
+            }
         });
 
+        if (logos.length === 0) {
+            $container.parent().hide();
+            return;
+        }
+
+        $container.parent().show();
         logos.slice(0, 4).forEach(function(logo) {
-            container.append('<div class="studio-item"><img src="' + logo.url + '" loading="lazy"></div>');
+            var $item = $('<div class="studio-item"><img src="' + logo.url + '" alt="' + (logo.name || '') + '" loading="lazy"></div>');
+            $item.find('img').on('error', function() {
+                $item.remove();
+            });
+            $container.append($item);
         });
     }
 
@@ -266,7 +282,9 @@
             url: 'https://api.themoviedb.org/3/' + (movie.name ? 'tv' : 'movie') + '/' + movie.id + '/images?api_key=' + Lampa.TMDB.key(),
             success: function(res) {
                 var lang = Lampa.Storage.get('language') || 'uk';
-                var logo = res.logos.filter(l => l.iso_639_1 === lang)[0] || res.logos.filter(l => l.iso_639_1 === 'en')[0] || res.logos[0];
+                var logo = res.logos.filter(function(l) { return l.iso_639_1 === lang; })[0] || 
+                           res.logos.filter(function(l) { return l.iso_639_1 === 'en'; })[0] || 
+                           res.logos[0];
                 
                 if (logo) {
                     var url = Lampa.TMDB.image('/t/p/' + Lampa.Storage.get('mobile_interface_logo_quality', 'w500') + logo.file_path.replace('.svg', '.png'));
@@ -325,6 +343,7 @@
 
                 loadMovieLogo(movie, $render.find('.full-start-new__title'));
                 
+                // Гарантоване перестворення контейнерів
                 $render.find('.plugin-info-block').remove();
                 var $info = $('<div class="plugin-info-block"><div class="studio-row"></div></div>');
                 $render.find('.full-start-new__right').append($info);
