@@ -19,7 +19,6 @@
         { id: 'mobile_interface_show_tagline', default: true },
         { id: 'mobile_interface_blocks_gap', default: '8px' },
         { id: 'mobile_interface_ratings_size', default: '0.45em' },
-        { id: 'mobile_interface_studios', default: true },
         { id: 'mobile_interface_quality', default: true }
     ];
 
@@ -104,12 +103,8 @@
         
         var uiAnimClass = isUIAnim ? 'animation: premium_ui_reveal 0.75s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; will-change: transform, opacity, filter; ' : '';
 
-        // Початковий мета-блок (Логотип студії, Рік, Країна, Вік)
-        css += '.full-start-new__right > div:first-child { ' + uiAnimClass + ' animation-delay: 0.08s; margin: 0 0 2px 0 !important; font-size: 0.88em !important; display: flex !important; align-items: center !important; justify-content: center !important; gap: 6px !important; flex-wrap: wrap !important; } ';
-
-        // Стилі основного бейджа студії (Зверху)
-        css += '.main-studio-badge { display: inline-flex; align-items: center; justify-content: center; background: rgba(255, 255, 255, 0.15); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.25); border-radius: 6px; padding: 3px 8px; margin-right: 4px; } ';
-        css += '.main-studio-badge img { height: 0.95em !important; width: auto; max-width: 80px; object-fit: contain; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.5)); } ';
+        // Початковий мета-блок (Рік, Країни)
+        css += '.full-start-new__right > div:first-child { ' + uiAnimClass + ' animation-delay: 0.08s; margin: 0 !important; font-size: 0.88em !important; display: flex !important; align-items: center !important; justify-content: center !important; gap: 6px !important; opacity: 0.85; } ';
 
         // Назва / Логотип
         css += '.full-start-new__title { ' + uiAnimClass + ' animation-delay: 0.16s; width: 100% !important; display: flex !important; justify-content: center !important; align-items: center !important; margin: 0 !important; min-height: 55px; overflow: visible !important; } ';
@@ -130,7 +125,6 @@
         css += '.info-separator { opacity: 0.35; font-size: 0.8em; margin: 0 -2px; } ';
         css += '.quality-item { height: 1.35em; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3)); } '; 
         css += '.quality-item img { height: 100%; width: auto; object-fit: contain; } ';
-        css += '.age-badge { background: rgba(255,255,255,0.2); padding: 1px 5px; border-radius: 4px; font-size: 0.75em; font-weight: 600; line-height: 1; } ';
 
         // Кнопки дій
         css += '.full-start-new__buttons { ' + uiAnimClass + ' animation-delay: 0.48s; display: flex !important; justify-content: center !important; gap: 12px !important; width: 100% !important; margin-top: 6px !important; } ';
@@ -219,7 +213,7 @@
             type: 'GET',
             dataType: 'json',
             success: function(data) {
-                // 1. Обираємо та ставимо логотип фільму
+                // Обираємо та ставимо український або англійський логотип фільму
                 if (data.images && data.images.logos && data.images.logos.length > 0) {
                     var lang = Lampa.Storage.get('language') || 'uk';
                     var logo = data.images.logos.filter(function(l) { return l.iso_639_1 === lang; })[0] || 
@@ -232,46 +226,12 @@
                     }
                 }
 
-                // 2. Слайдшоу бекдропів
+                // Слайдшоу бекдропів
                 if (data.images && data.images.backdrops && data.images.backdrops.length > 1) {
                     var cleanBackdrops = data.images.backdrops.filter(function(b) { return b.aspect_ratio > 1.5; });
                     if (cleanBackdrops.length > 0) {
                         startPosterSlideshow($('.full-start-new__poster'), cleanBackdrops.slice(0, 15));
                     }
-                }
-
-                // 3. Шукаємо головний логотип студії ТА додаємо нагору
-                var $topMeta = $render.find('.full-start-new__right > div:first-child');
-                
-                if (data.production_countries && data.production_countries.length > 0) {
-                    var country = data.production_countries[0].iso_3166_1;
-                    $topMeta.append('<span class="info-separator">•</span><span>' + country + '</span>');
-                }
-                if (data.adult !== undefined) {
-                    var age = data.adult ? '18+' : (movie.first_air_date ? '12+' : '16+');
-                    $topMeta.append('<span class="age-badge">' + age + '</span>');
-                }
-
-                if (!Lampa.Storage.get('mobile_interface_studios')) return;
-
-                $render.find('.main-studio-badge').remove();
-                var mainStudio = null;
-
-                if (data.networks && data.networks.length > 0) {
-                    mainStudio = data.networks.find(function(n) { return n.logo_path; });
-                }
-                if (!mainStudio && data.production_companies && data.production_companies.length > 0) {
-                    mainStudio = data.production_companies.find(function(c) { return c.logo_path; });
-                }
-
-                if (mainStudio && mainStudio.logo_path) {
-                    var studioLogoUrl = Lampa.TMDB.image('/t/p/w200' + mainStudio.logo_path);
-                    var $badge = $('<div class="main-studio-badge"><img src="' + studioLogoUrl + '" alt="' + (mainStudio.name || '') + '"></div>');
-                    
-                    $badge.find('img').on('error', function() { $badge.remove(); });
-                    
-                    // Вставляємо ТОЧНО НА ПОЧАТОК найверхнього мета-блоку
-                    $topMeta.prepend($badge);
                 }
             }
         });
@@ -364,7 +324,6 @@
         Lampa.SettingsApi.addParam({ component: 'mobile_interface', param: { name: 'mobile_interface_show_tagline', type: 'trigger', default: true }, field: { name: 'Показувати слоган' }, onChange: applyStyles });
         Lampa.SettingsApi.addParam({ component: 'mobile_interface', param: { name: 'mobile_interface_blocks_gap', type: 'select', values: { '8px': 'Компактний', '12px': 'Стандартний', '18px': 'Просторий', '24px': 'Панорамний' }, default: '8px' }, field: { name: 'Відступи між блоками' }, onChange: applyStyles });
         Lampa.SettingsApi.addParam({ component: 'mobile_interface', param: { name: 'mobile_interface_ratings_size', type: 'select', values: { '0.4em': 'Малий', '0.45em': 'Середній', '0.5em': 'Великий', '0.55em': 'Максимальний' }, default: '0.45em' }, field: { name: 'Розмір рейтингів' }, onChange: applyStyles });
-        Lampa.SettingsApi.addParam({ component: 'mobile_interface', param: { name: 'mobile_interface_studios', type: 'trigger', default: true }, field: { name: 'Головна студія' } });
         Lampa.SettingsApi.addParam({ component: 'mobile_interface', param: { name: 'mobile_interface_quality', type: 'trigger', default: true }, field: { name: 'Показувати якість' } });
     }
 
