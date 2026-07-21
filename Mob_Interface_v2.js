@@ -151,7 +151,7 @@
         css += 'transform-origin: center center !important; transition: opacity 1.2s ease-in-out !important; position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; ';
         css += 'mask-image: linear-gradient(to bottom, #000 0%, #000 55%, transparent 100%) !important; -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 55%, transparent 100%) !important; } ';
         
-        css += '.full-start-new__right { background: none !important; margin-top: -150px !important; z-index: 2 !important; display: flex !important; flex-direction: column !important; align-items: center !important; padding: 0 12px !important; gap: ' + blocksGap + ' !important; box-sizing: border-box !important; width: 100% !important; } ';
+        css += '.full-start-new__right { background: none !important; margin-top: -150px !important; z-index: 2 !important; display: flex !important; flex-direction: column !important; align-items: center !important; padding: 0 8px !important; gap: ' + blocksGap + ' !important; box-sizing: border-box !important; width: 100% !important; } ';
         
         var uiAnimClass = isUIAnim ? 'animation: premium_ui_reveal 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; will-change: transform, opacity, filter; transform: translateZ(0); ' : '';
 
@@ -182,12 +182,12 @@
         css += '.quality-item { height: 1.25em; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3)); } '; 
         css += '.quality-item img { height: 100%; width: auto; object-fit: contain; } ';
 
-        // Кнопки дій (ФІКС ВИХОДУ ЗА МЕЖІ ЕКРАНУ)
-        css += '.full-start-new__buttons { ' + uiAnimClass + ' animation-delay: 0.42s; display: flex !important; justify-content: center !important; align-items: center !important; flex-wrap: wrap !important; gap: 8px !important; width: 100% !important; box-sizing: border-box !important; margin-top: 4px !important; order: 6; } ';
-        css += '.full-start-new .full-start__button { background: none !important; border: none !important; box-shadow: none !important; display: flex !important; flex-direction: column !important; align-items: center !important; justify-content: center !important; width: 52px !important; min-width: 48px !important; padding: 4px 0 !important; transition: transform 0.2s ease, opacity 0.2s ease; } ';
+        // Кнопки дій (Оновлено: строгий 1 рядок)
+        css += '.full-start-new__buttons { ' + uiAnimClass + ' animation-delay: 0.42s; display: flex !important; justify-content: center !important; align-items: center !important; flex-wrap: nowrap !important; gap: 4px !important; width: 100% !important; box-sizing: border-box !important; margin-top: 4px !important; order: 6; } ';
+        css += '.full-start-new .full-start__button { background: none !important; border: none !important; box-shadow: none !important; display: flex !important; flex-direction: column !important; align-items: center !important; justify-content: center !important; flex: 0 0 auto !important; width: 44px !important; min-width: 44px !important; padding: 2px 0 !important; margin: 0 !important; transition: transform 0.2s ease, opacity 0.2s ease; } ';
         css += '.full-start-new .full-start__button:active { transform: scale(0.9); opacity: 0.7; } ';
-        css += '.full-start-new .full-start__button svg, .full-start-new .full-start__button img { width: 22px !important; height: 22px !important; margin-bottom: 4px !important; fill: #fff !important; filter: drop-shadow(0 2px 8px rgba(0,0,0,0.5)); } ';
-        css += '.full-start-new .full-start__button span { font-size: 8px !important; text-transform: uppercase !important; opacity: 0.75 !important; font-weight: 600; letter-spacing: 0.03em; white-space: nowrap !important; text-align: center !important; } ';
+        css += '.full-start-new .full-start__button svg, .full-start-new .full-start__button img { width: 20px !important; height: 20px !important; margin-bottom: 2px !important; fill: #fff !important; filter: drop-shadow(0 2px 8px rgba(0,0,0,0.5)); } ';
+        css += '.full-start-new .full-start__button span { font-size: 7.5px !important; text-transform: uppercase !important; opacity: 0.75 !important; font-weight: 600; letter-spacing: 0.02em; white-space: nowrap !important; text-align: center !important; } ';
         css += '} ';
 
         style.textContent = css;
