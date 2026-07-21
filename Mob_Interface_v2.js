@@ -57,6 +57,58 @@
     }
 
     /**
+     * АНАЛІЗ ЗОБРАЖЕННЯ НА ТЕМНОТУ ТА НАЯВНІСТЬ КОЛЬОРУ
+     */
+    function isImageDark(imgSrc, callback) {
+        var img = new Image();
+        img.crossOrigin = 'Anonymous';
+        img.onload = function () {
+            try {
+                var canvas = document.createElement('canvas');
+                var ctx = canvas.getContext('2d');
+                canvas.width = 40;
+                canvas.height = 40;
+                ctx.drawImage(img, 0, 0, 40, 40);
+
+                var imgData = ctx.getImageData(0, 0, 40, 40);
+                var data = imgData.data;
+                var totalBrightness = 0;
+                var hasColor = false;
+                var count = 0;
+
+                for (var i = 0; i < data.length; i += 4) {
+                    var alpha = data[i + 3];
+                    if (alpha > 50) { // тільки непрозорі пікселі
+                        var r = data[i];
+                        var g = data[i + 1];
+                        var b = data[i + 2];
+
+                        var brightness = (r * 299 + g * 587 + b * 114) / 1000;
+                        totalBrightness += brightness;
+                        count++;
+
+                        // Перевіряємо, чи є колір (відхилення між R, G, B)
+                        var max = Math.max(r, g, b);
+                        var min = Math.min(r, g, b);
+                        if ((max - min) > 30) { 
+                            hasColor = true;
+                        }
+                    }
+                }
+
+                var avgBrightness = count > 0 ? (totalBrightness / count) : 255;
+                // Якщо логотип темний (яскравість < 110) І НЕ має виражених кольорів
+                var isDark = (avgBrightness < 110) && !hasColor;
+                callback(isDark);
+            } catch (e) {
+                callback(false); // У разі помилки CORS залишаємо оригінал
+            }
+        };
+        img.onerror = function () { callback(false); };
+        img.src = imgSrc;
+    }
+
+    /**
      * СТИЛІ ІНТЕРФЕЙСУ (CSS)
      */
     function applyStyles() {
@@ -106,16 +158,18 @@
         
         var uiAnimClass = isUIAnim ? 'animation: premium_ui_reveal 0.75s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; will-change: transform, opacity, filter; ' : '';
 
-        // Логотип студії (Робимо темні логотипи білими через brightness/invert)
-        css += '.studio-header-brand { ' + uiAnimClass + ' animation-delay: 0.10s; order: 1; width: 100%; display: flex; justify-content: flex-start; align-items: center; padding-left: 5vw; margin-bottom: -4px !important; } ';
-        css += '.studio-header-brand img { height: 26px !important; width: auto; max-width: 140px; object-fit: contain; filter: brightness(0) invert(1) drop-shadow(0 2px 4px rgba(0,0,0,0.8)); opacity: 0.9; } ';
+        // Логотип студії (Зменшений розмір: height 18px, max-width 110px)
+        css += '.studio-header-brand { ' + uiAnimClass + ' animation-delay: 0.10s; order: 1; width: 100%; display: flex; justify-content: flex-start; align-items: center; padding-left: 5vw; margin-bottom: -2px !important; } ';
+        css += '.studio-header-brand img { height: 18px !important; width: auto; max-width: 110px; object-fit: contain; filter: drop-shadow(0 2px 5px rgba(0,0,0,0.9)); opacity: 0.95; } ';
+        // Клас ТІЛЬКИ для повністю чорних логотипів
+        css += '.studio-header-brand img.is-dark-logo { filter: brightness(0) invert(1) drop-shadow(0 2px 4px rgba(0,0,0,0.8)) !important; } ';
 
         // Назва / Логотип фільму
-        css += '.full-start-new__title { ' + uiAnimClass + ' animation-delay: 0.16s; width: 100% !important; display: flex !important; justify-content: center !important; align-items: center !important; margin: 0 !important; min-height: 55px; order: 2; overflow: visible !important; } ';
+        css += '.full-start-new__title { ' + uiAnimClass + ' animation-delay: 0.16s; width: 100% !important; display: flex !important; justify-content: center !important; align-items: center !important; margin: 0 !important; min-height: 50px; order: 2; overflow: visible !important; } ';
         css += '.full-start-new__title img { height: auto !important; max-height: ' + lHeight + 'px !important; width: auto !important; max-width: 90vw !important; object-fit: contain !important; filter: drop-shadow(0 4px 20px rgba(0,0,0,0.9)); margin: 0 !important; } ';
 
         // Слоган
-        css += '.full-start-new__tagline { ' + uiAnimClass + ' animation-delay: 0.22s; display: ' + (showTagline ? 'block' : 'none') + ' !important; font-style: italic !important; font-size: 0.95em !important; margin: 0 !important; color: rgba(255,255,255,0.8) !important; text-align: center !important; order: 3; } ';
+        css += '.full-start-new__tagline { ' + uiAnimClass + ' animation-delay: 0.22s; display: ' + (showTagline ? 'block' : 'none') + ' !important; font-style: italic !important; font-size: 0.9em !important; margin: 0 !important; color: rgba(255,255,255,0.8) !important; text-align: center !important; order: 3; } ';
         
         // Блок 1: Мета-інформація (Рік, Країна, Тривалість, Жанри)
         css += '.plugin-meta-row { ' + uiAnimClass + ' animation-delay: 0.26s; display: flex; justify-content: center; align-items: center; flex-wrap: nowrap; gap: 8px; margin: 0 !important; font-size: calc(' + rSize + ' * 2.5); width: 100%; order: 4; color: rgba(255,255,255,0.85); font-family: "Inter", -apple-system, system-ui, sans-serif; } ';
@@ -185,13 +239,11 @@
         // --- 1. ВЕРХНІЙ РЯДОК: Мета-інформація (Рік • Країна • Тривалість • Жанри) ---
         var $metaRow = $('<div class="plugin-meta-row"></div>');
         
-        // Рік
         var year = (e.data.movie.release_date || e.data.movie.first_air_date || '').substring(0, 4);
         if (year) {
             $metaRow.append('<div class="info-text-item">' + year + '</div>');
         }
 
-        // Країна
         var country = '';
         if (e.data.movie.production_countries && e.data.movie.production_countries.length > 0) {
             country = e.data.movie.production_countries[0].name || e.data.movie.production_countries[0].iso_3166_1;
@@ -204,14 +256,12 @@
             $metaRow.append('<div class="info-text-item">' + country + '</div>');
         }
         
-        // Тривалість
         var runtime = e.data.movie.runtime || (e.data.movie.episode_run_time ? e.data.movie.episode_run_time[0] : 0);
         if (runtime) {
             if ($metaRow.children().length > 0) $metaRow.append(sep);
             $metaRow.append('<div class="info-text-item">' + formatTime(runtime) + '</div>');
         }
 
-        // Жанри
         if (e.data.movie.genres && e.data.movie.genres.length > 0) {
             if ($metaRow.children().length > 0) $metaRow.append(sep);
             var genres = e.data.movie.genres.slice(0, 2).map(function(g) { return g.name; }).join(', ');
@@ -261,7 +311,7 @@
                     }
                 }
 
-                // 2. Ставимо логотип студії
+                // 2. Ставимо логотип студії з перевіркою кольорів
                 if (Lampa.Storage.get('mobile_interface_studios')) {
                     $render.find('.studio-header-brand').remove();
                     var studio = null;
@@ -276,7 +326,17 @@
                     if (studio && studio.logo_path) {
                         var studioLogoUrl = Lampa.TMDB.image('/t/p/w200' + studio.logo_path);
                         var $brand = $('<div class="studio-header-brand"><img src="' + studioLogoUrl + '" alt="' + (studio.name || '') + '"></div>');
-                        $brand.find('img').on('error', function() { $brand.remove(); });
+                        var $img = $brand.find('img');
+
+                        $img.on('error', function() { $brand.remove(); });
+                        
+                        // Робимо аналіз логотипу
+                        isImageDark(studioLogoUrl, function(isDark) {
+                            if (isDark) {
+                                $img.addClass('is-dark-logo');
+                            }
+                        });
+
                         $render.find('.full-start-new__title').before($brand);
                     }
                 }
