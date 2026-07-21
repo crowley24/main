@@ -156,8 +156,8 @@
         
         var uiAnimClass = isUIAnim ? 'animation: premium_ui_reveal 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; will-change: transform, opacity, filter; transform: translateZ(0); ' : '';
 
-        // Логотип студії
-        css += '.studio-header-brand { ' + uiAnimClass + ' animation-delay: 0.08s; order: 1; width: 100%; display: flex; justify-content: center; align-items: center; margin: 0 auto -2px auto !important; } ';
+        // Логотип студії — ЧІТКО ЗЛІВА
+        css += '.studio-header-brand { ' + uiAnimClass + ' animation-delay: 0.08s; order: 1; width: 100% !important; display: flex !important; justify-content: flex-start !important; align-items: center !important; margin: 0 0 -2px 0 !important; } ';
         css += '.studio-header-brand img { height: 18px !important; width: auto; max-width: 110px; object-fit: contain; filter: drop-shadow(0 2px 5px rgba(0,0,0,0.9)); opacity: 0.95; } ';
         css += '.studio-header-brand img.is-dark-logo { filter: brightness(0) invert(1) drop-shadow(0 2px 4px rgba(0,0,0,0.8)) !important; } ';
 
@@ -183,7 +183,7 @@
         css += '.quality-item { height: 1.25em; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3)); } '; 
         css += '.quality-item img { height: 100%; width: auto; object-fit: contain; } ';
 
-        // Кнопки дій (Великі та гарно відцентровані)
+        // Кнопки дій
         css += '.full-start-new__buttons { ' + uiAnimClass + ' animation-delay: 0.42s; display: flex !important; justify-content: center !important; align-items: center !important; flex-wrap: wrap !important; gap: 6px !important; width: 100% !important; max-width: 100% !important; box-sizing: border-box !important; margin: 4px auto 0 auto !important; order: 6; } ';
         css += '.full-start-new .full-start__button { background: none !important; border: none !important; box-shadow: none !important; display: flex !important; flex-direction: column !important; align-items: center !important; justify-content: center !important; width: 48px !important; min-width: 48px !important; padding: 3px 0 !important; margin: 0 !important; transition: transform 0.2s ease, opacity 0.2s ease; } ';
         css += '.full-start-new .full-start__button:active { transform: scale(0.9); opacity: 0.7; } ';
