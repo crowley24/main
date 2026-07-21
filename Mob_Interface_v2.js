@@ -88,7 +88,7 @@
         css += '} ';
         
         css += '@media screen and (max-width: 480px) { ';
-        // Приховуємо стандартний мета-блок з роком/країною (div:first-child)
+        // Приховуємо стандартні елементи
         css += '.full-start-new__details, .full-start__info, .full-start__age, .full-start-new__age, .full-start__status, .full-start-new__status, [class*="age"], [class*="pg"], [class*="rating-count"], [class*="status"] { display:none !important; } ';
         css += '.full-start-new__right > div:first-child { display: none !important; } ';
         css += '.rate--tmdb, .rate--imdb, .rate--kp, .full-start__rates { display: none !important; } ';
@@ -106,9 +106,9 @@
         
         var uiAnimClass = isUIAnim ? 'animation: premium_ui_reveal 0.75s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; will-change: transform, opacity, filter; ' : '';
 
-        // Блок логотипу студії (вирівняний ЛІВОРУЧ з фіксованим та оптимізованим розміром)
+        // Логотип студії (Робимо темні логотипи білими через brightness/invert)
         css += '.studio-header-brand { ' + uiAnimClass + ' animation-delay: 0.10s; order: 1; width: 100%; display: flex; justify-content: flex-start; align-items: center; padding-left: 5vw; margin-bottom: -4px !important; } ';
-        css += '.studio-header-brand img { height: 22px !important; width: auto; max-width: 140px; object-fit: contain; filter: drop-shadow(0 2px 6px rgba(0,0,0,0.9)); opacity: 0.95; } ';
+        css += '.studio-header-brand img { height: 26px !important; width: auto; max-width: 140px; object-fit: contain; filter: brightness(0) invert(1) drop-shadow(0 2px 4px rgba(0,0,0,0.8)); opacity: 0.9; } ';
 
         // Назва / Логотип фільму
         css += '.full-start-new__title { ' + uiAnimClass + ' animation-delay: 0.16s; width: 100% !important; display: flex !important; justify-content: center !important; align-items: center !important; margin: 0 !important; min-height: 55px; order: 2; overflow: visible !important; } ';
@@ -117,21 +117,23 @@
         // Слоган
         css += '.full-start-new__tagline { ' + uiAnimClass + ' animation-delay: 0.22s; display: ' + (showTagline ? 'block' : 'none') + ' !important; font-style: italic !important; font-size: 0.95em !important; margin: 0 !important; color: rgba(255,255,255,0.8) !important; text-align: center !important; order: 3; } ';
         
-        // Блок рейтингів та інфо (Рік включено сюди)
-        css += '.plugin-ratings-row { ' + uiAnimClass + ' animation-delay: 0.28s; display: flex; justify-content: center; align-items: center; flex-wrap: nowrap; gap: 8px; margin: 0 !important; font-size: calc(' + rSize + ' * 2.8); width: 100%; order: 4; color: #fff; font-family: "Inter", -apple-system, system-ui, sans-serif; letter-spacing: 0.02em; } ';
+        // Блок 1: Мета-інформація (Рік, Країна, Тривалість, Жанри)
+        css += '.plugin-meta-row { ' + uiAnimClass + ' animation-delay: 0.26s; display: flex; justify-content: center; align-items: center; flex-wrap: nowrap; gap: 8px; margin: 0 !important; font-size: calc(' + rSize + ' * 2.5); width: 100%; order: 4; color: rgba(255,255,255,0.85); font-family: "Inter", -apple-system, system-ui, sans-serif; } ';
         
-        // Іконки якості
-        css += '.quality-row-inline { ' + uiAnimClass + ' animation-delay: 0.34s; display: flex; justify-content: center; align-items: center; gap: 8px; width: 100%; order: 5; margin-top: 2px !important; opacity: 0.8; } '; 
+        // Блок 2: Об'єднаний рядок (Рейтинги + Якість/Аудіо)
+        css += '.plugin-ratings-quality-row { ' + uiAnimClass + ' animation-delay: 0.32s; display: flex; justify-content: center; align-items: center; flex-wrap: nowrap; gap: 12px; margin: 0 !important; width: 100%; order: 5; font-size: calc(' + rSize + ' * 2.8); } ';
+        css += '.plugin-ratings-group { display: flex; align-items: center; gap: 10px; } ';
+        css += '.quality-row-inline { display: flex; align-items: center; gap: 6px; opacity: 0.9; } '; 
         
-        css += '.plugin-rating-item { display: flex; align-items: center; gap: 4px; font-weight: 700; } ';
+        css += '.plugin-rating-item { display: flex; align-items: center; gap: 4px; font-weight: 700; color: #fff; } ';
         css += '.plugin-rating-item img { height: 1.1em; width: auto; } ';
         css += '.info-text-item { opacity: 0.9; font-weight: 500; font-size: 0.85em; white-space: nowrap; } ';
         css += '.info-separator { opacity: 0.35; font-size: 0.8em; margin: 0 -2px; } ';
-        css += '.quality-item { height: 1.35em; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3)); } '; 
+        css += '.quality-item { height: 1.25em; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3)); } '; 
         css += '.quality-item img { height: 100%; width: auto; object-fit: contain; } ';
 
         // Кнопки дій
-        css += '.full-start-new__buttons { ' + uiAnimClass + ' animation-delay: 0.40s; display: flex !important; justify-content: center !important; gap: 12px !important; width: 100% !important; margin-top: 6px !important; order: 6; } ';
+        css += '.full-start-new__buttons { ' + uiAnimClass + ' animation-delay: 0.38s; display: flex !important; justify-content: center !important; gap: 12px !important; width: 100% !important; margin-top: 6px !important; order: 6; } ';
         css += '.full-start-new .full-start__button { background: none !important; border: none !important; box-shadow: none !important; display: flex !important; flex-direction: column !important; align-items: center !important; width: 60px !important; transition: transform 0.2s ease, opacity 0.2s ease; } ';
         css += '.full-start-new .full-start__button:active { transform: scale(0.9); opacity: 0.7; } ';
         css += '.full-start-new .full-start__button svg, .full-start-new .full-start__button img { width: 24px !important; height: 24px !important; margin-bottom: 5px !important; fill: #fff !important; filter: drop-shadow(0 2px 8px rgba(0,0,0,0.5)); } ';
@@ -175,48 +177,66 @@
     }
 
     function renderRatings(container, e) {
-        container.find('.plugin-ratings-row').remove();
-        container.find('.quality-row-inline').remove();
+        container.find('.plugin-meta-row').remove();
+        container.find('.plugin-ratings-quality-row').remove();
         
-        var $row = $('<div class="plugin-ratings-row"></div>');
         var sep = '<span class="info-separator">•</span>';
         
-        // 1. TMDB Рейтинг
-        var tmdb = parseFloat(e.data.movie.vote_average || 0).toFixed(1);
-        if (tmdb > 0) {
-            $row.append('<div class="plugin-rating-item"><img src="'+ratingIcons.tmdb+'"> <span style="color:'+getRatingColor(tmdb)+'">'+tmdb+'</span></div>');
-        }
+        // --- 1. ВЕРХНІЙ РЯДОК: Мета-інформація (Рік • Країна • Тривалість • Жанри) ---
+        var $metaRow = $('<div class="plugin-meta-row"></div>');
         
-        // 2. CUB Рейтинг
-        var cub = getCubRating(e);
-        if (cub) {
-            if ($row.children().length > 0) $row.append(sep);
-            $row.append('<div class="plugin-rating-item"><img src="' + ratingIcons.cub + '"> <span style="color:' + getRatingColor(cub) + '">' + cub + '</span></div>');
-        }
-
-        // 3. Рік виходу (перенесено сюди)
+        // Рік
         var year = (e.data.movie.release_date || e.data.movie.first_air_date || '').substring(0, 4);
         if (year) {
-            if ($row.children().length > 0) $row.append(sep);
-            $row.append('<div class="info-text-item">' + year + '</div>');
-        }
-        
-        // 4. Тривалість
-        var runtime = e.data.movie.runtime || (e.data.movie.episode_run_time ? e.data.movie.episode_run_time[0] : 0);
-        if (runtime) {
-            if ($row.children().length > 0) $row.append(sep);
-            $row.append('<div class="info-text-item">' + formatTime(runtime) + '</div>');
+            $metaRow.append('<div class="info-text-item">' + year + '</div>');
         }
 
-        // 5. Жанри
+        // Країна
+        var country = '';
+        if (e.data.movie.production_countries && e.data.movie.production_countries.length > 0) {
+            country = e.data.movie.production_countries[0].name || e.data.movie.production_countries[0].iso_3166_1;
+        } else if (e.data.movie.origin_country && e.data.movie.origin_country.length > 0) {
+            country = e.data.movie.origin_country[0];
+        }
+
+        if (country) {
+            if ($metaRow.children().length > 0) $metaRow.append(sep);
+            $metaRow.append('<div class="info-text-item">' + country + '</div>');
+        }
+        
+        // Тривалість
+        var runtime = e.data.movie.runtime || (e.data.movie.episode_run_time ? e.data.movie.episode_run_time[0] : 0);
+        if (runtime) {
+            if ($metaRow.children().length > 0) $metaRow.append(sep);
+            $metaRow.append('<div class="info-text-item">' + formatTime(runtime) + '</div>');
+        }
+
+        // Жанри
         if (e.data.movie.genres && e.data.movie.genres.length > 0) {
-            if ($row.children().length > 0) $row.append(sep);
+            if ($metaRow.children().length > 0) $metaRow.append(sep);
             var genres = e.data.movie.genres.slice(0, 2).map(function(g) { return g.name; }).join(', ');
-            $row.append('<div class="info-text-item">' + genres + '</div>');
+            $metaRow.append('<div class="info-text-item">' + genres + '</div>');
+        }
+
+        // --- 2. НИЖНІЙ РЯДОК: Рейтинги + Якість в один рядок ---
+        var $rqRow = $('<div class="plugin-ratings-quality-row"></div>');
+        var $ratingsGroup = $('<div class="plugin-ratings-group"></div>');
+        
+        var tmdb = parseFloat(e.data.movie.vote_average || 0).toFixed(1);
+        if (tmdb > 0) {
+            $ratingsGroup.append('<div class="plugin-rating-item"><img src="'+ratingIcons.tmdb+'"> <span style="color:'+getRatingColor(tmdb)+'">'+tmdb+'</span></div>');
+        }
+        
+        var cub = getCubRating(e);
+        if (cub) {
+            $ratingsGroup.append('<div class="plugin-rating-item"><img src="' + ratingIcons.cub + '"> <span style="color:' + getRatingColor(cub) + '">' + cub + '</span></div>');
         }
 
         var $qRow = $('<div class="quality-row-inline"></div>');
-        container.append($row).append($qRow);
+
+        $rqRow.append($ratingsGroup).append($qRow);
+
+        container.append($metaRow).append($rqRow);
     }
 
     function loadMovieDetails(movie, $render) {
@@ -241,7 +261,7 @@
                     }
                 }
 
-                // 2. Ставимо логотип студії з нормованим розміром
+                // 2. Ставимо логотип студії
                 if (Lampa.Storage.get('mobile_interface_studios')) {
                     $render.find('.studio-header-brand').remove();
                     var studio = null;
