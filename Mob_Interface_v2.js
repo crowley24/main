@@ -107,9 +107,9 @@
         // Початковий мета-блок (Рік, Країна)
         css += '.full-start-new__right > div:first-child { ' + uiAnimClass + ' animation-delay: 0.08s; margin: 0 !important; font-size: 0.88em !important; display: flex !important; align-items: center !important; justify-content: center !important; gap: 6px !important; opacity: 0.85; order: 1; } ';
 
-        // Елегантний бренд-логотип студії над назвою
-        css += '.studio-header-brand { ' + uiAnimClass + ' animation-delay: 0.12s; order: 2; margin-bottom: -4px !important; display: flex; justify-content: center; align-items: center; } ';
-        css += '.studio-header-brand img { height: 16px !important; width: auto; max-width: 110px; object-fit: contain; filter: drop-shadow(0 2px 6px rgba(0,0,0,0.8)); opacity: 0.9; } ';
+        // Блок логотипу студії (вирівняний ЛІВОРУЧ)
+        css += '.studio-header-brand { ' + uiAnimClass + ' animation-delay: 0.12s; order: 2; width: 100%; display: flex; justify-content: flex-start; align-items: center; padding-left: 5vw; margin-bottom: -6px !important; } ';
+        css += '.studio-header-brand img { height: 15px !important; width: auto; max-width: 100px; object-fit: contain; filter: drop-shadow(0 2px 6px rgba(0,0,0,0.9)); opacity: 0.88; } ';
 
         // Назва / Логотип фільму
         css += '.full-start-new__title { ' + uiAnimClass + ' animation-delay: 0.18s; width: 100% !important; display: flex !important; justify-content: center !important; align-items: center !important; margin: 0 !important; min-height: 55px; order: 3; overflow: visible !important; } ';
@@ -218,7 +218,7 @@
             type: 'GET',
             dataType: 'json',
             success: function(data) {
-                // 1. Обираємо та ставимо логотип фільму
+                // 1. Ставимо логотип фільму
                 if (data.images && data.images.logos && data.images.logos.length > 0) {
                     var lang = Lampa.Storage.get('language') || 'uk';
                     var logo = data.images.logos.filter(function(l) { return l.iso_639_1 === lang; })[0] || 
@@ -231,7 +231,7 @@
                     }
                 }
 
-                // 2. Виводимо аккуратну студію (BRAND BADGE) над логотипом
+                // 2. Ставимо логотип студії ЛІВОРУЧ
                 if (Lampa.Storage.get('mobile_interface_studios')) {
                     $render.find('.studio-header-brand').remove();
                     var studio = null;
