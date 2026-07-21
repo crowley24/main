@@ -20,7 +20,7 @@
         { id: 'mobile_interface_blocks_gap', default: '8px' },
         { id: 'mobile_interface_ratings_size', default: '0.45em' },
         { id: 'mobile_interface_studios', default: true },
-        { id: 'mobile_interface_studios_bg_opacity', default: '0.15' },
+        { id: 'mobile_interface_studios_bg_opacity', default: '0.12' },
         { id: 'mobile_interface_quality', default: true }
     ];
 
@@ -66,7 +66,7 @@
 
         var isPosterAnim = Lampa.Storage.get('mobile_interface_animation');
         var isUIAnim = Lampa.Storage.get('mobile_interface_ui_anim');
-        var bgOpacity = Lampa.Storage.get('mobile_interface_studios_bg_opacity', '0.15');
+        var bgOpacity = Lampa.Storage.get('mobile_interface_studios_bg_opacity', '0.12');
         var rSize = Lampa.Storage.get('mobile_interface_ratings_size', '0.45em');
         var lHeight = Lampa.Storage.get('mobile_interface_logo_size_v2', '125'); 
         var showTagline = Lampa.Storage.get('mobile_interface_show_tagline');
@@ -106,18 +106,34 @@
         
         var uiAnimClass = isUIAnim ? 'animation: premium_ui_reveal 0.75s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; will-change: transform, opacity, filter; ' : '';
 
+        // Послідовність елементів
         css += '.full-start-new__right > div:first-child { ' + uiAnimClass + ' animation-delay: 0.08s; margin: 0 0 -5px 0 !important; font-size: 0.9em !important; opacity: 0; order: 1; } ';
 
+        // Назва / Логотип
         css += '.full-start-new__title { ' + uiAnimClass + ' animation-delay: 0.16s; width: 100% !important; display: flex !important; justify-content: center !important; align-items: center !important; margin: 0 !important; min-height: 60px; order: 2; overflow: visible !important; } ';
         css += '.full-start-new__title img { height: auto !important; max-height: ' + lHeight + 'px !important; width: auto !important; max-width: 90vw !important; object-fit: contain !important; filter: drop-shadow(0 4px 20px rgba(0,0,0,0.9)); margin: 0 !important; } ';
         
-        css += '.full-start-new__tagline { ' + uiAnimClass + ' animation-delay: 0.24s; display: ' + (showTagline ? 'block' : 'none') + ' !important; font-style: italic !important; opacity: 0; font-size: 1.05em !important; margin: -2px 0 0 0 !important; color: rgba(255,255,255,0.85) !important; text-align: center !important; order: 3; } ';
+        // Слоган
+        css += '.full-start-new__tagline { ' + uiAnimClass + ' animation-delay: 0.24s; display: ' + (showTagline ? 'block' : 'none') + ' !important; font-style: italic !important; opacity: 0; font-size: 1.02em !important; margin: -2px 0 2px 0 !important; color: rgba(255,255,255,0.85) !important; text-align: center !important; order: 3; } ';
         
-        css += '.plugin-info-block { ' + uiAnimClass + ' animation-delay: 0.32s; display: flex; flex-direction: column; align-items: center; gap: ' + blocksGap + '; margin: 0 !important; width: 100%; order: 4; } ';
+        // Блок студій (Оновлений преміальний вигляд)
+        css += '.plugin-info-block { ' + uiAnimClass + ' animation-delay: 0.30s; display: flex; flex-direction: column; align-items: center; gap: ' + blocksGap + '; margin: 2px 0 !important; width: 100%; order: 4; } ';
+        css += '.studio-row { display: flex; justify-content: center; align-items: center; flex-wrap: nowrap !important; overflow: hidden; gap: 8px; width: 100%; min-height: 2em; } ';
         
-        css += '.plugin-ratings-row { ' + uiAnimClass + ' animation-delay: 0.40s; display: flex; justify-content: center; align-items: center; flex-wrap: nowrap; gap: 12px; margin: 0 !important; font-size: calc(' + rSize + ' * 2.8); width: 100%; order: 5; color: #fff; font-family: "Inter", -apple-system, system-ui, sans-serif; letter-spacing: 0.02em; } ';
+        // Оновлена картка студії (Glassmorphism + автопідсвічування чорних логотипів)
+        css += '.studio-item { height: 2em !important; padding: 3px 10px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; ';
+        css += 'border: 1px solid rgba(255, 255, 255, 0.15); box-shadow: 0 4px 12px rgba(0,0,0,0.25); ';
+        if (bgOpacity !== '0') {
+            css += 'background: rgba(255, 255, 255, ' + bgOpacity + '); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); ';
+        }
+        css += '} ';
+        css += '.studio-item img { height: 1.2em !important; width: auto; max-width: 75px; object-fit: contain; filter: brightness(0) invert(1) drop-shadow(0 1px 2px rgba(0,0,0,0.4)); opacity: 0.9; } ';
+
+        // Рейтинги, тривалість, жанри
+        css += '.plugin-ratings-row { ' + uiAnimClass + ' animation-delay: 0.38s; display: flex; justify-content: center; align-items: center; flex-wrap: nowrap; gap: 12px; margin: 0 !important; font-size: calc(' + rSize + ' * 2.8); width: 100%; order: 5; color: #fff; font-family: "Inter", -apple-system, system-ui, sans-serif; letter-spacing: 0.02em; } ';
         
-        css += '.quality-row-inline { ' + uiAnimClass + ' animation-delay: 0.48s; display: flex; justify-content: center; align-items: center; gap: 8px; width: 100%; order: 6; margin-top: 2px !important; opacity: 0.75; } '; 
+        // Іконки якості
+        css += '.quality-row-inline { ' + uiAnimClass + ' animation-delay: 0.46s; display: flex; justify-content: center; align-items: center; gap: 8px; width: 100%; order: 6; margin-top: 2px !important; opacity: 0.75; } '; 
         
         css += '.plugin-rating-item { display: flex; align-items: center; gap: 4px; font-weight: 700; } ';
         css += '.plugin-rating-item img { height: 1.1em; width: auto; } ';
@@ -126,15 +142,8 @@
         css += '.quality-item { height: 1.4em; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3)); } '; 
         css += '.quality-item img { height: 100%; width: auto; object-fit: contain; } ';
 
-        css += '.studio-row { display: flex; justify-content: center; align-items: center; flex-wrap: nowrap !important; overflow: hidden; gap: 12px; width: 100%; min-height: 2.2em; } ';
-        css += '.studio-item { height: 2.2em !important; padding: 4px 10px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; ';
-        if (bgOpacity !== '0') {
-            css += 'background: rgba(255, 255, 255, ' + bgOpacity + '); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); ';
-        }
-        css += '} ';
-        css += '.studio-item img { height: 1.8em !important; width: auto; max-width: 90px; object-fit: contain; filter: drop-shadow(0 1px 3px rgba(0,0,0,0.5)); } ';
-
-        css += '.full-start-new__buttons { ' + uiAnimClass + ' animation-delay: 0.56s; display: flex !important; justify-content: center !important; gap: 12px !important; width: 100% !important; margin-top: 6px !important; order: 7; } ';
+        // Кнопки дій
+        css += '.full-start-new__buttons { ' + uiAnimClass + ' animation-delay: 0.54s; display: flex !important; justify-content: center !important; gap: 12px !important; width: 100% !important; margin-top: 6px !important; order: 7; } ';
         css += '.full-start-new .full-start__button { background: none !important; border: none !important; box-shadow: none !important; display: flex !important; flex-direction: column !important; align-items: center !important; width: 60px !important; transition: transform 0.2s ease, opacity 0.2s ease; } ';
         css += '.full-start-new .full-start__button:active { transform: scale(0.9); opacity: 0.7; } ';
         css += '.full-start-new .full-start__button svg, .full-start-new .full-start__button img { width: 24px !important; height: 24px !important; margin-bottom: 5px !important; fill: #fff !important; filter: drop-shadow(0 2px 8px rgba(0,0,0,0.5)); } ';
@@ -212,9 +221,6 @@
         $target.after($qRow).after($row);
     }
 
-    /**
-     * ОДЕРЖАННЯ ТА ВІДОБРАЖЕННЯ СТУДІЙ ТА ЛОГОТИПІВ (Прямий API запит)
-     */
     function loadMovieDetails(movie, $studioContainer, $titleContainer) {
         var type = (movie.name || movie.first_air_date) ? 'tv' : 'movie';
         var url = 'https://api.themoviedb.org/3/' + type + '/' + movie.id + '?api_key=' + Lampa.TMDB.key() + '&append_to_response=images&include_image_language=uk,en,null';
@@ -224,7 +230,6 @@
             type: 'GET',
             dataType: 'json',
             success: function(data) {
-                // 1. Обираємо та ставимо логотип фільму
                 if (data.images && data.images.logos && data.images.logos.length > 0) {
                     var lang = Lampa.Storage.get('language') || 'uk';
                     var logo = data.images.logos.filter(function(l) { return l.iso_639_1 === lang; })[0] || 
@@ -237,7 +242,6 @@
                     }
                 }
 
-                // 2. Слайдшоу з бекдропів
                 if (data.images && data.images.backdrops && data.images.backdrops.length > 1) {
                     var cleanBackdrops = data.images.backdrops.filter(function(b) { return b.aspect_ratio > 1.5; });
                     if (cleanBackdrops.length > 0) {
@@ -245,7 +249,6 @@
                     }
                 }
 
-                // 3. Відрисовуємо студії
                 if (!Lampa.Storage.get('mobile_interface_studios')) return;
                 
                 $studioContainer.empty();
@@ -336,12 +339,10 @@
                 
                 if (window.lampa_settings) window.lampa_settings.blur_poster = false;
 
-                // Перестворення блоку студій
                 $render.find('.plugin-info-block').remove();
                 var $info = $('<div class="plugin-info-block"><div class="studio-row"></div></div>');
                 $render.find('.full-start-new__right').append($info);
                 
-                // Завантаження деталей, логотипу фільму та студій через один прямий запит
                 loadMovieDetails(movie, $info.find('.studio-row'), $render.find('.full-start-new__title'));
                 
                 renderRatings($render.find('.full-start-new__right'), e);
@@ -380,7 +381,7 @@
         Lampa.SettingsApi.addParam({ component: 'mobile_interface', param: { name: 'mobile_interface_blocks_gap', type: 'select', values: { '8px': 'Компактний', '12px': 'Стандартний', '18px': 'Просторий', '24px': 'Панорамний' }, default: '8px' }, field: { name: 'Відступи між блоками' }, onChange: applyStyles });
         Lampa.SettingsApi.addParam({ component: 'mobile_interface', param: { name: 'mobile_interface_ratings_size', type: 'select', values: { '0.4em': 'Малий', '0.45em': 'Середній', '0.5em': 'Великий', '0.55em': 'Максимальний' }, default: '0.45em' }, field: { name: 'Розмір рейтингів' }, onChange: applyStyles });
         Lampa.SettingsApi.addParam({ component: 'mobile_interface', param: { name: 'mobile_interface_studios', type: 'trigger', default: true }, field: { name: 'Показувати студії' } });
-        Lampa.SettingsApi.addParam({ component: 'mobile_interface', param: { name: 'mobile_interface_studios_bg_opacity', type: 'select', values: { '0': 'Вимкнено', '0.08': 'Легкий', '0.2': 'Середній', '0.4': 'Світлий' }, default: '0.15' }, field: { name: 'Фон студій' }, onChange: applyStyles });
+        Lampa.SettingsApi.addParam({ component: 'mobile_interface', param: { name: 'mobile_interface_studios_bg_opacity', type: 'select', values: { '0': 'Вимкнено', '0.08': 'Легкий', '0.12': 'Елегантний', '0.25': 'Контрастний' }, default: '0.12' }, field: { name: 'Фон студій' }, onChange: applyStyles });
         Lampa.SettingsApi.addParam({ component: 'mobile_interface', param: { name: 'mobile_interface_quality', type: 'trigger', default: true }, field: { name: 'Показувати якість' } });
     }
 
