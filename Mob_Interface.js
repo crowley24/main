@@ -181,7 +181,7 @@
         css += '.plugin-rating-item img { height: 1.1em; width: auto; } ';
         css += '.info-text-item { opacity: 0.9; font-weight: 500; font-size: 0.85em; white-space: nowrap; } ';
         css += '.info-separator { opacity: 0.35; font-size: 0.8em; margin: 0 -2px; } ';
-        css += '.quality-item { height: 1.25em; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3)); } '; 
+        css += '.quality-item { height: 1.1em; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3)); } '; 
         css += '.quality-item img { height: 100%; width: auto; object-fit: contain; } ';
 
         // Кнопки дій
