@@ -107,7 +107,7 @@
     }
 
     /**
-     * СТИЛІ ІНТЕРФЕЙСУ (CSS) - З ОПТИМІЗОВАНОЮ ПРЕМІУМ-АНІМАЦІЄЮ
+     * СТИЛІ ІНТЕРФЕЙСУ (CSS) - З ПОМІТНІШИМ KEN BURNS ЕФЕКТОМ
      */
     function applyStyles() {
         var oldStyle = document.getElementById('mobile-interface-styles');
@@ -125,8 +125,8 @@
         
         var css = '';
         
-        // Оновлений кінематографічний Ken Burns ефект із плавним зміщенням (translate) та зумом
-        css += '@keyframes kenBurnsEffect { 0% { transform: scale(1) translate(0, 0); } 50% { transform: scale(1.06) translate(-1%, -1%); } 100% { transform: scale(1) translate(0, 0); } } ';
+        // Збільшено зум (до 1.12) та амплітуду зсуву для виразнішого ефекту
+        css += '@keyframes kenBurnsEffect { 0% { transform: scale(1) translate(0, 0); } 50% { transform: scale(1.12) translate(-2.5%, -2%); } 100% { transform: scale(1) translate(0, 0); } } ';
         
         // Покращена анімація з відчуттям маси та м'яким розмиттям (Apple Fluid Feel)
         css += '@keyframes premium_ui_reveal { ';
@@ -149,7 +149,7 @@
         css += (isUIAnim ? 'animation: poster_fade_in 0.9s cubic-bezier(0.16, 1, 0.3, 1) forwards; ' : '') + '} ';
         
         css += '.full-start-new__poster img { filter: none !important; ';
-        css += (isPosterAnim ? 'animation: kenBurnsEffect 25s ease-in-out infinite !important; ' : '');
+        css += (isPosterAnim ? 'animation: kenBurnsEffect 22s ease-in-out infinite !important; ' : '');
         css += 'transform-origin: center center !important; transition: opacity 1.2s ease-in-out !important; position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; ';
         css += 'mask-image: linear-gradient(to bottom, #000 0%, #000 55%, transparent 100%) !important; -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 55%, transparent 100%) !important; } ';
         
