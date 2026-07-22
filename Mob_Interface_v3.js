@@ -45,8 +45,7 @@
     };
 
     var ratingIcons = {
-        tmdb: 'https://upload.wikimedia.org/wikipedia/commons/8/89/Tmdb.new.logo.svg',
-        cub: 'https://raw.githubusercontent.com/yumata/lampa/9381985ad4371d2a7d5eb5ca8e3daf0f32669eb7/img/logo-icon.svg'
+        tmdb: 'https://upload.wikimedia.org/wikipedia/commons/8/89/Tmdb.new.logo.svg'
     };
 
     function stopSlideshow() {
@@ -107,7 +106,7 @@
     }
 
     /**
-     * СТИЛІ ІНТЕРФЕЙСУ (CSS) - З ПОМІТНІШИМ KEN BURNS ЕФЕКТОМ
+     * СТИЛІ ІНТЕРФЕЙСУ (CSS)
      */
     function applyStyles() {
         var oldStyle = document.getElementById('mobile-interface-styles');
@@ -125,10 +124,8 @@
         
         var css = '';
         
-        // Збільшено зум (до 1.12) та амплітуду зсуву для виразнішого ефекту
         css += '@keyframes kenBurnsEffect { 0% { transform: scale(1) translate(0, 0); } 50% { transform: scale(1.12) translate(-2.5%, -2%); } 100% { transform: scale(1) translate(0, 0); } } ';
         
-        // Покращена анімація з відчуттям маси та м'яким розмиттям (Apple Fluid Feel)
         css += '@keyframes premium_ui_reveal { ';
         css += '  0% { opacity: 0; transform: translate3d(0, 25px, 0) scale(0.95); filter: blur(10px); } ';
         css += '  100% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); filter: blur(0px); } ';
@@ -155,25 +152,19 @@
         
         css += '.full-start-new__right { background: none !important; margin-top: -160px !important; z-index: 2 !important; display: flex !important; flex-direction: column !important; align-items: center !important; padding: 0 10px !important; gap: ' + blocksGap + ' !important; } ';
         
-        // Підключаємо GPU прискорення для анімацій
         var uiAnimClass = isUIAnim ? 'animation: premium_ui_reveal 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; will-change: transform, opacity, filter; transform: translateZ(0); ' : '';
 
-        // Логотип студії
         css += '.studio-header-brand { ' + uiAnimClass + ' animation-delay: 0.08s; order: 1; width: 100%; display: flex; justify-content: flex-start; align-items: center; padding-left: 5vw; margin-bottom: -2px !important; } ';
         css += '.studio-header-brand img { height: 18px !important; width: auto; max-width: 110px; object-fit: contain; filter: drop-shadow(0 2px 5px rgba(0,0,0,0.9)); opacity: 0.95; } ';
         css += '.studio-header-brand img.is-dark-logo { filter: brightness(0) invert(1) drop-shadow(0 2px 4px rgba(0,0,0,0.8)) !important; } ';
 
-        // Назва / Логотип фільму
         css += '.full-start-new__title { ' + uiAnimClass + ' animation-delay: 0.15s; width: 100% !important; display: flex !important; justify-content: center !important; align-items: center !important; margin: 0 !important; min-height: 50px; order: 2; overflow: visible !important; } ';
         css += '.full-start-new__title img { height: auto !important; max-height: ' + lHeight + 'px !important; width: auto !important; max-width: 90vw !important; object-fit: contain !important; filter: drop-shadow(0 4px 20px rgba(0,0,0,0.9)); margin: 0 !important; } ';
 
-        // Слоган
         css += '.full-start-new__tagline { ' + uiAnimClass + ' animation-delay: 0.22s; display: ' + (showTagline ? 'block' : 'none') + ' !important; font-style: italic !important; font-size: 0.9em !important; margin: 0 !important; color: rgba(255,255,255,0.8) !important; text-align: center !important; order: 3; } ';
         
-        // Блок 1: Мета-інформація
         css += '.plugin-meta-row { ' + uiAnimClass + ' animation-delay: 0.28s; display: flex; justify-content: center; align-items: center; flex-wrap: nowrap; gap: 8px; margin: 0 !important; font-size: calc(' + rSize + ' * 2.5); width: 100%; order: 4; color: rgba(255,255,255,0.85); font-family: "Inter", -apple-system, system-ui, sans-serif; } ';
         
-        // Блок 2: Рейтинги + Якість
         css += '.plugin-ratings-quality-row { ' + uiAnimClass + ' animation-delay: 0.35s; display: flex; justify-content: center; align-items: center; flex-wrap: nowrap; gap: 12px; margin: 0 !important; width: 100%; order: 5; font-size: calc(' + rSize + ' * 2.8); } ';
         css += '.plugin-ratings-group { display: flex; align-items: center; gap: 10px; } ';
         css += '.quality-row-inline { display: flex; align-items: center; gap: 6px; opacity: 0.9; } '; 
@@ -185,7 +176,6 @@
         css += '.quality-item { height: 0.95em; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3)); } '; 
         css += '.quality-item img { height: 100%; width: auto; object-fit: contain; } ';
 
-        // Кнопки дій
         css += '.full-start-new__buttons { ' + uiAnimClass + ' animation-delay: 0.42s; display: flex !important; justify-content: center !important; gap: 12px !important; width: 100% !important; margin-top: 6px !important; order: 6; } ';
         css += '.full-start-new .full-start__button { background: none !important; border: none !important; box-shadow: none !important; display: flex !important; flex-direction: column !important; align-items: center !important; width: 60px !important; transition: transform 0.2s ease, opacity 0.2s ease; } ';
         css += '.full-start-new .full-start__button:active { transform: scale(0.9); opacity: 0.7; } ';
@@ -197,9 +187,6 @@
         document.head.appendChild(style);
     }
 
-    /**
-     * ЛОГІКА РЕЙТИНГІВ ТА ІНФОРМАЦІЇ
-     */
     function getRatingColor(val) {
         var n = parseFloat(val);
         if (n >= 7.5) return '#2ecc71';
@@ -215,26 +202,11 @@
         return (h > 0 ? h + 'г ' : '') + m + 'хв';
     }
 
-    function getCubRating(e) {
-        if (!e.data || !e.data.reactions || !e.data.reactions.result) return null;
-        var reactionCoef = { fire: 10, nice: 7.5, think: 5, bore: 2.5, shit: 0 };
-        var sum = 0, cnt = 0;
-        e.data.reactions.result.forEach(function(r) {
-            if (r.counter) { sum += (r.counter * reactionCoef[r.type]); cnt += r.counter; }
-        });
-        if (cnt >= 5) {
-            var isTv = e.object.method === 'tv', avg = isTv ? 7.4 : 6.5, m = isTv ? 50 : 150;
-            return ((avg * m + sum) / (m + cnt)).toFixed(1);
-        }
-        return null;
-    }
-
     function renderRatings(container, e) {
         container.find('.plugin-meta-row').remove();
         container.find('.plugin-ratings-quality-row').remove();
         
         var sep = '<span class="info-separator">•</span>';
-        
         var $metaRow = $('<div class="plugin-meta-row"></div>');
         
         var year = (e.data.movie.release_date || e.data.movie.first_air_date || '').substring(0, 4);
@@ -273,17 +245,19 @@
         if (tmdb > 0) {
             $ratingsGroup.append('<div class="plugin-rating-item"><img src="'+ratingIcons.tmdb+'"> <span style="color:'+getRatingColor(tmdb)+'">'+tmdb+'</span></div>');
         }
-        
-        var cub = getCubRating(e);
-        if (cub) {
-            $ratingsGroup.append('<div class="plugin-rating-item"><img src="' + ratingIcons.cub + '"> <span style="color:' + getRatingColor(cub) + '">' + cub + '</span></div>');
-        }
 
         var $qRow = $('<div class="quality-row-inline"></div>');
 
-        $rqRow.append($ratingsGroup).append($qRow);
+        if ($ratingsGroup.children().length > 0) {
+            $rqRow.append($ratingsGroup);
+        }
+        
+        $rqRow.append($qRow);
 
-        container.append($metaRow).append($rqRow);
+        container.append($metaRow);
+        if ($rqRow.children().length > 0) {
+            container.append($rqRow);
+        }
     }
 
     function loadMovieDetails(movie, $render) {
@@ -419,9 +393,6 @@
         });
     }
 
-    /**
-     * ПАНЕЛЬ НАЛАШТУВАНЬ
-     */
     function setupSettings() {
         Lampa.SettingsApi.addComponent({ 
             component: 'mobile_interface', 
@@ -502,6 +473,13 @@
         init();
     }
 
-    if (window.appready) startPlugin();
-    else Lampa.Listener.follow('app', function (e) { if (e.type === 'ready') startPlugin(); });
+    (function checkApp() {
+        if (window.appready) {
+            startPlugin();
+        } else {
+            Lampa.Listener.follow('app', function (e) { 
+                if (e.type === 'ready') startPlugin(); 
+            });
+        }
+    })();
 })();
