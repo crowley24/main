@@ -10,7 +10,6 @@
     
     var settings_list = [
         { id: 'mobile_interface_animation', default: true },
-        { id: 'mobile_interface_ui_anim', default: true },
         { id: 'mobile_interface_anim_preset', default: 'fluid' },
         { id: 'mobile_interface_slideshow', default: true },
         { id: 'mobile_interface_slideshow_time', default: '10000' },
@@ -115,7 +114,6 @@
         if (oldStyle) oldStyle.parentNode.removeChild(oldStyle);
 
         var isPosterAnim = Lampa.Storage.get('mobile_interface_animation');
-        var isUIAnim = Lampa.Storage.get('mobile_interface_ui_anim');
         var animPreset = Lampa.Storage.get('mobile_interface_anim_preset', 'fluid');
         var rSize = Lampa.Storage.get('mobile_interface_ratings_size', '0.45em');
         var lHeight = Lampa.Storage.get('mobile_interface_logo_size_v2', '125'); 
@@ -129,9 +127,9 @@
         
         css += '@keyframes kenBurnsEffect { 0% { transform: scale(1); } 50% { transform: scale(1.08); } 100% { transform: scale(1); } } ';
         
-        // Генерація пресетів анімації появи
+        // Генерація пресетів анімації появи (завжди активна, якщо не 'none')
         var uiAnimClass = '';
-        if (isUIAnim && animPreset !== 'none') {
+        if (animPreset !== 'none') {
             var keyframesName = 'anim_' + animPreset;
             if (animPreset === 'fluid') {
                 css += '@keyframes ' + keyframesName + ' { 0% { opacity: 0; transform: translate3d(0, 30px, 0) scale(0.96); filter: blur(12px); } 100% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); filter: blur(0px); } } ';
@@ -139,8 +137,9 @@
                 css += '@keyframes ' + keyframesName + ' { 0% { opacity: 0; transform: translate3d(0, 35px, 0) scale(0.92); } 60% { opacity: 1; transform: translate3d(0, -6px, 0) scale(1.015); } 85% { transform: translate3d(0, 2px, 0) scale(0.995); } 100% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); } } ';
             } else if (animPreset === 'slide') {
                 css += '@keyframes ' + keyframesName + ' { 0% { opacity: 0; transform: translate3d(0, 30px, 0); } 100% { opacity: 1; transform: translate3d(0, 0, 0); } } ';
-            } else if (animPreset === 'glass') {
-                css += '@keyframes ' + keyframesName + ' { 0% { opacity: 0; transform: translate3d(0, 20px, 0) scale(0.94); filter: blur(16px) brightness(1.3); } 100% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); filter: blur(0px) brightness(1); } } ';
+            } else if (animPreset === 'focus') {
+                // Новий пресет: Neon Focus (поява через контрастний світловий спалах без розмиття)
+                css += '@keyframes ' + keyframesName + ' { 0% { opacity: 0; transform: translate3d(0, 25px, 0) scale(0.92); filter: contrast(1.4) brightness(1.2); } 100% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); filter: contrast(1) brightness(1); } } ';
             }
             uiAnimClass = 'animation: ' + keyframesName + ' 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; will-change: transform, opacity, filter; transform: translateZ(0); ';
         }
@@ -157,7 +156,7 @@
         css += '.background { background: #000 !important; } ';
         
         css += '.full-start-new__poster { position: relative !important; overflow: hidden !important; background: #000; z-index: 1; height: 62vh !important; pointer-events: none !important; ';
-        css += (isUIAnim ? 'animation: poster_fade_in 0.9s cubic-bezier(0.16, 1, 0.3, 1) forwards; ' : '') + '} ';
+        css += (animPreset !== 'none' ? 'animation: poster_fade_in 0.9s cubic-bezier(0.16, 1, 0.3, 1) forwards; ' : '') + '} ';
         
         css += '.full-start-new__poster img { filter: none !important; ';
         css += (isPosterAnim ? 'animation: kenBurnsEffect 25s ease-in-out infinite !important; ' : '');
@@ -446,20 +445,13 @@
 
         Lampa.SettingsApi.addParam({ 
             component: 'mobile_interface', 
-            param: { name: 'mobile_interface_ui_anim', type: 'trigger', default: true }, 
-            field: { name: 'Плавна анімація появи елементів' }, 
-            onChange: applyStyles 
-        });
-
-        Lampa.SettingsApi.addParam({ 
-            component: 'mobile_interface', 
             param: { 
                 name: 'mobile_interface_anim_preset', 
                 type: 'select', 
                 values: { 
                     'fluid': "Apple Fluid (Преміум розмиття)", 
                     'spring': 'Spring Pop (Плавний пружний)', 
-                    'glass': 'Cinematic Glass (Скляний ефект ✨)', 
+                    'focus': 'Neon Focus (Світловий спалах ✨)', 
                     'slide': 'Slide & Fade (Класичний виїзд)', 
                     'none': 'Вимкнено' 
                 }, 
