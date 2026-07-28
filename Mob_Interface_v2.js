@@ -4,9 +4,10 @@
     /**
      * ПЕРЕМІННІ ТА КЕШУВАННЯ
      */
-    var logoCache = {}; 
     var slideshowTimer = null; 
     var pluginPath = 'https://crowley38.github.io/Icons/';
+    var detailsCache = {}; // Кеш для даних TMDB, щоб уникнути повторних запитів
+    var currentActiveId = null;
     
     var settings_list = [
         { id: 'mobile_interface_animation', default: true },
@@ -109,11 +110,15 @@
     }
 
     /**
-     * СТИЛІ ІНТЕРФЕЙСУ (CSS) - З ФАЗОВИМ ЗІСУВОМ ЦИКЛІЧНОЇ АНІМАЦІЇ БЕЙДЖІВ
+     * СТИЛІ ІНТЕРФЕЙСУ (CSS) — ОПТИМІЗОВАНО (оновлення існуючого елемента)
      */
     function applyStyles() {
-        var oldStyle = document.getElementById('mobile-interface-styles');
-        if (oldStyle) oldStyle.parentNode.removeChild(oldStyle);
+        var style = document.getElementById('mobile-interface-styles');
+        if (!style) {
+            style = document.createElement('style');
+            style.id = 'mobile-interface-styles';
+            document.head.appendChild(style);
+        }
 
         var isPosterAnim = Lampa.Storage.get('mobile_interface_animation');
         var isUIAnim = Lampa.Storage.get('mobile_interface_ui_anim');
@@ -124,51 +129,41 @@
         var showTagline = Lampa.Storage.get('mobile_interface_show_tagline');
         var blocksGap = Lampa.Storage.get('mobile_interface_blocks_gap', '8px');
         
-        var style = document.createElement('style');
-        style.id = 'mobile-interface-styles';
-        
         var css = '';
         
         css += '@keyframes kenBurnsEffect { 0% { transform: scale(1); } 50% { transform: scale(1.08); } 100% { transform: scale(1); } } ';
         
-        // 1. Apple Fluid Feel
         css += '@keyframes anim_fluid { ';
         css += '  0% { opacity: 0; transform: translate3d(0, 25px, 0) scale(0.95); filter: blur(10px); } ';
         css += '  100% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); filter: blur(0px); } ';
         css += '} ';
 
-        // 2. Cyber Neon
         css += '@keyframes anim_cyber { ';
         css += '  0% { opacity: 0; transform: translate3d(-40px, 0, 0) scale(0.9); filter: brightness(1.5); } ';
         css += '  100% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); filter: brightness(1); } ';
         css += '} ';
 
-        // 3. Cinematic Scale & Depth
         css += '@keyframes anim_cinematic { ';
         css += '  0% { opacity: 0; transform: translate3d(0, 15px, 0) scale(1.08); filter: blur(6px); } ';
         css += '  100% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); filter: blur(0px); } ';
         css += '} ';
 
-        // 4. Elastic Spring Bounce
         css += '@keyframes anim_elastic { ';
         css += '  0% { opacity: 0; transform: scale(0.7); } ';
         css += '  70% { opacity: 1; transform: scale(1.04); } ';
         css += '  100% { opacity: 1; transform: scale(1); } ';
         css += '} ';
 
-        // 5. Minimal Fade
         css += '@keyframes anim_minimal { ';
         css += '  0% { opacity: 0; transform: translate3d(0, 10px, 0); } ';
         css += '  100% { opacity: 1; transform: translate3d(0, 0, 0); } ';
         css += '} ';
 
-        // Базова каскадна поява бейджиків
-        css += '@keyframes quality_badge_cascade { ';
+        css += '@keyframes wave_cascade { ';
         css += '  0% { opacity: 0; transform: scale(0.5) translateY(10px); filter: blur(4px); } ';
         css += '  100% { opacity: 1; transform: scale(1) translateY(0); filter: blur(0px); } ';
         css += '} ';
 
-        // Нескінченні циклічні анімації
         css += '@keyframes badge_anim_pulse { ';
         css += '  0%, 100% { transform: scale(1); } ';
         css += '  50% { transform: scale(1.1); } ';
@@ -216,57 +211,48 @@
         var animTiming = animEffect === 'elastic' ? 'cubic-bezier(0.34, 1.56, 0.64, 1)' : 'cubic-bezier(0.16, 1, 0.3, 1)';
         var uiAnimClass = isUIAnim ? 'animation: ' + chosenAnimName + ' 0.8s ' + animTiming + ' forwards; opacity: 0; will-change: transform, opacity, filter; transform: translateZ(0); ' : '';
 
-        // Логотип студії
         css += '.studio-header-brand { ' + uiAnimClass + ' animation-delay: 0.08s; order: 1; width: 100%; display: flex; justify-content: flex-start; align-items: center; padding-left: 5vw; margin-bottom: -2px !important; } ';
         css += '.studio-header-brand img { height: 18px !important; width: auto; max-width: 110px; object-fit: contain; filter: drop-shadow(0 2px 5px rgba(0,0,0,0.9)); opacity: 0.95; } ';
         css += '.studio-header-brand img.is-dark-logo { filter: brightness(0) invert(1) drop-shadow(0 2px 4px rgba(0,0,0,0.8)) !important; } ';
 
-        // Назва / Логотип фільму
         css += '.full-start-new__title { ' + uiAnimClass + ' animation-delay: 0.15s; width: 100% !important; display: flex !important; justify-content: center !important; align-items: center !important; margin: 0 !important; min-height: 50px; order: 2; overflow: visible !important; } ';
         css += '.full-start-new__title img { height: auto !important; max-height: ' + lHeight + 'px !important; width: auto !important; max-width: 90vw !important; object-fit: contain !important; filter: drop-shadow(0 4px 20px rgba(0,0,0,0.9)); margin: 0 !important; } ';
 
-        // Слоган
         css += '.full-start-new__tagline { ' + uiAnimClass + ' animation-delay: 0.22s; display: ' + (showTagline ? 'block' : 'none') + ' !important; font-style: italic !important; font-size: 0.9em !important; margin: 0 !important; color: rgba(255,255,255,0.8) !important; text-align: center !important; order: 3; } ';
         
-        // Блок 1: Мета-інформація
         css += '.plugin-meta-row { ' + uiAnimClass + ' animation-delay: 0.28s; display: flex; justify-content: center; align-items: center; flex-wrap: nowrap; gap: 8px; margin: 0 !important; font-size: calc(' + rSize + ' * 2.5); width: 100%; order: 4; color: rgba(255,255,255,0.85); font-family: "Inter", -apple-system, system-ui, sans-serif; } ';
         
-        // Блок 2: Рейтинги + Якість
         css += '.plugin-ratings-quality-row { ' + uiAnimClass + ' animation-delay: 0.35s; display: flex; justify-content: center; align-items: center; flex-wrap: nowrap; gap: 12px; margin: 0 !important; width: 100%; order: 5; font-size: calc(' + rSize + ' * 2.8); } ';
         css += '.plugin-ratings-group { display: flex; align-items: center; gap: 10px; } ';
         css += '.quality-row-inline { display: flex; align-items: center; gap: 6px; opacity: 0.9; } '; 
         
-        // Циклічна анімація для значків рейтингів
-        var ratingLoopAnim = badgeAnim !== 'none' ? 'badge_anim_' + badgeAnim + (badgeAnim === 'spin_slow' ? ' 4s ease-in-out infinite' : (badgeAnim === 'pulse' ? ' 2.5s ease-in-out infinite' : (badgeAnim === 'breathe' ? ' 3s ease-in-out infinite' : ' 2.5s ease-in-out infinite'))) : '';
-        css += '.plugin-rating-item { display: flex; align-items: center; gap: 4px; font-weight: 700; color: #fff; ' + (ratingLoopAnim ? 'animation: ' + ratingLoopAnim + '; transform-origin: center center;' : '') + '} ';
-        css += '.plugin-rating-item img { height: 1.1em; width: auto; } ';
-        css += '.info-text-item { opacity: 0.9; font-weight: 500; font-size: 0.85em; white-space: nowrap; } ';
-        css += '.info-separator { opacity: 0.35; font-size: 0.8em; margin: 0 -2px; } ';
-        
-        // Повністю індивідуальні анімації для бейджів якості (з використанням змінних --badge-delay та --badge-loop-delay)
-        css += '.quality-item { height: 1.1em; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3)); transform-origin: center center; ';
+        var loopAnimName = badgeAnim !== 'none' ? 'badge_anim_' + badgeAnim : '';
+        var loopDuration = badgeAnim === 'spin_slow' ? '4s' : (badgeAnim === 'breathe' ? '3s' : '2.5s');
+
+        css += '.wave-item { transform-origin: center center; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3)); ';
         if (isUIAnim) {
-            css += 'opacity: 0; animation: quality_badge_cascade 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards';
+            css += 'opacity: 0; animation: wave_cascade 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards';
             if (badgeAnim !== 'none') {
-                var loopAnimName = 'badge_anim_' + badgeAnim;
-                var loopDuration = badgeAnim === 'spin_slow' ? '4s' : (badgeAnim === 'breathe' ? '3s' : '2.5s');
                 css += ', ' + loopAnimName + ' ' + loopDuration + ' ease-in-out infinite';
-                css += '; animation-delay: var(--badge-delay), var(--badge-loop-delay)';
+                css += '; animation-delay: calc(0.35s + (var(--item-index) * 0.08s)), calc(1s + (var(--item-index) * 0.15s))';
             } else {
-                css += '; animation-delay: var(--badge-delay)';
+                css += '; animation-delay: calc(0.35s + (var(--item-index) * 0.08s))';
             }
             css += '; will-change: transform, opacity, filter; ';
         } else if (badgeAnim !== 'none') {
-            var loopAnimName = 'badge_anim_' + badgeAnim;
-            var loopDuration = badgeAnim === 'spin_slow' ? '4s' : (badgeAnim === 'breathe' ? '3s' : '2.5s');
             css += 'animation: ' + loopAnimName + ' ' + loopDuration + ' ease-in-out infinite; ';
-            css += 'animation-delay: var(--badge-loop-delay); ';
+            css += 'animation-delay: calc(var(--item-index) * 0.15s); ';
         }
         css += '} ';
-        
+
+        css += '.plugin-rating-item { display: flex; align-items: center; gap: 4px; font-weight: 700; color: #fff; } ';
+        css += '.plugin-rating-item img { height: 1.1em; width: auto; } ';
+        css += '.quality-item { height: 1.1em; } ';
         css += '.quality-item img { height: 100%; width: auto; object-fit: contain; } ';
 
-        // Кнопки дій
+        css += '.info-text-item { opacity: 0.9; font-weight: 500; font-size: 0.85em; white-space: nowrap; } ';
+        css += '.info-separator { opacity: 0.35; font-size: 0.8em; margin: 0 -2px; } ';
+
         css += '.full-start-new__buttons { ' + uiAnimClass + ' animation-delay: 0.42s; display: flex !important; justify-content: center !important; gap: 12px !important; width: 100% !important; margin-top: 6px !important; order: 6; } ';
         css += '.full-start-new .full-start__button { background: none !important; border: none !important; box-shadow: none !important; display: flex !important; flex-direction: column !important; align-items: center !important; width: 60px !important; transition: transform 0.2s ease, opacity 0.2s ease; } ';
         css += '.full-start-new .full-start__button:active { transform: scale(0.9); opacity: 0.7; } ';
@@ -275,7 +261,6 @@
         css += '} ';
 
         style.textContent = css;
-        document.head.appendChild(style);
     }
 
     /**
@@ -315,7 +300,6 @@
         container.find('.plugin-ratings-quality-row').remove();
         
         var sep = '<span class="info-separator">•</span>';
-        
         var $metaRow = $('<div class="plugin-meta-row"></div>');
         
         var year = (e.data.movie.release_date || e.data.movie.first_air_date || '').substring(0, 4);
@@ -350,78 +334,99 @@
         var $rqRow = $('<div class="plugin-ratings-quality-row"></div>');
         var $ratingsGroup = $('<div class="plugin-ratings-group"></div>');
         
+        var globalIndex = 0;
+
         var tmdb = parseFloat(e.data.movie.vote_average || 0).toFixed(1);
         if (tmdb > 0) {
-            $ratingsGroup.append('<div class="plugin-rating-item"><img src="'+ratingIcons.tmdb+'"> <span style="color:'+getRatingColor(tmdb)+'">'+tmdb+'</span></div>');
+            var $tmdbItem = $('<div class="plugin-rating-item wave-item"><img src="'+ratingIcons.tmdb+'"> <span style="color:'+getRatingColor(tmdb)+'">'+tmdb+'</span></div>');
+            $tmdbItem.css('--item-index', globalIndex++);
+            $ratingsGroup.append($tmdbItem);
         }
         
         var cub = getCubRating(e);
         if (cub) {
-            $ratingsGroup.append('<div class="plugin-rating-item"><img src="' + ratingIcons.cub + '"> <span style="color:' + getRatingColor(cub) + '">' + cub + '</span></div>');
+            var $cubItem = $('<div class="plugin-rating-item wave-item"><img src="' + ratingIcons.cub + '"> <span style="color:' + getRatingColor(cub) + '">' + cub + '</span></div>');
+            $cubItem.css('--item-index', globalIndex++);
+            $ratingsGroup.append($cubItem);
         }
 
         var $qRow = $('<div class="quality-row-inline"></div>');
-
         $rqRow.append($ratingsGroup).append($qRow);
-
         container.append($metaRow).append($rqRow);
     }
 
+    function applyMovieDetailsData(data, movie, $render) {
+        if (data.images && data.images.logos && data.images.logos.length > 0) {
+            var lang = Lampa.Storage.get('language') || 'uk';
+            var logo = data.images.logos.filter(function(l) { return l.iso_639_1 === lang; })[0] || 
+                       data.images.logos.filter(function(l) { return l.iso_639_1 === 'en'; })[0] || 
+                       data.images.logos[0];
+            
+            if (logo) {
+                var logoUrl = Lampa.TMDB.image('/t/p/' + Lampa.Storage.get('mobile_interface_logo_quality', 'w500') + logo.file_path.replace('.svg', '.png'));
+                $render.find('.full-start-new__title').html('<img src="' + logoUrl + '">');
+            }
+        }
+
+        if (Lampa.Storage.get('mobile_interface_studios')) {
+            $render.find('.studio-header-brand').remove();
+            var studio = null;
+
+            if (data.networks && data.networks.length > 0) {
+                studio = data.networks.find(function(n) { return n.logo_path; });
+            }
+            if (!studio && data.production_companies && data.production_companies.length > 0) {
+                studio = data.production_companies.find(function(c) { return c.logo_path; });
+            }
+
+            if (studio && studio.logo_path) {
+                var studioLogoUrl = Lampa.TMDB.image('/t/p/w200' + studio.logo_path);
+                var $brand = $('<div class="studio-header-brand"><img src="' + studioLogoUrl + '" alt="' + (studio.name || '') + '"></div>');
+                var $img = $brand.find('img');
+
+                $img.on('error', function() { $brand.remove(); });
+                
+                isImageDark(studioLogoUrl, function(isDark) {
+                    if (isDark) {
+                        $img.addClass('is-dark-logo');
+                    }
+                });
+
+                $render.find('.full-start-new__title').before($brand);
+            }
+        }
+
+        if (data.images && data.images.backdrops && data.images.backdrops.length > 1) {
+            var cleanBackdrops = data.images.backdrops.filter(function(b) { return b.aspect_ratio > 1.5; });
+            if (cleanBackdrops.length > 0) {
+                startPosterSlideshow($('.full-start-new__poster'), cleanBackdrops.slice(0, 15));
+            }
+        }
+    }
+
     function loadMovieDetails(movie, $render) {
+        var movieId = movie.id;
+        currentActiveId = movieId;
+
+        // Перевірка кешу перед виконанням мережевого запиту
+        if (detailsCache[movieId]) {
+            applyMovieDetailsData(detailsCache[movieId], movie, $render);
+            return;
+        }
+
         var type = (movie.name || movie.first_air_date) ? 'tv' : 'movie';
-        var url = 'https://api.themoviedb.org/3/' + type + '/' + movie.id + '?api_key=' + Lampa.TMDB.key() + '&append_to_response=images&include_image_language=uk,en,null';
+        var url = 'https://api.themoviedb.org/3/' + type + '/' + movieId + '?api_key=' + Lampa.TMDB.key() + '&append_to_response=images&include_image_language=uk,en,null';
 
         $.ajax({
             url: url,
             type: 'GET',
             dataType: 'json',
             success: function(data) {
-                if (data.images && data.images.logos && data.images.logos.length > 0) {
-                    var lang = Lampa.Storage.get('language') || 'uk';
-                    var logo = data.images.logos.filter(function(l) { return l.iso_639_1 === lang; })[0] || 
-                               data.images.logos.filter(function(l) { return l.iso_639_1 === 'en'; })[0] || 
-                               data.images.logos[0];
-                    
-                    if (logo) {
-                        var logoUrl = Lampa.TMDB.image('/t/p/' + Lampa.Storage.get('mobile_interface_logo_quality', 'w500') + logo.file_path.replace('.svg', '.png'));
-                        $render.find('.full-start-new__title').html('<img src="' + logoUrl + '">');
-                    }
-                }
-
-                if (Lampa.Storage.get('mobile_interface_studios')) {
-                    $render.find('.studio-header-brand').remove();
-                    var studio = null;
-
-                    if (data.networks && data.networks.length > 0) {
-                        studio = data.networks.find(function(n) { return n.logo_path; });
-                    }
-                    if (!studio && data.production_companies && data.production_companies.length > 0) {
-                        studio = data.production_companies.find(function(c) { return c.logo_path; });
-                    }
-
-                    if (studio && studio.logo_path) {
-                        var studioLogoUrl = Lampa.TMDB.image('/t/p/w200' + studio.logo_path);
-                        var $brand = $('<div class="studio-header-brand"><img src="' + studioLogoUrl + '" alt="' + (studio.name || '') + '"></div>');
-                        var $img = $brand.find('img');
-
-                        $img.on('error', function() { $brand.remove(); });
-                        
-                        isImageDark(studioLogoUrl, function(isDark) {
-                            if (isDark) {
-                                $img.addClass('is-dark-logo');
-                            }
-                        });
-
-                        $render.find('.full-start-new__title').before($brand);
-                    }
-                }
-
-                if (data.images && data.images.backdrops && data.images.backdrops.length > 1) {
-                    var cleanBackdrops = data.images.backdrops.filter(function(b) { return b.aspect_ratio > 1.5; });
-                    if (cleanBackdrops.length > 0) {
-                        startPosterSlideshow($('.full-start-new__poster'), cleanBackdrops.slice(0, 15));
-                    }
-                }
+                // Захист від гонки запитів (якщо користувач швидко змінив картку)
+                if (currentActiveId !== movieId) return;
+                
+                detailsCache[movieId] = data; // Зберігаємо в кеш
+                applyMovieDetailsData(data, movie, $render);
             }
         });
     }
@@ -468,6 +473,7 @@
         Lampa.Listener.follow('full', function (e) {
             if (e.type === 'destroy') {
                 stopSlideshow();
+                currentActiveId = null;
             }
             
             if (window.innerWidth <= 480 && (e.type === 'complite' || e.type === 'complete')) {
@@ -490,18 +496,17 @@
                             
                             var $qRow = $render.find('.quality-row-inline');
                             $qRow.empty();
+
+                            var startIndex = 0;
+                            var tmdb = parseFloat(e.data.movie.vote_average || 0).toFixed(1);
+                            if (tmdb > 0) startIndex++;
+                            if (getCubRating(e)) startIndex++;
+
                             list.forEach(function(t, idx) { 
                                 if (svgIcons[t]) {
-                                    // Затримка появи (каскад)
-                                    var cascadeDelay = (0.40 + (idx * 0.10)).toFixed(2) + 's';
-                                    // Зсув фази циклічної анімації для кожного бейджа окремо (щоб вони «дихали» або пульсували в різний час)
-                                    var loopDelayVal = (0.50 + (idx * 0.35)).toFixed(2) + 's';
-
-                                    var $badge = $('<div class="quality-item"><img src="' + svgIcons[t] + '"></div>');
-                                    $badge.css({
-                                        '--badge-delay': cascadeDelay,
-                                        '--badge-loop-delay': loopDelayVal
-                                    });
+                                    var currentItemIndex = startIndex + idx;
+                                    var $badge = $('<div class="quality-item wave-item"><img src="' + svgIcons[t] + '"></div>');
+                                    $badge.css('--item-index', currentItemIndex);
                                     $qRow.append($badge);
                                 }
                             });
