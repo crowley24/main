@@ -134,15 +134,15 @@
         if (isUIAnim && animPreset !== 'none') {
             var keyframesName = 'anim_' + animPreset;
             if (animPreset === 'fluid') {
-                css += '@keyframes ' + keyframesName + ' { 0% { opacity: 0; transform: translate3d(0, 25px, 0) scale(0.95); filter: blur(10px); } 100% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); filter: blur(0px); } } ';
+                css += '@keyframes ' + keyframesName + ' { 0% { opacity: 0; transform: translate3d(0, 30px, 0) scale(0.96); filter: blur(12px); } 100% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); filter: blur(0px); } } ';
             } else if (animPreset === 'spring') {
-                css += '@keyframes ' + keyframesName + ' { 0% { opacity: 0; transform: translate3d(0, 40px, 0) scale(0.85); } 70% { transform: translate3d(0, -5px, 0) scale(1.02); } 100% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); } } ';
+                css += '@keyframes ' + keyframesName + ' { 0% { opacity: 0; transform: translate3d(0, 35px, 0) scale(0.92); } 60% { opacity: 1; transform: translate3d(0, -6px, 0) scale(1.015); } 85% { transform: translate3d(0, 2px, 0) scale(0.995); } 100% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); } } ';
             } else if (animPreset === 'slide') {
                 css += '@keyframes ' + keyframesName + ' { 0% { opacity: 0; transform: translate3d(0, 30px, 0); } 100% { opacity: 1; transform: translate3d(0, 0, 0); } } ';
-            } else if (animPreset === 'cyber') {
-                css += '@keyframes ' + keyframesName + ' { 0% { opacity: 0; transform: translate3d(-15px, 0, 0); filter: brightness(2); } 100% { opacity: 1; transform: translate3d(0, 0, 0); filter: brightness(1); } } ';
+            } else if (animPreset === 'glass') {
+                css += '@keyframes ' + keyframesName + ' { 0% { opacity: 0; transform: translate3d(0, 20px, 0) scale(0.94); filter: blur(16px) brightness(1.3); } 100% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); filter: blur(0px) brightness(1); } } ';
             }
-            uiAnimClass = 'animation: ' + keyframesName + ' 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; will-change: transform, opacity, filter; transform: translateZ(0); ';
+            uiAnimClass = 'animation: ' + keyframesName + ' 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; will-change: transform, opacity, filter; transform: translateZ(0); ';
         }
 
         css += '@keyframes poster_fade_in { ';
@@ -457,10 +457,10 @@
                 name: 'mobile_interface_anim_preset', 
                 type: 'select', 
                 values: { 
-                    'fluid': "Apple Fluid (М'яке розмиття)", 
-                    'spring': 'Spring Pop (Пружний стрибок)', 
+                    'fluid': "Apple Fluid (Преміум розмиття)", 
+                    'spring': 'Spring Pop (Плавний пружний)', 
+                    'glass': 'Cinematic Glass (Скляний ефект ✨)', 
                     'slide': 'Slide & Fade (Класичний виїзд)', 
-                    'cyber': 'Cyber Fade (Техно-стиль)',
                     'none': 'Вимкнено' 
                 }, 
                 default: 'fluid' 
