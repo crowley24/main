@@ -107,7 +107,7 @@
     }
 
     /**
-     * СТИЛІ ІНТЕРФЕЙСУ (CSS) - З ДИНАМІЧНИМИ ПРЕСЕТАМИ АНІМАЦІЙ
+     * СТИЛІ ІНТЕРФЕЙСУ (CSS)
      */
     function applyStyles() {
         var oldStyle = document.getElementById('mobile-interface-styles');
@@ -127,26 +127,23 @@
         
         css += '@keyframes kenBurnsEffect { 0% { transform: scale(1); } 50% { transform: scale(1.08); } 100% { transform: scale(1); } } ';
         
-        // Генерація пресетів анімації появи
-        var uiAnimClass = '';
+        // Безпечна генерація анімації
+        var uiAnimClass = 'opacity: 1; ';
         if (animPreset && animPreset !== 'none') {
             var keyframesName = 'anim_' + animPreset;
             if (animPreset === 'fluid') {
-                css += '@keyframes ' + keyframesName + ' { 0% { opacity: 0; transform: translate3d(0, 30px, 0) scale(0.96); filter: blur(12px); } 100% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); filter: blur(0px); } } ';
+                css += '@keyframes ' + keyframesName + ' { 0% { opacity: 0; transform: translate3d(0, 20px, 0) scale(0.96); } 100% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); } } ';
             } else if (animPreset === 'spring') {
-                css += '@keyframes ' + keyframesName + ' { 0% { opacity: 0; transform: translate3d(0, 35px, 0) scale(0.92); } 60% { opacity: 1; transform: translate3d(0, -6px, 0) scale(1.015); } 85% { transform: translate3d(0, 2px, 0) scale(0.995); } 100% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); } } ';
+                css += '@keyframes ' + keyframesName + ' { 0% { opacity: 0; transform: translate3d(0, 25px, 0) scale(0.92); } 70% { opacity: 1; transform: translate3d(0, -4px, 0) scale(1.01); } 100% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); } } ';
             } else if (animPreset === 'slide') {
-                css += '@keyframes ' + keyframesName + ' { 0% { opacity: 0; transform: translate3d(0, 30px, 0); } 100% { opacity: 1; transform: translate3d(0, 0, 0); } } ';
+                css += '@keyframes ' + keyframesName + ' { 0% { opacity: 0; transform: translate3d(0, 20px, 0); } 100% { opacity: 1; transform: translate3d(0, 0, 0); } } ';
             } else if (animPreset === 'focus') {
-                css += '@keyframes ' + keyframesName + ' { 0% { opacity: 0; transform: translate3d(0, 25px, 0) scale(0.92); filter: contrast(1.4) brightness(1.2); } 100% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); filter: contrast(1) brightness(1); } } ';
+                css += '@keyframes ' + keyframesName + ' { 0% { opacity: 0; transform: scale(0.95); filter: brightness(1.3); } 100% { opacity: 1; transform: scale(1); filter: brightness(1); } } ';
             }
-            uiAnimClass = 'animation: ' + keyframesName + ' 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; will-change: transform, opacity, filter; transform: translateZ(0); ';
+            uiAnimClass = 'animation: ' + keyframesName + ' 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; will-change: transform, opacity; ';
         }
 
-        css += '@keyframes poster_fade_in { ';
-        css += '  0% { opacity: 0; transform: scale(1.05); } ';
-        css += '  100% { opacity: 1; transform: scale(1); } ';
-        css += '} ';
+        css += '@keyframes poster_fade_in { 0% { opacity: 0; } 100% { opacity: 1; } } ';
         
         css += '@media screen and (max-width: 480px) { ';
         css += '.full-start-new__details, .full-start__info, .full-start__age, .full-start-new__age, .full-start__status, .full-start-new__status, [class*="age"], [class*="pg"], [class*="rating-count"], [class*="status"] { display:none !important; } ';
@@ -155,7 +152,7 @@
         css += '.background { background: #000 !important; } ';
         
         css += '.full-start-new__poster { position: relative !important; overflow: hidden !important; background: #000; z-index: 1; height: 62vh !important; pointer-events: none !important; ';
-        css += (animPreset && animPreset !== 'none' ? 'animation: poster_fade_in 0.9s cubic-bezier(0.16, 1, 0.3, 1) forwards; ' : '') + '} ';
+        css += (animPreset && animPreset !== 'none' ? 'animation: poster_fade_in 0.8s ease forwards; ' : '') + '} ';
         
         css += '.full-start-new__poster img { filter: none !important; ';
         css += (isPosterAnim ? 'animation: kenBurnsEffect 25s ease-in-out infinite !important; ' : '');
@@ -165,22 +162,22 @@
         css += '.full-start-new__right { background: none !important; margin-top: -160px !important; z-index: 2 !important; display: flex !important; flex-direction: column !important; align-items: center !important; padding: 0 10px !important; gap: ' + blocksGap + ' !important; } ';
 
         // Логотип студії
-        css += '.studio-header-brand { ' + uiAnimClass + ' animation-delay: 0.08s; order: 1; width: 100%; display: flex; justify-content: flex-start; align-items: center; padding-left: 5vw; margin-bottom: -2px !important; } ';
+        css += '.studio-header-brand { ' + uiAnimClass + ' animation-delay: 0.05s; order: 1; width: 100%; display: flex; justify-content: flex-start; align-items: center; padding-left: 5vw; margin-bottom: -2px !important; } ';
         css += '.studio-header-brand img { height: 18px !important; width: auto; max-width: 110px; object-fit: contain; filter: drop-shadow(0 2px 5px rgba(0,0,0,0.9)); opacity: 0.95; } ';
         css += '.studio-header-brand img.is-dark-logo { filter: brightness(0) invert(1) drop-shadow(0 2px 4px rgba(0,0,0,0.8)) !important; } ';
 
         // Назва / Логотип фільму
-        css += '.full-start-new__title { ' + uiAnimClass + ' animation-delay: 0.15s; width: 100% !important; display: flex !important; justify-content: center !important; align-items: center !important; margin: 0 !important; min-height: 50px; order: 2; overflow: visible !important; } ';
+        css += '.full-start-new__title { ' + uiAnimClass + ' animation-delay: 0.1s; width: 100% !important; display: flex !important; justify-content: center !important; align-items: center !important; margin: 0 !important; min-height: 50px; order: 2; overflow: visible !important; } ';
         css += '.full-start-new__title img { height: auto !important; max-height: ' + lHeight + 'px !important; width: auto !important; max-width: 90vw !important; object-fit: contain !important; filter: drop-shadow(0 4px 20px rgba(0,0,0,0.9)); margin: 0 !important; } ';
 
         // Слоган
-        css += '.full-start-new__tagline { ' + uiAnimClass + ' animation-delay: 0.22s; display: ' + (showTagline ? 'block' : 'none') + ' !important; font-style: italic !important; font-size: 0.9em !important; margin: 0 !important; color: rgba(255,255,255,0.8) !important; text-align: center !important; order: 3; } ';
+        css += '.full-start-new__tagline { ' + uiAnimClass + ' animation-delay: 0.15s; display: ' + (showTagline ? 'block' : 'none') + ' !important; font-style: italic !important; font-size: 0.9em !important; margin: 0 !important; color: rgba(255,255,255,0.8) !important; text-align: center !important; order: 3; } ';
         
         // Блок 1: Мета-інформація
-        css += '.plugin-meta-row { ' + uiAnimClass + ' animation-delay: 0.28s; display: flex; justify-content: center; align-items: center; flex-wrap: nowrap; gap: 8px; margin: 0 !important; font-size: calc(' + rSize + ' * 2.5); width: 100%; order: 4; color: rgba(255,255,255,0.85); font-family: "Inter", -apple-system, system-ui, sans-serif; } ';
+        css += '.plugin-meta-row { ' + uiAnimClass + ' animation-delay: 0.2s; display: flex; justify-content: center; align-items: center; flex-wrap: nowrap; gap: 8px; margin: 0 !important; font-size: calc(' + rSize + ' * 2.5); width: 100%; order: 4; color: rgba(255,255,255,0.85); font-family: "Inter", sans-serif; } ';
         
         // Блок 2: Рейтинги + Якість
-        css += '.plugin-ratings-quality-row { ' + uiAnimClass + ' animation-delay: 0.35s; display: flex; justify-content: center; align-items: center; flex-wrap: nowrap; gap: 12px; margin: 0 !important; width: 100%; order: 5; font-size: calc(' + rSize + ' * 2.8); } ';
+        css += '.plugin-ratings-quality-row { ' + uiAnimClass + ' animation-delay: 0.25s; display: flex; justify-content: center; align-items: center; flex-wrap: nowrap; gap: 12px; margin: 0 !important; width: 100%; order: 5; font-size: calc(' + rSize + ' * 2.8); } ';
         css += '.plugin-ratings-group { display: flex; align-items: center; gap: 10px; } ';
         css += '.quality-row-inline { display: flex; align-items: center; gap: 6px; opacity: 0.9; } '; 
         
@@ -192,7 +189,7 @@
         css += '.quality-item img { height: 100%; width: auto; object-fit: contain; } ';
 
         // Кнопки дій
-        css += '.full-start-new__buttons { ' + uiAnimClass + ' animation-delay: 0.42s; display: flex !important; justify-content: center !important; gap: 12px !important; width: 100% !important; margin-top: 6px !important; order: 6; } ';
+        css += '.full-start-new__buttons { ' + uiAnimClass + ' animation-delay: 0.3s; display: flex !important; justify-content: center !important; gap: 12px !important; width: 100% !important; margin-top: 6px !important; order: 6; } ';
         css += '.full-start-new .full-start__button { background: none !important; border: none !important; box-shadow: none !important; display: flex !important; flex-direction: column !important; align-items: center !important; width: 60px !important; transition: transform 0.2s ease, opacity 0.2s ease; } ';
         css += '.full-start-new .full-start__button:active { transform: scale(0.9); opacity: 0.7; } ';
         css += '.full-start-new .full-start__button svg, .full-start-new .full-start__button img { width: 24px !important; height: 24px !important; margin-bottom: 5px !important; fill: #fff !important; filter: drop-shadow(0 2px 8px rgba(0,0,0,0.5)); } ';
