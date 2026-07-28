@@ -11,7 +11,7 @@
     var settings_list = [
         { id: 'mobile_interface_animation', default: true },
         { id: 'mobile_interface_ui_anim', default: true },
-        { id: 'mobile_interface_anim_preset', default: 'fluid' },
+        { id: 'mobile_interface_ui_anim_effect', default: 'fluid' },
         { id: 'mobile_interface_slideshow', default: true },
         { id: 'mobile_interface_slideshow_time', default: '10000' },
         { id: 'mobile_interface_slideshow_quality', default: 'w780' },
@@ -108,7 +108,7 @@
     }
 
     /**
-     * СТИЛІ ІНТЕРФЕЙСУ (CSS) - З ДИНАМІЧНИМИ ПРЕСЕТАМИ АНІМАЦІЙ
+     * СТИЛІ ІНТЕРФЕЙСУ (CSS) - З НАБІРОМ ПРЕМІУМ-АНІМАЦІЙ
      */
     function applyStyles() {
         var oldStyle = document.getElementById('mobile-interface-styles');
@@ -116,7 +116,7 @@
 
         var isPosterAnim = Lampa.Storage.get('mobile_interface_animation');
         var isUIAnim = Lampa.Storage.get('mobile_interface_ui_anim');
-        var animPreset = Lampa.Storage.get('mobile_interface_anim_preset', 'fluid');
+        var animEffect = Lampa.Storage.get('mobile_interface_ui_anim_effect', 'fluid');
         var rSize = Lampa.Storage.get('mobile_interface_ratings_size', '0.45em');
         var lHeight = Lampa.Storage.get('mobile_interface_logo_size_v2', '125'); 
         var showTagline = Lampa.Storage.get('mobile_interface_show_tagline');
@@ -129,21 +129,36 @@
         
         css += '@keyframes kenBurnsEffect { 0% { transform: scale(1); } 50% { transform: scale(1.08); } 100% { transform: scale(1); } } ';
         
-        // Генерація пресетів анімації появи
-        var uiAnimClass = '';
-        if (isUIAnim && animPreset !== 'none') {
-            var keyframesName = 'anim_' + animPreset;
-            if (animPreset === 'fluid') {
-                css += '@keyframes ' + keyframesName + ' { 0% { opacity: 0; transform: translate3d(0, 30px, 0) scale(0.96); filter: blur(12px); } 100% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); filter: blur(0px); } } ';
-            } else if (animPreset === 'spring') {
-                css += '@keyframes ' + keyframesName + ' { 0% { opacity: 0; transform: translate3d(0, 35px, 0) scale(0.92); } 60% { opacity: 1; transform: translate3d(0, -6px, 0) scale(1.015); } 85% { transform: translate3d(0, 2px, 0) scale(0.995); } 100% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); } } ';
-            } else if (animPreset === 'slide') {
-                css += '@keyframes ' + keyframesName + ' { 0% { opacity: 0; transform: translate3d(0, 30px, 0); } 100% { opacity: 1; transform: translate3d(0, 0, 0); } } ';
-            } else if (animPreset === 'glass') {
-                css += '@keyframes ' + keyframesName + ' { 0% { opacity: 0; transform: translate3d(0, 20px, 0) scale(0.94); filter: blur(16px) brightness(1.3); } 100% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); filter: blur(0px) brightness(1); } } ';
-            }
-            uiAnimClass = 'animation: ' + keyframesName + ' 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; will-change: transform, opacity, filter; transform: translateZ(0); ';
-        }
+        // 1. Apple Fluid Feel (м'яке виринання з розмиттям)
+        css += '@keyframes anim_fluid { ';
+        css += '  0% { opacity: 0; transform: translate3d(0, 25px, 0) scale(0.95); filter: blur(10px); } ';
+        css += '  100% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); filter: blur(0px); } ';
+        css += '} ';
+
+        // 2. Neon Cyberpunk Slide (динамічний виліт зліва з неоновим відтінком)
+        css += '@keyframes anim_cyber { ';
+        css += '  0% { opacity: 0; transform: translate3d(-40px, 0, 0) scale(0.9); filter: brightness(1.5); } ';
+        css += '  100% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); filter: brightness(1); } ';
+        css += '} ';
+
+        // 3. Cinematic Scale & Depth (кінематографічне збільшення з глибиною)
+        css += '@keyframes anim_cinematic { ';
+        css += '  0% { opacity: 0; transform: translate3d(0, 15px, 0) scale(1.08); filter: blur(6px); } ';
+        css += '  100% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); filter: blur(0px); } ';
+        css += '} ';
+
+        // 4. Elastic Spring Bounce (пружний ефект появи)
+        css += '@keyframes anim_elastic { ';
+        css += '  0% { opacity: 0; transform: scale(0.7); } ';
+        css += '  70% { opacity: 1; transform: scale(1.04); } ';
+        css += '  100% { opacity: 1; transform: scale(1); } ';
+        css += '} ';
+
+        // 5. Minimal Fade (класичний елегантний розпад тіні)
+        css += '@keyframes anim_minimal { ';
+        css += '  0% { opacity: 0; transform: translate3d(0, 10px, 0); } ';
+        css += '  100% { opacity: 1; transform: translate3d(0, 0, 0); } ';
+        css += '} ';
 
         css += '@keyframes poster_fade_in { ';
         css += '  0% { opacity: 0; transform: scale(1.05); } ';
@@ -165,6 +180,11 @@
         css += 'mask-image: linear-gradient(to bottom, #000 0%, #000 55%, transparent 100%) !important; -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 55%, transparent 100%) !important; } ';
         
         css += '.full-start-new__right { background: none !important; margin-top: -160px !important; z-index: 2 !important; display: flex !important; flex-direction: column !important; align-items: center !important; padding: 0 10px !important; gap: ' + blocksGap + ' !important; } ';
+        
+        // Вибір активної анімації та динамічна генерація стилю
+        var chosenAnimName = 'anim_' + animEffect;
+        var animTiming = animEffect === 'elastic' ? 'cubic-bezier(0.34, 1.56, 0.64, 1)' : 'cubic-bezier(0.16, 1, 0.3, 1)';
+        var uiAnimClass = isUIAnim ? 'animation: ' + chosenAnimName + ' 0.8s ' + animTiming + ' forwards; opacity: 0; will-change: transform, opacity, filter; transform: translateZ(0); ' : '';
 
         // Логотип студії
         css += '.studio-header-brand { ' + uiAnimClass + ' animation-delay: 0.08s; order: 1; width: 100%; display: flex; justify-content: flex-start; align-items: center; padding-left: 5vw; margin-bottom: -2px !important; } ';
@@ -454,14 +474,14 @@
         Lampa.SettingsApi.addParam({ 
             component: 'mobile_interface', 
             param: { 
-                name: 'mobile_interface_anim_preset', 
+                name: 'mobile_interface_ui_anim_effect', 
                 type: 'select', 
                 values: { 
-                    'fluid': "Apple Fluid (Преміум розмиття)", 
-                    'spring': 'Spring Pop (Плавний пружний)', 
-                    'glass': 'Cinematic Glass (Скляний ефект ✨)', 
-                    'slide': 'Slide & Fade (Класичний виїзд)', 
-                    'none': 'Вимкнено' 
+                    'fluid': 'Apple Fluid (М’який розмитий вихід)', 
+                    'cyber': 'Cyber Neon (Динамічний виліт зліва)', 
+                    'cinematic': 'Cinematic Depth (Кінематографічне масштабування)', 
+                    'elastic': 'Elastic Spring (Пружний пружинний ефект)', 
+                    'minimal': 'Minimal Fade (Простий мінімалістичний плавний)' 
                 }, 
                 default: 'fluid' 
             }, 
