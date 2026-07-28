@@ -109,7 +109,7 @@
     }
 
     /**
-     * СТИЛІ ІНТЕРФЕЙСУ (CSS) - З ДИНАМІЧНИМИ АНІМАЦІЯМИ РЕЙТИНГІВ ТА БЕЙДЖІВ
+     * СТИЛІ ІНТЕРФЕЙСУ (CSS)
      */
     function applyStyles() {
         var oldStyle = document.getElementById('mobile-interface-styles');
@@ -162,13 +162,13 @@
         css += '  100% { opacity: 1; transform: translate3d(0, 0, 0); } ';
         css += '} ';
 
-        // Базова каскадна поява бейджиків
+        // Каскадна поява елементів рядка якості
         css += '@keyframes quality_badge_cascade { ';
         css += '  0% { opacity: 0; transform: scale(0.5) translateY(10px); filter: blur(4px); } ';
         css += '  100% { opacity: 1; transform: scale(1) translateY(0); filter: blur(0px); } ';
         css += '} ';
 
-        // Ефекти нескінченної циклічної анімації (пульсація / обертання / гойдання)
+        // Нескінченні циклічні анімації
         css += '@keyframes badge_anim_pulse { ';
         css += '  0%, 100% { transform: scale(1); } ';
         css += '  50% { transform: scale(1.1); } ';
@@ -236,23 +236,30 @@
         css += '.plugin-ratings-group { display: flex; align-items: center; gap: 10px; } ';
         css += '.quality-row-inline { display: flex; align-items: center; gap: 6px; opacity: 0.9; } '; 
         
-        // Циклічна анімація для значків рейтингів (TMDB / CUB)
+        // Загальна циклічна анімація для значків рейтингів (Синхронізована із загальним статом)
         var ratingLoopAnim = badgeAnim !== 'none' ? 'badge_anim_' + badgeAnim + (badgeAnim === 'spin_slow' ? ' 4s ease-in-out infinite' : (badgeAnim === 'pulse' ? ' 2.5s ease-in-out infinite' : (badgeAnim === 'breathe' ? ' 3s ease-in-out infinite' : ' 2.5s ease-in-out infinite'))) : '';
-        css += '.plugin-rating-item { display: flex; align-items: center; gap: 4px; font-weight: 700; color: #fff; ' + (ratingLoopAnim ? 'animation: ' + ratingLoopAnim + '; transform-origin: center center;' : '') + '} ';
+        css += '.plugin-rating-item { display: flex; align-items: center; gap: 4px; font-weight: 700; color: #fff; ';
+        if (ratingLoopAnim) {
+            css += 'animation: ' + ratingLoopAnim + '; transform-origin: center center; ';
+            // Жорстко фіксуємо однакову фазу циклу (нульову затримку), щоб рейтинги та бейки починали пульсувати одночасно
+            css += 'animation-delay: 0s; ';
+        }
+        css += '} ';
+
         css += '.plugin-rating-item img { height: 1.1em; width: auto; } ';
         css += '.info-text-item { opacity: 0.9; font-weight: 500; font-size: 0.85em; white-space: nowrap; } ';
         css += '.info-separator { opacity: 0.35; font-size: 0.8em; margin: 0 -2px; } ';
         
-        // Логіка каскадної появи + нескінченної циклічної анімації для бейджів якості
+        // Бейджі якості (початковий каскад появи, а потім єдина синхронізована циклічна анімація без розсихрону фаз)
         css += '.quality-item { height: 1.1em; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3)); transform-origin: center center; ';
         if (isUIAnim) {
             css += 'opacity: 0; animation: quality_badge_cascade 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards';
             if (badgeAnim !== 'none') {
                 var loopAnimName = 'badge_anim_' + badgeAnim;
                 var loopDuration = badgeAnim === 'spin_slow' ? '4s' : (badgeAnim === 'breathe' ? '3s' : '2.5s');
+                // Додаємо спільну нульову затримку циклу, щоб пульсація якості та рейтингів ішла «в ногу»
                 css += ', ' + loopAnimName + ' ' + loopDuration + ' ease-in-out infinite';
-                // Робимо затримку для циклічної анімації, щоб вона починалася після появи
-                css += '; animation-delay: var(--badge-delay), calc(var(--badge-delay) + 0.5s)';
+                css += '; animation-delay: var(--badge-delay), 0s';
             } else {
                 css += '; animation-delay: var(--badge-delay)';
             }
@@ -261,6 +268,7 @@
             var loopAnimName = 'badge_anim_' + badgeAnim;
             var loopDuration = badgeAnim === 'spin_slow' ? '4s' : (badgeAnim === 'breathe' ? '3s' : '2.5s');
             css += 'animation: ' + loopAnimName + ' ' + loopDuration + ' ease-in-out infinite; ';
+            css += 'animation-delay: 0s; ';
         }
         css += '} ';
         
@@ -492,10 +500,13 @@
                             $qRow.empty();
                             list.forEach(function(t, idx) { 
                                 if (svgIcons[t]) {
-                                    // Динамічно задаємо індивідуальну затримку для каскадної появи кожного бейджа через CSS-змінну
-                                    var delay = (0.40 + (idx * 0.10)).toFixed(2) + 's';
+                                    // Зберігаємо каскадну затримку для появи (входу) самого бейджа
+                                    var cascadeDelay = (0.40 + (idx * 0.10)).toFixed(2) + 's';
+
                                     var $badge = $('<div class="quality-item"><img src="' + svgIcons[t] + '"></div>');
-                                    $badge.css('--badge-delay', delay);
+                                    $badge.css({
+                                        '--badge-delay': cascadeDelay
+                                    });
                                     $qRow.append($badge);
                                 }
                             });
