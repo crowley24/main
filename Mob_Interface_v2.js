@@ -353,6 +353,8 @@
         var $qRow = $('<div class="quality-row-inline"></div>');
         $rqRow.append($ratingsGroup).append($qRow);
         container.append($metaRow).append($rqRow);
+
+        return globalIndex;
     }
 
     function applyMovieDetailsData(data, movie, $render) {
@@ -408,7 +410,6 @@
         var movieId = movie.id;
         currentActiveId = movieId;
 
-        // Перевірка кешу перед виконанням мережевого запиту
         if (detailsCache[movieId]) {
             applyMovieDetailsData(detailsCache[movieId], movie, $render);
             return;
@@ -422,10 +423,8 @@
             type: 'GET',
             dataType: 'json',
             success: function(data) {
-                // Захист від гонки запитів (якщо користувач швидко змінив картку)
                 if (currentActiveId !== movieId) return;
-                
-                detailsCache[movieId] = data; // Зберігаємо в кеш
+                detailsCache[movieId] = data;
                 applyMovieDetailsData(data, movie, $render);
             }
         });
@@ -483,7 +482,7 @@
                 
                 if (window.lampa_settings) window.lampa_settings.blur_poster = false;
 
-                renderRatings($render.find('.full-start-new__right'), e);
+                var startIndex = renderRatings($render.find('.full-start-new__right'), e);
                 loadMovieDetails(movie, $render);
 
                 if (Lampa.Storage.get('mobile_interface_quality') && Lampa.Parser && Lampa.Parser.get) {
@@ -496,11 +495,6 @@
                             
                             var $qRow = $render.find('.quality-row-inline');
                             $qRow.empty();
-
-                            var startIndex = 0;
-                            var tmdb = parseFloat(e.data.movie.vote_average || 0).toFixed(1);
-                            if (tmdb > 0) startIndex++;
-                            if (getCubRating(e)) startIndex++;
 
                             list.forEach(function(t, idx) { 
                                 if (svgIcons[t]) {
