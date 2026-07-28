@@ -4,7 +4,7 @@
      * ПЕРЕМІННІ ТА КЕШУВАННЯ
      */
     var slideshowTimer = null; 
-    var pluginPath = 'https://crowley38.github.io/Icons/';
+    var pluginPath = 'https://crowley24.github.io/Icons/';
     var detailsCache = {}; // Кеш для даних TMDB, щоб уникнути повторних запитів
     var currentActiveId = null;
     
