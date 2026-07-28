@@ -127,9 +127,9 @@
         
         css += '@keyframes kenBurnsEffect { 0% { transform: scale(1); } 50% { transform: scale(1.08); } 100% { transform: scale(1); } } ';
         
-        // Генерація пресетів анімації появи (завжди активна, якщо не 'none')
+        // Генерація пресетів анімації появи
         var uiAnimClass = '';
-        if (animPreset !== 'none') {
+        if (animPreset && animPreset !== 'none') {
             var keyframesName = 'anim_' + animPreset;
             if (animPreset === 'fluid') {
                 css += '@keyframes ' + keyframesName + ' { 0% { opacity: 0; transform: translate3d(0, 30px, 0) scale(0.96); filter: blur(12px); } 100% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); filter: blur(0px); } } ';
@@ -138,7 +138,6 @@
             } else if (animPreset === 'slide') {
                 css += '@keyframes ' + keyframesName + ' { 0% { opacity: 0; transform: translate3d(0, 30px, 0); } 100% { opacity: 1; transform: translate3d(0, 0, 0); } } ';
             } else if (animPreset === 'focus') {
-                // Новий пресет: Neon Focus (поява через контрастний світловий спалах без розмиття)
                 css += '@keyframes ' + keyframesName + ' { 0% { opacity: 0; transform: translate3d(0, 25px, 0) scale(0.92); filter: contrast(1.4) brightness(1.2); } 100% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); filter: contrast(1) brightness(1); } } ';
             }
             uiAnimClass = 'animation: ' + keyframesName + ' 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; will-change: transform, opacity, filter; transform: translateZ(0); ';
@@ -156,7 +155,7 @@
         css += '.background { background: #000 !important; } ';
         
         css += '.full-start-new__poster { position: relative !important; overflow: hidden !important; background: #000; z-index: 1; height: 62vh !important; pointer-events: none !important; ';
-        css += (animPreset !== 'none' ? 'animation: poster_fade_in 0.9s cubic-bezier(0.16, 1, 0.3, 1) forwards; ' : '') + '} ';
+        css += (animPreset && animPreset !== 'none' ? 'animation: poster_fade_in 0.9s cubic-bezier(0.16, 1, 0.3, 1) forwards; ' : '') + '} ';
         
         css += '.full-start-new__poster img { filter: none !important; ';
         css += (isPosterAnim ? 'animation: kenBurnsEffect 25s ease-in-out infinite !important; ' : '');
