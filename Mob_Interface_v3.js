@@ -12,6 +12,7 @@
         { id: 'mobile_interface_animation', default: true },
         { id: 'mobile_interface_ui_anim', default: true },
         { id: 'mobile_interface_ui_anim_effect', default: 'fluid' },
+        { id: 'mobile_interface_badge_anim', default: 'pulse' },
         { id: 'mobile_interface_slideshow', default: true },
         { id: 'mobile_interface_slideshow_time', default: '10000' },
         { id: 'mobile_interface_slideshow_quality', default: 'w780' },
@@ -108,7 +109,7 @@
     }
 
     /**
-     * СТИЛІ ІНТЕРФЕЙСУ (CSS) - З НАБІРОМ ПРЕМІУМ-АНІМАЦІЙ
+     * СТИЛІ ІНТЕРФЕЙСУ (CSS) - З ДИНАМІЧНИМИ АНІМАЦІЯМИ РЕЙТИНГІВ ТА БЕЙДЖІВ
      */
     function applyStyles() {
         var oldStyle = document.getElementById('mobile-interface-styles');
@@ -117,6 +118,7 @@
         var isPosterAnim = Lampa.Storage.get('mobile_interface_animation');
         var isUIAnim = Lampa.Storage.get('mobile_interface_ui_anim');
         var animEffect = Lampa.Storage.get('mobile_interface_ui_anim_effect', 'fluid');
+        var badgeAnim = Lampa.Storage.get('mobile_interface_badge_anim', 'pulse');
         var rSize = Lampa.Storage.get('mobile_interface_ratings_size', '0.45em');
         var lHeight = Lampa.Storage.get('mobile_interface_logo_size_v2', '125'); 
         var showTagline = Lampa.Storage.get('mobile_interface_show_tagline');
@@ -129,35 +131,64 @@
         
         css += '@keyframes kenBurnsEffect { 0% { transform: scale(1); } 50% { transform: scale(1.08); } 100% { transform: scale(1); } } ';
         
-        // 1. Apple Fluid Feel (м'яке виринання з розмиттям)
+        // 1. Apple Fluid Feel
         css += '@keyframes anim_fluid { ';
         css += '  0% { opacity: 0; transform: translate3d(0, 25px, 0) scale(0.95); filter: blur(10px); } ';
         css += '  100% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); filter: blur(0px); } ';
         css += '} ';
 
-        // 2. Neon Cyberpunk Slide (динамічний виліт зліва з неоновим відтінком)
+        // 2. Cyber Neon
         css += '@keyframes anim_cyber { ';
         css += '  0% { opacity: 0; transform: translate3d(-40px, 0, 0) scale(0.9); filter: brightness(1.5); } ';
         css += '  100% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); filter: brightness(1); } ';
         css += '} ';
 
-        // 3. Cinematic Scale & Depth (кінематографічне збільшення з глибиною)
+        // 3. Cinematic Scale & Depth
         css += '@keyframes anim_cinematic { ';
         css += '  0% { opacity: 0; transform: translate3d(0, 15px, 0) scale(1.08); filter: blur(6px); } ';
         css += '  100% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); filter: blur(0px); } ';
         css += '} ';
 
-        // 4. Elastic Spring Bounce (пружний ефект появи)
+        // 4. Elastic Spring Bounce
         css += '@keyframes anim_elastic { ';
         css += '  0% { opacity: 0; transform: scale(0.7); } ';
         css += '  70% { opacity: 1; transform: scale(1.04); } ';
         css += '  100% { opacity: 1; transform: scale(1); } ';
         css += '} ';
 
-        // 5. Minimal Fade (класичний елегантний розпад тіні)
+        // 5. Minimal Fade
         css += '@keyframes anim_minimal { ';
         css += '  0% { opacity: 0; transform: translate3d(0, 10px, 0); } ';
         css += '  100% { opacity: 1; transform: translate3d(0, 0, 0); } ';
+        css += '} ';
+
+        // Базова каскадна поява бейджиків
+        css += '@keyframes quality_badge_cascade { ';
+        css += '  0% { opacity: 0; transform: scale(0.5) translateY(10px); filter: blur(4px); } ';
+        css += '  100% { opacity: 1; transform: scale(1) translateY(0); filter: blur(0px); } ';
+        css += '} ';
+
+        // Ефекти нескінченної циклічної анімації (пульсація / обертання / гойдання)
+        css += '@keyframes badge_anim_pulse { ';
+        css += '  0%, 100% { transform: scale(1); } ';
+        css += '  50% { transform: scale(1.1); } ';
+        css += '} ';
+
+        css += '@keyframes badge_anim_breathe { ';
+        css += '  0%, 100% { transform: scale(1); opacity: 0.85; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3)); } ';
+        css += '  50% { transform: scale(1.06); opacity: 1; filter: drop-shadow(0 0 10px rgba(255,255,255,0.6)); } ';
+        css += '} ';
+
+        css += '@keyframes badge_anim_spin_slow { ';
+        css += '  0% { transform: rotate(0deg); } ';
+        css += '  25% { transform: rotate(4deg); } ';
+        css += '  75% { transform: rotate(-4deg); } ';
+        css += '  100% { transform: rotate(0deg); } ';
+        css += '} ';
+
+        css += '@keyframes badge_anim_float { ';
+        css += '  0%, 100% { transform: translateY(0); } ';
+        css += '  50% { transform: translateY(-4px); } ';
         css += '} ';
 
         css += '@keyframes poster_fade_in { ';
@@ -181,7 +212,6 @@
         
         css += '.full-start-new__right { background: none !important; margin-top: -160px !important; z-index: 2 !important; display: flex !important; flex-direction: column !important; align-items: center !important; padding: 0 10px !important; gap: ' + blocksGap + ' !important; } ';
         
-        // Вибір активної анімації та динамічна генерація стилю
         var chosenAnimName = 'anim_' + animEffect;
         var animTiming = animEffect === 'elastic' ? 'cubic-bezier(0.34, 1.56, 0.64, 1)' : 'cubic-bezier(0.16, 1, 0.3, 1)';
         var uiAnimClass = isUIAnim ? 'animation: ' + chosenAnimName + ' 0.8s ' + animTiming + ' forwards; opacity: 0; will-change: transform, opacity, filter; transform: translateZ(0); ' : '';
@@ -206,11 +236,34 @@
         css += '.plugin-ratings-group { display: flex; align-items: center; gap: 10px; } ';
         css += '.quality-row-inline { display: flex; align-items: center; gap: 6px; opacity: 0.9; } '; 
         
-        css += '.plugin-rating-item { display: flex; align-items: center; gap: 4px; font-weight: 700; color: #fff; } ';
+        // Циклічна анімація для значків рейтингів (TMDB / CUB)
+        var ratingLoopAnim = badgeAnim !== 'none' ? 'badge_anim_' + badgeAnim + (badgeAnim === 'spin_slow' ? ' 4s ease-in-out infinite' : (badgeAnim === 'pulse' ? ' 2.5s ease-in-out infinite' : (badgeAnim === 'breathe' ? ' 3s ease-in-out infinite' : ' 2.5s ease-in-out infinite'))) : '';
+        css += '.plugin-rating-item { display: flex; align-items: center; gap: 4px; font-weight: 700; color: #fff; ' + (ratingLoopAnim ? 'animation: ' + ratingLoopAnim + '; transform-origin: center center;' : '') + '} ';
         css += '.plugin-rating-item img { height: 1.1em; width: auto; } ';
         css += '.info-text-item { opacity: 0.9; font-weight: 500; font-size: 0.85em; white-space: nowrap; } ';
         css += '.info-separator { opacity: 0.35; font-size: 0.8em; margin: 0 -2px; } ';
-        css += '.quality-item { height: 1.1em; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3)); } '; 
+        
+        // Логіка каскадної появи + нескінченної циклічної анімації для бейджів якості
+        css += '.quality-item { height: 1.1em; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3)); transform-origin: center center; ';
+        if (isUIAnim) {
+            css += 'opacity: 0; animation: quality_badge_cascade 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards';
+            if (badgeAnim !== 'none') {
+                var loopAnimName = 'badge_anim_' + badgeAnim;
+                var loopDuration = badgeAnim === 'spin_slow' ? '4s' : (badgeAnim === 'breathe' ? '3s' : '2.5s');
+                css += ', ' + loopAnimName + ' ' + loopDuration + ' ease-in-out infinite';
+                // Робимо затримку для циклічної анімації, щоб вона починалася після появи
+                css += '; animation-delay: var(--badge-delay), calc(var(--badge-delay) + 0.5s)';
+            } else {
+                css += '; animation-delay: var(--badge-delay)';
+            }
+            css += '; will-change: transform, opacity, filter; ';
+        } else if (badgeAnim !== 'none') {
+            var loopAnimName = 'badge_anim_' + badgeAnim;
+            var loopDuration = badgeAnim === 'spin_slow' ? '4s' : (badgeAnim === 'breathe' ? '3s' : '2.5s');
+            css += 'animation: ' + loopAnimName + ' ' + loopDuration + ' ease-in-out infinite; ';
+        }
+        css += '} ';
+        
         css += '.quality-item img { height: 100%; width: auto; object-fit: contain; } ';
 
         // Кнопки дій
@@ -437,8 +490,14 @@
                             
                             var $qRow = $render.find('.quality-row-inline');
                             $qRow.empty();
-                            list.forEach(function(t) { 
-                                if (svgIcons[t]) $qRow.append('<div class="quality-item"><img src="' + svgIcons[t] + '"></div>'); 
+                            list.forEach(function(t, idx) { 
+                                if (svgIcons[t]) {
+                                    // Динамічно задаємо індивідуальну затримку для каскадної появи кожного бейджа через CSS-змінну
+                                    var delay = (0.40 + (idx * 0.10)).toFixed(2) + 's';
+                                    var $badge = $('<div class="quality-item"><img src="' + svgIcons[t] + '"></div>');
+                                    $badge.css('--badge-delay', delay);
+                                    $qRow.append($badge);
+                                }
                             });
                         }
                     });
@@ -486,6 +545,24 @@
                 default: 'fluid' 
             }, 
             field: { name: 'Стиль анімації появи' }, 
+            onChange: applyStyles 
+        });
+
+        Lampa.SettingsApi.addParam({ 
+            component: 'mobile_interface', 
+            param: { 
+                name: 'mobile_interface_badge_anim', 
+                type: 'select', 
+                values: { 
+                    'none': 'Без циклічної анімації', 
+                    'pulse': 'Пульсація (Збільшення)', 
+                    'breathe': 'Дихання (М’яке сяйво)', 
+                    'spin_slow': 'Легке гойдання (Маятник)', 
+                    'float': 'Плавне підстрибування' 
+                }, 
+                default: 'pulse' 
+            }, 
+            field: { name: 'Жива анімація бейджів та рейтингів' }, 
             onChange: applyStyles 
         });
 
