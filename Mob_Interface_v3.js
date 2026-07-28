@@ -457,7 +457,7 @@
                 name: 'mobile_interface_anim_preset', 
                 type: 'select', 
                 values: { 
-                    'fluid': 'Apple Fluid (М''яке розмиття)', 
+                    'fluid': "Apple Fluid (М'яке розмиття)", 
                     'spring': 'Spring Pop (Пружний стрибок)', 
                     'slide': 'Slide & Fade (Класичний виїзд)', 
                     'cyber': 'Cyber Fade (Техно-стиль)',
