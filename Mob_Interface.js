@@ -151,7 +151,7 @@
         var uiAnimClass = isUIAnim ? 'animation: ' + chosenAnimName + ' 0.8s ' + animTiming + ' forwards; opacity: 0; will-change: transform, opacity, filter; transform: translateZ(0); ' : '';
 
         // КОЛОНКА СПРАВЗЬ ЗВЕРХУ: акуратне вирівнювання за правим краєм, зменшений масштаб та єдиний мінімалістичний стиль
-        css += '.quality-row-inline { position: absolute; top: 12px; right: 12px; z-index: 99; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; pointer-events: none; } '; 
+        css += '.quality-row-inline { position: absolute; top: 30px; right: 12px; z-index: 99; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; pointer-events: none; } '; 
 
         css += '.studio-header-brand { ' + uiAnimClass + ' animation-delay: 0.08s; order: 1; width: 100%; display: flex; justify-content: flex-start; align-items: center; padding-left: 5vw; margin-bottom: -2px !important; } ';
         css += '.studio-header-brand img { height: 18px !important; width: auto; max-width: 110px; object-fit: contain; filter: drop-shadow(0 2px 5px rgba(0,0,0,0.9)); opacity: 0.95; } ';
