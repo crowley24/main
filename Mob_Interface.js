@@ -150,7 +150,8 @@
         var animTiming = animEffect === 'elastic' ? 'cubic-bezier(0.34, 1.56, 0.64, 1)' : 'cubic-bezier(0.16, 1, 0.3, 1)';
         var uiAnimClass = isUIAnim ? 'animation: ' + chosenAnimName + ' 0.8s ' + animTiming + ' forwards; opacity: 0; will-change: transform, opacity, filter; transform: translateZ(0); ' : '';
 
-        css += '.quality-row-inline { position: absolute; top: 30px; right: 12px; z-index: 99; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; pointer-events: none; } '; 
+        // КОЛОНКА СПРАВЗЬ ЗВЕРХУ: акуратне вирівнювання за правим краєм, зменшений масштаб та єдиний мінімалістичний стиль
+        css += '.quality-row-inline { position: absolute; top: 12px; right: 12px; z-index: 99; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; pointer-events: none; } '; 
 
         css += '.studio-header-brand { ' + uiAnimClass + ' animation-delay: 0.08s; order: 1; width: 100%; display: flex; justify-content: flex-start; align-items: center; padding-left: 5vw; margin-bottom: -2px !important; } ';
         css += '.studio-header-brand img { height: 18px !important; width: auto; max-width: 110px; object-fit: contain; filter: drop-shadow(0 2px 5px rgba(0,0,0,0.9)); opacity: 0.95; } ';
@@ -182,27 +183,23 @@
         }
         css += '} ';
 
+        // Стилі рейтингів: компактні, акуратні, вирівняні
         css += '.quality-row-inline .plugin-rating-item { display: flex; align-items: center; gap: 4px; font-weight: 700; color: #fff; font-size: 0.95em; background: rgba(0, 0, 0, 0.5); padding: 2px 5px; border-radius: 4px; backdrop-filter: blur(4px); } ';
         css += '.quality-row-inline .plugin-rating-item img { height: 1em; width: auto; } ';
         
+        // Стилі якості: обмежена висота та однаковий вигляд, щоб не були занадто широкими
         css += '.quality-item { height: 1.15em; display: flex; align-items: center; justify-content: flex-end; } ';
         css += '.quality-item img { height: 100%; width: auto; max-width: 55px; object-fit: contain; filter: drop-shadow(0 2px 5px rgba(0,0,0,0.8)); } ';
 
         css += '.info-text-item { opacity: 0.9; font-weight: 500; font-size: 0.85em; white-space: nowrap; } ';
         css += '.info-separator { opacity: 0.35; font-size: 0.8em; margin: 0 -2px; } ';
 
-        // Медіа-кнопки без фону та рамок
-        css += '.full-start__buttons, .full-start-new__buttons { ' + uiAnimClass + ' animation-delay: 0.42s; display: flex !important; flex-direction: row !important; justify-content: center !important; flex-wrap: nowrap !important; gap: 6px !important; width: 100% !important; max-width: 100% !important; padding: 0 5px !important; box-sizing: border-box !important; margin-top: 6px !important; order: 6; } ';
-        
-        css += '.full-start__button, .full-start-new .full-start__button { background: transparent !important; border: none !important; border-radius: 8px !important; padding: 6px 8px !important; display: flex !important; flex-direction: row !important; align-items: center !important; justify-content: center !important; gap: 5px !important; flex: 1 !important; min-width: 0 !important; transition: background 0.2s ease, transform 0.2s ease, opacity 0.2s ease; } ';
-        css += '.full-start__button:hover, .full-start-new .full-start__button:hover { background: rgba(255, 255, 255, 0.1) !important; } ';
-        css += '.full-start__button:active, .full-start-new .full-start__button:active { transform: scale(0.95); opacity: 0.7; background: rgba(255, 255, 255, 0.15) !important; } ';
-        
-        css += '.full-start__button svg, .full-start__button img, .full-start-new .full-start__button svg, .full-start-new .full-start__button img { width: 18px !important; height: 18px !important; margin-bottom: 0 !important; fill: #fff !important; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5)); flex-shrink: 0; } ';
-        
-        css += '.full-start__button span, .full-start-new .full-start__button span { font-size: 10px !important; text-transform: none !important; opacity: 0.9 !important; font-weight: 500; letter-spacing: normal !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; } ';
-        
-        css += '} '; // Закриття медіа-запиту @media screen and (max-width: 480px)
+        css += '.full-start-new__buttons { ' + uiAnimClass + ' animation-delay: 0.42s; display: flex !important; justify-content: center !important; flex-wrap: wrap !important; gap: 8px !important; width: 100% !important; max-width: 100% !important; padding: 0 5px !important; box-sizing: border-box !important; margin-top: 6px !important; order: 6; } ';
+        css += '.full-start-new .full-start__button { background: none !important; border: none !important; box-shadow: none !important; display: flex !important; flex-direction: column !important; align-items: center !important; width: 52px !important; min-width: 45px !important; transition: transform 0.2s ease, opacity 0.2s ease; } ';
+        css += '.full-start-new .full-start__button:active { transform: scale(0.9); opacity: 0.7; } ';
+        css += '.full-start-new .full-start__button svg, .full-start-new .full-start__button img { width: 24px !important; height: 24px !important; margin-bottom: 5px !important; fill: #fff !important; filter: drop-shadow(0 2px 8px rgba(0,0,0,0.5)); } ';
+        css += '.full-start-new .full-start__button span { font-size: 8px !important; text-transform: uppercase !important; opacity: 0.75 !important; font-weight: 600; letter-spacing: 0.05em; } ';
+        css += '} ';
 
         style.textContent = css;
     }
@@ -455,7 +452,7 @@
         Lampa.SettingsApi.addParam({ component: 'mobile_interface', param: { name: 'mobile_interface_logo_size_v2', type: 'select', values: { '125': 'Малий', '150': 'Середній', '180': 'Стандартний', '210': 'Великий' }, default: '125' }, field: { name: 'Висота логотипу тайтлу' }, onChange: applyStyles });
         Lampa.SettingsApi.addParam({ component: 'mobile_interface', param: { name: 'mobile_interface_show_tagline', type: 'trigger', default: true }, field: { name: 'Відображати слоган' }, onChange: applyStyles });
         Lampa.SettingsApi.addParam({ component: 'mobile_interface', param: { name: 'mobile_interface_blocks_gap', type: 'select', values: { '8px': 'Компактний', '12px': 'Стандартний', '18px': 'Просторий', '24px': 'Панорамний' }, default: '8px' }, field: { name: 'Відступи між блоками' }, onChange: applyStyles });
-        Lampa.SettingsApi.addParserParam = Lampa.SettingsApi.addParam; 
+        Lampa.SettingsApi.addParserParam = Lampa.SettingsApi.addParam; // fallback protection
         Lampa.SettingsApi.addParam({ component: 'mobile_interface', param: { name: 'mobile_interface_ratings_size', type: 'select', values: { '0.4em': 'Дрібний', '0.45em': 'Звичайний', '0.5em': 'Великий', '0.55em': 'Дуже великий' }, default: '0.45em' }, field: { name: 'Розмір шрифту інфо-блоків' }, onChange: applyStyles });
         Lampa.SettingsApi.addParam({ component: 'mobile_interface', param: { name: 'mobile_interface_studios', type: 'trigger', default: true }, field: { name: 'Показувати логотип студії' } });
         Lampa.SettingsApi.addParam({ component: 'mobile_interface', param: { name: 'mobile_interface_quality', type: 'trigger', default: true }, field: { name: 'Бейджі якості та звуку' } });
