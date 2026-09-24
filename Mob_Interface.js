@@ -135,7 +135,8 @@
         css += '.rate--tmdb, .rate--imdb, .rate--kp, .full-start__rates { display: none !important; } ';
         css += '.background { background: #000 !important; } ';
         
-        css += '.full-start-new__poster { position: relative !important; overflow: hidden !important; background: #000; z-index: 1; height: 62vh !important; pointer-events: none !important; ';
+        css += '.full-start-new { position: relative !important; } ';
+        css += '.full-start-new__poster { position: relative !important; overflow: hidden !important; background: #000; z-index: 1; height: 62vh !important; ';
         css += (isUIAnim ? 'animation: poster_fade_in 0.9s cubic-bezier(0.16, 1, 0.3, 1) forwards; ' : '') + '} ';
         
         css += '.full-start-new__poster img { filter: none !important; ';
@@ -143,11 +144,14 @@
         css += 'transform-origin: center center !important; transition: opacity 1.2s ease-in-out !important; position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; ';
         css += 'mask-image: linear-gradient(to bottom, #000 0%, #000 55%, transparent 100%) !important; -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 55%, transparent 100%) !important; } ';
         
-        css += '.full-start-new__right { background: none !important; margin-top: -160px !important; z-index: 2 !important; display: flex !important; flex-direction: column !important; align-items: center !important; padding: 0 10px !important; gap: ' + blocksGap + ' !important; } ';
+        css += '.full-start-new__right { background: none !important; margin-top: -160px !important; z-index: 2 !important; display: flex !important; flex-direction: column !important; align-items: center !important; padding: 0 10px !important; gap: ' + blocksGap + ' !important; position: relative !important; } ';
         
         var chosenAnimName = 'anim_' + animEffect;
         var animTiming = animEffect === 'elastic' ? 'cubic-bezier(0.34, 1.56, 0.64, 1)' : 'cubic-bezier(0.16, 1, 0.3, 1)';
         var uiAnimClass = isUIAnim ? 'animation: ' + chosenAnimName + ' 0.8s ' + animTiming + ' forwards; opacity: 0; will-change: transform, opacity, filter; transform: translateZ(0); ' : '';
+
+        // КОЛОНКА СПРАВЗЬ ЗВЕРХУ: акуратне вирівнювання за правим краєм, зменшений масштаб та єдиний мінімалістичний стиль
+        css += '.quality-row-inline { position: absolute; top: 12px; right: 12px; z-index: 99; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; pointer-events: none; } '; 
 
         css += '.studio-header-brand { ' + uiAnimClass + ' animation-delay: 0.08s; order: 1; width: 100%; display: flex; justify-content: flex-start; align-items: center; padding-left: 5vw; margin-bottom: -2px !important; } ';
         css += '.studio-header-brand img { height: 18px !important; width: auto; max-width: 110px; object-fit: contain; filter: drop-shadow(0 2px 5px rgba(0,0,0,0.9)); opacity: 0.95; } ';
@@ -159,10 +163,6 @@
         css += '.full-start-new__tagline { ' + uiAnimClass + ' animation-delay: 0.22s; display: ' + (showTagline ? 'block' : 'none') + ' !important; font-style: italic !important; font-size: 0.9em !important; margin: 0 !important; color: rgba(255,255,255,0.8) !important; text-align: center !important; order: 3; } ';
         
         css += '.plugin-meta-row { ' + uiAnimClass + ' animation-delay: 0.28s; display: flex; justify-content: center; align-items: center; flex-wrap: nowrap; gap: 8px; margin: 0 !important; font-size: calc(' + rSize + ' * 2.5); width: 100%; order: 4; color: rgba(255,255,255,0.85); font-family: "Inter", -apple-system, system-ui, sans-serif; } ';
-        
-        css += '.plugin-ratings-quality-row { ' + uiAnimClass + ' animation-delay: 0.35s; display: flex; justify-content: center; align-items: center; flex-wrap: nowrap; gap: 12px; margin: 0 !important; width: 100%; order: 5; font-size: calc(' + rSize + ' * 2.8); } ';
-        css += '.plugin-ratings-group { display: flex; align-items: center; gap: 10px; } ';
-        css += '.quality-row-inline { display: flex; align-items: center; gap: 6px; opacity: 0.9; } '; 
         
         var loopAnimName = badgeAnim !== 'none' ? 'badge_anim_' + badgeAnim : '';
         var loopDuration = badgeAnim === 'spin_slow' ? '4s' : (badgeAnim === 'breathe' ? '3s' : '2.5s');
@@ -183,15 +183,17 @@
         }
         css += '} ';
 
-        css += '.plugin-rating-item { display: flex; align-items: center; gap: 4px; font-weight: 700; color: #fff; } ';
-        css += '.plugin-rating-item img { height: 1.1em; width: auto; } ';
-        css += '.quality-item { height: 1.1em; } ';
-        css += '.quality-item img { height: 100%; width: auto; object-fit: contain; } ';
+        // Стилі рейтингів: компактні, акуратні, вирівняні
+        css += '.quality-row-inline .plugin-rating-item { display: flex; align-items: center; gap: 4px; font-weight: 700; color: #fff; font-size: 0.95em; background: rgba(0, 0, 0, 0.5); padding: 2px 5px; border-radius: 4px; backdrop-filter: blur(4px); } ';
+        css += '.quality-row-inline .plugin-rating-item img { height: 1em; width: auto; } ';
+        
+        // Стилі якості: обмежена висота та однаковий вигляд, щоб не були занадто широкими
+        css += '.quality-item { height: 1.15em; display: flex; align-items: center; justify-content: flex-end; } ';
+        css += '.quality-item img { height: 100%; width: auto; max-width: 55px; object-fit: contain; filter: drop-shadow(0 2px 5px rgba(0,0,0,0.8)); } ';
 
         css += '.info-text-item { opacity: 0.9; font-weight: 500; font-size: 0.85em; white-space: nowrap; } ';
         css += '.info-separator { opacity: 0.35; font-size: 0.8em; margin: 0 -2px; } ';
 
-        // ВИПРАВЛЕННЯ ДЛЯ КНОПОК (не виходять за межі екрана)
         css += '.full-start-new__buttons { ' + uiAnimClass + ' animation-delay: 0.42s; display: flex !important; justify-content: center !important; flex-wrap: wrap !important; gap: 8px !important; width: 100% !important; max-width: 100% !important; padding: 0 5px !important; box-sizing: border-box !important; margin-top: 6px !important; order: 6; } ';
         css += '.full-start-new .full-start__button { background: none !important; border: none !important; box-shadow: none !important; display: flex !important; flex-direction: column !important; align-items: center !important; width: 52px !important; min-width: 45px !important; transition: transform 0.2s ease, opacity 0.2s ease; } ';
         css += '.full-start-new .full-start__button:active { transform: scale(0.9); opacity: 0.7; } ';
@@ -231,9 +233,8 @@
         return null;
     }
 
-    function renderRatings(container, e) {
+    function renderMeta(container, e) {
         container.find('.plugin-meta-row').remove();
-        container.find('.plugin-ratings-quality-row').remove();
         
         var sep = '<span class="info-separator">•</span>';
         var $metaRow = $('<div class="plugin-meta-row"></div>');
@@ -265,30 +266,7 @@
             $metaRow.append('<div class="info-text-item">' + genres + '</div>');
         }
 
-        var $rqRow = $('<div class="plugin-ratings-quality-row"></div>');
-        var $ratingsGroup = $('<div class="plugin-ratings-group"></div>');
-        
-        var globalIndex = 0;
-
-        var tmdb = parseFloat(e.data.movie.vote_average || 0).toFixed(1);
-        if (tmdb > 0) {
-            var $tmdbItem = $('<div class="plugin-rating-item wave-item"><img src="'+ratingIcons.tmdb+'"> <span style="color:'+getRatingColor(tmdb)+'">'+tmdb+'</span></div>');
-            $tmdbItem.css('--item-index', globalIndex++);
-            $ratingsGroup.append($tmdbItem);
-        }
-        
-        var cub = getCubRating(e);
-        if (cub) {
-            var $cubItem = $('<div class="plugin-rating-item wave-item"><img src="' + ratingIcons.cub + '"> <span style="color:' + getRatingColor(cub) + '">' + cub + '</span></div>');
-            $cubItem.css('--item-index', globalIndex++);
-            $ratingsGroup.append($cubItem);
-        }
-
-        var $qRow = $('<div class="quality-row-inline"></div>');
-        $rqRow.append($ratingsGroup).append($qRow);
-        container.append($metaRow).append($rqRow);
-
-        return globalIndex;
+        container.append($metaRow);
     }
 
     function applyMovieDetailsData(data, movie, $render) {
@@ -410,8 +388,31 @@
                 
                 if (window.lampa_settings) window.lampa_settings.blur_poster = false;
 
-                var startIndex = renderRatings($render.find('.full-start-new__right'), e);
+                renderMeta($render.find('.full-start-new__right'), e);
                 loadMovieDetails(movie, $render);
+
+                var $mainContainer = $render.find('.full-start-new');
+                if ($mainContainer.length === 0) $mainContainer = $render;
+                
+                $mainContainer.find('.quality-row-inline').remove();
+                var $qRow = $('<div class="quality-row-inline"></div>');
+                $mainContainer.append($qRow);
+
+                var globalIndex = 0;
+
+                var tmdb = parseFloat(e.data.movie.vote_average || 0).toFixed(1);
+                if (tmdb > 0) {
+                    var $tmdbItem = $('<div class="plugin-rating-item wave-item"><img src="'+ratingIcons.tmdb+'"> <span style="color:'+getRatingColor(tmdb)+'">'+tmdb+'</span></div>');
+                    $tmdbItem.css('--item-index', globalIndex++);
+                    $qRow.append($tmdbItem);
+                }
+                
+                var cub = getCubRating(e);
+                if (cub) {
+                    var $cubItem = $('<div class="plugin-rating-item wave-item"><img src="' + ratingIcons.cub + '"> <span style="color:' + getRatingColor(cub) + '">' + cub + '</span></div>');
+                    $cubItem.css('--item-index', globalIndex++);
+                    $qRow.append($cubItem);
+                }
 
                 if (Lampa.Storage.get('mobile_interface_quality') && Lampa.Parser && Lampa.Parser.get) {
                     Lampa.Parser.get({ search: movie.title || movie.name, movie: movie, page: 1 }, function(res) {
@@ -421,14 +422,10 @@
                             if (b.dolbyVision) list.push('Dolby Vision'); else if (b.hdr) list.push('HDR');
                             if (b.dub) list.push('DUB'); if (b.ukr) list.push('UKR');
                             
-                            var $qRow = $render.find('.quality-row-inline');
-                            $qRow.empty();
-
-                            list.forEach(function(t, idx) { 
+                            list.forEach(function(t) { 
                                 if (svgIcons[t]) {
-                                    var currentItemIndex = startIndex + idx;
                                     var $badge = $('<div class="quality-item wave-item"><img src="' + svgIcons[t] + '"></div>');
-                                    $badge.css('--item-index', currentItemIndex);
+                                    $badge.css('--item-index', globalIndex++);
                                     $qRow.append($badge);
                                 }
                             });
@@ -455,6 +452,7 @@
         Lampa.SettingsApi.addParam({ component: 'mobile_interface', param: { name: 'mobile_interface_logo_size_v2', type: 'select', values: { '125': 'Малий', '150': 'Середній', '180': 'Стандартний', '210': 'Великий' }, default: '125' }, field: { name: 'Висота логотипу тайтлу' }, onChange: applyStyles });
         Lampa.SettingsApi.addParam({ component: 'mobile_interface', param: { name: 'mobile_interface_show_tagline', type: 'trigger', default: true }, field: { name: 'Відображати слоган' }, onChange: applyStyles });
         Lampa.SettingsApi.addParam({ component: 'mobile_interface', param: { name: 'mobile_interface_blocks_gap', type: 'select', values: { '8px': 'Компактний', '12px': 'Стандартний', '18px': 'Просторий', '24px': 'Панорамний' }, default: '8px' }, field: { name: 'Відступи між блоками' }, onChange: applyStyles });
+        Lampa.SettingsApi.addParserParam = Lampa.SettingsApi.addParam; // fallback protection
         Lampa.SettingsApi.addParam({ component: 'mobile_interface', param: { name: 'mobile_interface_ratings_size', type: 'select', values: { '0.4em': 'Дрібний', '0.45em': 'Звичайний', '0.5em': 'Великий', '0.55em': 'Дуже великий' }, default: '0.45em' }, field: { name: 'Розмір шрифту інфо-блоків' }, onChange: applyStyles });
         Lampa.SettingsApi.addParam({ component: 'mobile_interface', param: { name: 'mobile_interface_studios', type: 'trigger', default: true }, field: { name: 'Показувати логотип студії' } });
         Lampa.SettingsApi.addParam({ component: 'mobile_interface', param: { name: 'mobile_interface_quality', type: 'trigger', default: true }, field: { name: 'Бейджі якості та звуку' } });
