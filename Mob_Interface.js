@@ -184,7 +184,7 @@
         css += '} ';
 
         // Стилі рейтингів: компактні, акуратні, вирівняні
-        css += '.quality-row-inline .plugin-rating-item { display: flex; align-items: center; gap: 4px; font-weight: 700; color: #fff; font-size: 0.95em; background: rgba(0, 0, 0, 0.5); padding: 2px 5px; border-radius: 4px; backdrop-filter: blur(4px); } ';
+        css += '.quality-row-inline .plugin-rating-item { display: flex; align-items: center; gap: 4px; font-weight: 700; color: #fff; font-size: 0.95em; padding: 2px 0; } ';
         css += '.quality-row-inline .plugin-rating-item img { height: 1em; width: auto; } ';
         
         // Стилі якості: обмежена висота та однаковий вигляд, щоб не були занадто широкими
