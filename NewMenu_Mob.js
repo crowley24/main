@@ -1,6 +1,3 @@
-                    
-Lampa.Platform.tv();
-
 (function () {
   'use strict';
 
