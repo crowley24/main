@@ -1,9 +1,10 @@
 (function () {
     'use strict';
-/*
-     * CROWLEY INTERFACE+ v1.3.0
+    /*
+     * CROWLEY24 INTERFACE+ v1.3.0
      * Lampa / Android TV 
      */
+    
     if (window.banner_hero_plugin) return;
     window.banner_hero_plugin = true;
 
