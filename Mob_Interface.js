@@ -1,8 +1,12 @@
 (function () {
     'use strict';
-    /**
-     * ПЕРЕМІННІ ТА КЕШУВАННЯ
-     */
+ /*
+ * @name MOB_INTERFACE
+ * @version 3.0
+ * @author Crowley24
+ * @description Кастомізація інтерфейсу картки фільму на мобільному пристрої
+ * @platforms Lampa | Mobile
+ */
     var slideshowTimer = null; 
     var pluginPath = 'https://crowley24.github.io/Icons/';
     var detailsCache = {}; 
