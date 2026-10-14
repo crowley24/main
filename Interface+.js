@@ -1,6 +1,6 @@
 (function () {
     'use strict';
- /**
+ */
  * @name INTERFACE+
  * @version 1.3.0
  * @author Crowley24
