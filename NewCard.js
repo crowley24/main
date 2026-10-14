@@ -1,5 +1,12 @@
 (function () {                
-    'use strict';                
+    'use strict';    
+     /*
+ * @name NEWCARD
+ * @version 3.0
+ * @author Crowley24
+ * @description Сучасний ТВ-інтерфейс картки фільму з можливістю кастомізації
+ * @platforms Lampa | Android TV
+ */
     const PLUGIN_NAME = 'NewCard';                
     const PLUGIN_ID = 'new_card_style';                
     const ASSETS_PATH = 'https://crowley38.github.io/Icons/';                
