@@ -1,9 +1,12 @@
 (function () {
     'use strict';
-    /*
-     * CROWLEY24 INTERFACE+ v1.3.0
-     * Lampa / Android TV 
-     */
+ /**
+ * @name INTERFACE+
+ * @version 1.3.0
+ * @author Crowley24
+ * @description Кастомізація головної сторінки в стилі Netflix
+ * @platforms Lampa | Android TV
+ */
     
     if (window.banner_hero_plugin) return;
     window.banner_hero_plugin = true;
