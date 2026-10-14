@@ -3,6 +3,12 @@
 
     const AVAILABLE_PLUGINS = [
         {
+    name: 'UaKino',
+    description: 'Автаматичне програвання фільмів та серіалів з uakino.ax',
+    url: 'https://crowley24.github.io/main/Uakino.js',
+    id: 'Uakino'
+},
+{
     name: 'NewCard',
     description: 'Сучасний ТВ-інтерфейс картки фільму з гнучкими налаштуваннями відображення та покращеною візуальною структурою',
     url: 'https://crowley24.github.io/main/NewCard.js',
