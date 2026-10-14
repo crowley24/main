@@ -45,6 +45,14 @@
             icon: '▣',
             plugins: [
                 {
+                    id: 'interface+',
+                    name: 'Interface+',
+                    description:
+                        'Кастомізація головної сторінки в стилі Netflix',
+                    url:
+                        'https://crowley24.github.io/main/Interface+.js'
+                },
+                {
                     id: 'NewCard',
                     name: 'NewCard',
                     description:
