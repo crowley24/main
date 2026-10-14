@@ -108,20 +108,28 @@
             icon: '★',
             plugins: [
                 {
-                    id: 'UA-Finder',
-                    name: 'Finder UA',
-                    description:
-                        'Бейдж українського дубляжу',
-                    url:
-                        'https://crowley24.github.io/main/UA-Finder+Mod.js'
-                },
-                {
                     id: 'Watching',
                     name: 'Continue Watching',
                     description:
                         'Продовження перегляду',
                     url:
                         'https://crowley24.github.io/Watching.js'
+                },
+                {
+                    id: 'Channels_sort',
+                    name: 'Channels sort',
+                    description:
+                        'Персоналізація каналів на головній сторінці через меню "Канали"',
+                    url:
+                        'https://crowley24.github.io/main/Channels_sort.js'
+                },
+                {
+                    id: 'UA-Finder',
+                    name: 'Finder UA',
+                    description:
+                        'Бейдж українського дубляжу',
+                    url:
+                        'https://crowley24.github.io/main/UA-Finder+Mod.js'
                 },
                 {
                     id: 'Random',
