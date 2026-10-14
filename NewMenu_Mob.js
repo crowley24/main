@@ -1,5 +1,12 @@
 (function () {
   'use strict';
+  /**
+ * @name NEWMENU_MOB
+ * @version 1.0
+ * @author Crowley24
+ * @description Оновлене мобільне меню
+ * @platforms Lampa | Mobile
+ */
 
   /** SVG-иконки через спрайт (лише для доданих нами елементів) */
   const FAVORITE_SVG = `<svg><use xlink:href="#sprite-favorite"></use></svg>`; 
