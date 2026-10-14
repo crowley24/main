@@ -3,7 +3,6 @@
 
     // == Lampac Clock Style Plugin ==  
 
-    // Доступні стилі годинника
     const clockStyles = {
         classic: {
             name: 'Класичний (Білий з помаранчевим)',
@@ -35,7 +34,7 @@
     };
 
     function getSelectedStyle() {
-        return window.Lampa && Lampa.Storage ? Lampa.Storage.get('custom_clock_style', 'classic') : 'classic';
+        return (window.Lampa && Lampa.Storage) ? Lampa.Storage.get('custom_clock_style', 'classic') : 'classic';
     }
 
     function createClock() {  
@@ -52,6 +51,7 @@
             customClock.style.fontWeight = '600';  
             customClock.style.fontSize = '2.5em';  
             customClock.style.whiteSpace = 'nowrap';  
+            customClock.style.cursor = 'pointer';
 
             const timeDisplay = document.createElement('div');  
             timeDisplay.className = 'time-display';
@@ -84,10 +84,11 @@
         }
     }  
 
-    // Реєстрація параметрів у налаштуваннях
-    function addSettings() {
+    // Додавання власного розділу/пункту в меню Налаштувань
+    function registerSettings() {
         if (!window.Lampa || !Lampa.SettingsApi) return;
 
+        // Варіант 1: Додаємо через SettingsApi
         Lampa.SettingsApi.addParam({
             component: 'interface',
             param: 'custom_clock_style',
@@ -100,31 +101,58 @@
             },
             default: 'classic',
             name: 'Стиль годинника',
-            descr: 'Виберіть зовнішній вигляд годинника у шапці',
+            descr: 'Зовнішній вигляд годинника у шапці',
             onChange: function() {
-                // Одразу оновлюємо годинник при зміні
                 createClock();
+            }
+        });
+
+        // Варіант 2: Створюємо окремий пункт у головному меню Налаштувань (для гарантії)
+        Lampa.SettingsComponent.add({
+            title: 'Стиль годинника',
+            component: 'custom_clock_settings',
+            icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`
+        });
+
+        // Слухаємо відкриття нашого компонента налаштувань
+        Lampa.Listener.follow('settings', function(e) {
+            if (e.type === 'open' && e.name === 'custom_clock_settings') {
+                let body = e.body;
+                body.empty();
+
+                Object.keys(clockStyles).forEach(function(key) {
+                    let item = Lampa.Template.get('settings_param', {
+                        name: clockStyles[key].name,
+                        descr: key === getSelectedStyle() ? 'АКТИВНИЙ СТИЛЬ' : ''
+                    });
+
+                    item.on('hover:enter', function() {
+                        Lampa.Storage.set('custom_clock_style', key);
+                        createClock();
+                        Lampa.Settings.update();
+                    });
+
+                    body.append(item);
+                });
             }
         });
     }
 
-    // Запуск реєстрації налаштувань
-    if (window.Lampa) {
-        addSettings();
-    }
-
-    function init() {
-        addSettings();
-        setTimeout(createClock, 500);
+    // Запуск при повній готовності Lampa
+    function startPlugin() {
+        registerSettings();
+        createClock();
     }
 
     if (window.Lampa && Lampa.Listener) {  
         Lampa.Listener.follow('app', function(e) {  
             if (e.type === 'ready') {  
-                init();
+                setTimeout(startPlugin, 500);  
             }  
         });  
     } else {  
-        document.addEventListener('DOMContentLoaded', init);  
+        document.addEventListener('DOMContentLoaded', function() {  
+            setTimeout(startPlugin, 2000);  
+        });  
     }  
 })();
