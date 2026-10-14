@@ -124,6 +124,14 @@
                         'https://crowley24.github.io/main/Channels_sort.js'
                 },
                 {
+                    id: 'Bookmarks',
+                    name: 'Personal Bookmarks',
+                    description:
+                        'Персональні папки в меню "Вибране"',
+                    url:
+                        'https://crowley24.github.io/main/Channels_sort.js'
+                },
+                {
                     id: 'UA-Finder',
                     name: 'Finder UA',
                     description:
