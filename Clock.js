@@ -1,10 +1,11 @@
 (function() {  
-    'use strict';  
-  
-        /*
-     * CROWLEY PLUGIN Clock
-     * Lampa / Android TV / Mobile
-     */
+    'use strict';    
+/*
+ * @name Clock
+ * @version 1.0
+ * @author Crowley24
+ * @platforms Lampa | Android TV | Mobile
+ */
     function createClock() {  
         // Знаходимо стандартний годинник  
         let oldClock = document.querySelector('.head__time');  
