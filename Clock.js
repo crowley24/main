@@ -1,9 +1,10 @@
 (function() {  
     'use strict';  
   
-    // == Lampac Clock Style Plugin ==  
-    // Заміна стандартного годинника Lampa на кастомний стиль  
-  
+        /*
+     * CROWLEY PLUGIN Clock
+     * Lampa / Android TV / Mobile
+     */
     function createClock() {  
         // Знаходимо стандартний годинник  
         let oldClock = document.querySelector('.head__time');  
