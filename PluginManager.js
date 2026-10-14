@@ -129,7 +129,7 @@
                     description:
                         'Персональні папки в меню "Вибране"',
                     url:
-                        'https://crowley24.github.io/main/Channels_sort.js'
+                        'https://crowley24.github.io/main/Bookmarks.js'
                 },
                 {
                     id: 'UA-Finder',
