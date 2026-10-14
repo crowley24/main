@@ -113,7 +113,7 @@
                     description:
                         'Продовження перегляду',
                     url:
-                        'https://crowley24.github.io/Watching.js'
+                        'https://crowley24.github.io/main/Watching.js'
                 },
                 {
                     id: 'Channels_sort',
