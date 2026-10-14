@@ -2,12 +2,11 @@
     'use strict';  
 
     // == Lampac Clock Style Plugin ==  
-    // Кастомний годинник з вибором стилю в налаштуваннях
 
     // Доступні стилі годинника
     const clockStyles = {
         classic: {
-            name: 'Класичний (Білий з помаранчевим розділювачем)',
+            name: 'Класичний (Білий з помаранчевим)',
             render: (h, m, s) => `
                 <span style="color:#ffffff; font-size:1em;">${h}</span>
                 <span style="color:#ff9100; font-size:1em;">:${m}</span>
@@ -28,7 +27,7 @@
             `
         },
         gradient: {
-            name: 'Градієнтний (Плавний перехід)',
+            name: 'Градієнтний (Яскравий)',
             render: (h, m, s) => `
                 <span style="background: linear-gradient(45deg, #ff416c, #ff4b2b); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-size:1em;">${h}:${m}</span>
             `
@@ -41,28 +40,29 @@
 
     function createClock() {  
         let oldClock = document.querySelector('.head__time');  
-        if (!oldClock) {  
-            console.warn('[ClockPlugin] .head__time не знайдено');  
-            return;  
-        }  
+        if (!oldClock) return;  
 
-        if (document.querySelector('#custom-clock')) return;  
+        let customClock = document.querySelector('#custom-clock');
+        if (!customClock) {
+            customClock = document.createElement('div');  
+            customClock.id = 'custom-clock';  
+            customClock.style.display = 'flex';  
+            customClock.style.alignItems = 'center';  
+            customClock.style.fontFamily = 'Segoe UI, Roboto, sans-serif';  
+            customClock.style.fontWeight = '600';  
+            customClock.style.fontSize = '2.5em';  
+            customClock.style.whiteSpace = 'nowrap';  
 
-        const clock = document.createElement('div');  
-        clock.id = 'custom-clock';  
-        clock.style.display = 'flex';  
-        clock.style.alignItems = 'center';  
-        clock.style.fontFamily = 'Segoe UI, Roboto, sans-serif';  
-        clock.style.fontWeight = '600';  
-        clock.style.fontSize = '2.5em';  
-        clock.style.whiteSpace = 'nowrap';  
+            const timeDisplay = document.createElement('div');  
+            timeDisplay.className = 'time-display';
+            timeDisplay.style.display = 'flex';  
+            timeDisplay.style.alignItems = 'baseline';  
 
-        const timeDisplay = document.createElement('div');  
-        timeDisplay.style.display = 'flex';  
-        timeDisplay.style.alignItems = 'baseline';  
+            customClock.appendChild(timeDisplay);  
+            oldClock.parentNode.replaceChild(customClock, oldClock);  
+        }
 
-        clock.appendChild(timeDisplay);  
-        oldClock.parentNode.replaceChild(clock, oldClock);  
+        const timeDisplay = customClock.querySelector('.time-display');
 
         function updateClock() {  
             const now = new Date();  
@@ -73,42 +73,58 @@
             let styleKey = getSelectedStyle();
             let styleObj = clockStyles[styleKey] || clockStyles.classic;
 
-            timeDisplay.innerHTML = styleObj.render(h, m, s);  
+            if (timeDisplay) {
+                timeDisplay.innerHTML = styleObj.render(h, m, s);  
+            }
         }  
 
         updateClock();  
-        setInterval(updateClock, 1000);  
+        if (!window.customClockInterval) {
+            window.customClockInterval = setInterval(updateClock, 1000);  
+        }
     }  
 
-    // Додаємо пункт в налаштування Lampa
+    // Реєстрація параметрів у налаштуваннях
     function addSettings() {
-        if (!window.Lampa || !window.Lampa.SettingsApi) return;
+        if (!window.Lampa || !Lampa.SettingsApi) return;
 
         Lampa.SettingsApi.addParam({
             component: 'interface',
             param: 'custom_clock_style',
             type: 'select',
-            values: Object.keys(clockStyles).reduce((acc, key) => {
-                acc[key] = clockStyles[key].name;
-                return acc;
-            }, {}),
+            values: {
+                classic: 'Класичний (Білий з помаранчевим)',
+                neon: 'Неоновий блакитний',
+                seconds: 'З секундами (Компактний)',
+                gradient: 'Градієнтний (Яскравий)'
+            },
             default: 'classic',
             name: 'Стиль годинника',
-            descr: 'Виберіть зовнішній вигляд кастомного годинника в шапці'
+            descr: 'Виберіть зовнішній вигляд годинника у шапці',
+            onChange: function() {
+                // Одразу оновлюємо годинник при зміні
+                createClock();
+            }
         });
     }
 
-    // Запуск після завантаження Lampa  
-    if (window.Lampa && window.Lampa.Listener) {  
+    // Запуск реєстрації налаштувань
+    if (window.Lampa) {
+        addSettings();
+    }
+
+    function init() {
+        addSettings();
+        setTimeout(createClock, 500);
+    }
+
+    if (window.Lampa && Lampa.Listener) {  
         Lampa.Listener.follow('app', function(e) {  
             if (e.type === 'ready') {  
-                addSettings();
-                setTimeout(createClock, 1000);  
+                init();
             }  
         });  
     } else {  
-        document.addEventListener('DOMContentLoaded', function() {  
-            setTimeout(createClock, 3000);  
-        });  
+        document.addEventListener('DOMContentLoaded', init);  
     }  
 })();
