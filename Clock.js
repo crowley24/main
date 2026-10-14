@@ -1,7 +1,6 @@
 (function() {  
     'use strict';  
-
-    // == Lampac Clock Style Plugin ==  
+ // == Lampac Clock Style Plugin ==  
 
     const clockStyles = {
         classic: {
