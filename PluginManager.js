@@ -3,31 +3,25 @@
     'use strict';
 
     /*
-     * CROWLEY PLUGIN MANAGER 3.4.0
+     * CROWLEY PLUGIN MANAGER 3.5.1
      * Lampa / Android TV / Mobile
      */
 
-    var GLOBAL_KEY = 'crowley_plugin_manager_v34';
-
-    if (window[GLOBAL_KEY]) return;
-    window[GLOBAL_KEY] = true;
-
-    var VERSION = '3.4.0';
+    var VERSION = '3.0';
+    var READY = 'crowley_plugin_manager_v351';
     var ROOT = 'plugin_manager_page';
-    var STORAGE_KEY = 'plugins';
+    var STORAGE = 'plugins';
+    var PENDING_KEY = 'crowley_pm_pending_v3.0';
+
+    if (window[READY]) return;
+    window[READY] = true;
 
     var initialized = false;
     var attempts = 0;
-    var maxAttempts = 100;
 
+    var selected = {};
+    var rows = {};
     var pending = false;
-    var activeCategory = null;
-    var rootRows = {};
-    var folderOpening = false;
-
-    /* =====================================
-       PLUGIN CATALOG
-       ===================================== */
 
     var CATEGORIES = [
         {
@@ -62,7 +56,7 @@
                     id: 'mob_interface',
                     name: 'Mobile Interface',
                     description:
-                        'Адаптивний мобільний інтерфейс картки фільму',
+                        'Мобільний інтерфейс картки фільму',
                     url:
                         'https://crowley24.github.io/main/Mob_Interface.js'
                 },
@@ -70,7 +64,7 @@
                     id: 'NewMenu_Mob',
                     name: 'Mobile Menu',
                     description:
-                        'Оновлене нижнє меню для мобільних пристроїв',
+                        'Оновлене мобільне меню',
                     url:
                         'https://crowley24.github.io/main/NewMenu_Mob.js'
                 },
@@ -78,9 +72,9 @@
                     id: 'custom_buttons',
                     name: 'Custom Buttons',
                     description:
-                        'Розширена кастомізація кнопок картки фільму',
+                        'Налаштування кнопок картки фільму',
                     url:
-                        'http://crowley24.github.io/main/ButtonsManager+.js'
+                        'https://crowley24.github.io/main/ButtonsManager+.js'
                 },
                 {
                     id: 'InterfaceSize',
@@ -94,7 +88,7 @@
                     id: 'InterfaceHize',
                     name: 'Interface Hide',
                     description:
-                        'Приховування елементів меню',
+                        'Приховування елементів інтерфейсу',
                     url:
                         'https://crowley24.github.io/interface_hide.js'
                 }
@@ -117,7 +111,7 @@
                     id: 'Watching',
                     name: 'Continue Watching',
                     description:
-                        'Історія перегляду на головній сторінці',
+                        'Продовження перегляду',
                     url:
                         'https://crowley24.github.io/Watching.js'
                 },
@@ -140,7 +134,7 @@
                     id: 'Clock',
                     name: 'Clock',
                     description:
-                        'Стильний годинник',
+                        'Годинник для Lampa',
                     url:
                         'https://crowley24.github.io/main/Clock.js'
                 },
@@ -148,7 +142,7 @@
                     id: 'Ukr',
                     name: 'Ukrainisation',
                     description:
-                        'Лагідна Українізація',
+                        'Українізація інтерфейсу',
                     url:
                         'https://crowley24.github.io/main/Ukr.js'
                 }
@@ -161,13 +155,13 @@
        ===================================== */
 
     function getPlugins() {
-        var list = Lampa.Storage.get(STORAGE_KEY);
+        var data = Lampa.Storage.get(STORAGE);
 
-        return Array.isArray(list) ? list : [];
+        return Array.isArray(data) ? data : [];
     }
 
-    function savePlugins(list) {
-        Lampa.Storage.set(STORAGE_KEY, list);
+    function savePlugins(data) {
+        Lampa.Storage.set(STORAGE, data);
     }
 
     function findPlugin(url) {
@@ -196,8 +190,8 @@
         );
     }
 
-    function getState(url) {
-        var item = findPlugin(url);
+    function getState(plugin) {
+        var item = findPlugin(plugin.url);
 
         if (!item) return 'absent';
 
@@ -210,9 +204,7 @@
         var count = 0;
 
         category.plugins.forEach(function (plugin) {
-            if (findPlugin(plugin.url)) {
-                count++;
-            }
+            if (findPlugin(plugin.url)) count++;
         });
 
         return count;
@@ -232,13 +224,87 @@
     }
 
     /* =====================================
-       STATE CHANGES
+       HTTPS MIGRATION
+       ===================================== */
+
+    function migrateCustomButtons() {
+        var oldUrl =
+            'http://crowley24.github.io/main/ButtonsManager+.js';
+
+        var newUrl =
+            'https://crowley24.github.io/main/ButtonsManager+.js';
+
+        var list = getPlugins();
+        var hasNew = false;
+        var changed = false;
+
+        list.forEach(function (item) {
+            if (
+                item &&
+                item.url === newUrl
+            ) {
+                hasNew = true;
+            }
+        });
+
+        if (hasNew) {
+            var filtered = list.filter(
+                function (item) {
+                    return item && item.url !== oldUrl;
+                }
+            );
+
+            if (filtered.length !== list.length) {
+                savePlugins(filtered);
+            }
+
+            return;
+        }
+
+        list.forEach(function (item) {
+            if (
+                item &&
+                item.url === oldUrl
+            ) {
+                item.url = newUrl;
+                changed = true;
+            }
+        });
+
+        if (changed) {
+            savePlugins(list);
+        }
+    }
+
+    /* =====================================
+       RESTART STATE
        ===================================== */
 
     function markPending() {
         pending = true;
-        updateRootRows();
+
+        /*
+         * This marker is kept until
+         * the next page reload.
+         *
+         * Plugin state changes themselves
+         * are already stored by Lampa.
+         */
+
+        updateRestartRow();
     }
+
+    function restartLampa() {
+        if (!pending) return;
+
+        notify('♻️ Застосування змін...');
+
+        window.location.reload();
+    }
+
+    /* =====================================
+       PLUGIN ACTIONS
+       ===================================== */
 
     function installPlugin(plugin) {
         if (findPlugin(plugin.url)) return;
@@ -255,87 +321,193 @@
         savePlugins(list);
         markPending();
 
-        notify('🟢 ' + plugin.name + ': встановлено');
+        notify(
+            '🟢 ' + plugin.name + ': встановлено'
+        );
     }
 
     function enablePlugin(plugin) {
         var list = getPlugins();
+        var changed = false;
 
         list.forEach(function (item) {
             if (
                 item &&
-                item.url === plugin.url
+                item.url === plugin.url &&
+                !isEnabled(item)
             ) {
                 item.status = 1;
+                changed = true;
             }
         });
+
+        if (!changed) return;
 
         savePlugins(list);
         markPending();
 
-        notify('🟢 ' + plugin.name + ': увімкнено');
+        notify(
+            '🟢 ' + plugin.name + ': увімкнено'
+        );
     }
 
     function disablePlugin(plugin) {
         var list = getPlugins();
+        var changed = false;
 
         list.forEach(function (item) {
             if (
                 item &&
-                item.url === plugin.url
+                item.url === plugin.url &&
+                isEnabled(item)
             ) {
                 item.status = 0;
+                changed = true;
             }
         });
+
+        if (!changed) return;
 
         savePlugins(list);
         markPending();
 
-        notify('🟠 ' + plugin.name + ': вимкнено');
+        notify(
+            '🟠 ' + plugin.name + ': вимкнено'
+        );
     }
 
     function removePlugin(plugin) {
-        var list = getPlugins().filter(
+        var list = getPlugins();
+
+        var filtered = list.filter(
             function (item) {
                 return item && item.url !== plugin.url;
             }
         );
 
-        savePlugins(list);
+        if (filtered.length === list.length) {
+            return;
+        }
+
+        savePlugins(filtered);
         markPending();
 
-        notify('🔴 ' + plugin.name + ': видалено');
+        notify(
+            '🔴 ' + plugin.name + ': видалено'
+        );
     }
 
     /* =====================================
-       SELECT HELPERS
+       NAVIGATION
        ===================================== */
 
-    function showSelect(title, items, onSelect, onBack) {
-        Lampa.Select.show({
-            title: title,
-            items: items,
+    /*
+     * IMPORTANT:
+     *
+     * Lampa.Select uses its own
+     * "select" controller.
+     *
+     * When the last Select window closes,
+     * we must restore "settings_component".
+     *
+     * Otherwise the Select controller may
+     * remain active and intercept Back.
+     */
+
+    function restoreSettingsController() {
+        if (
+            Lampa.Controller &&
+            typeof Lampa.Controller.toggle === 'function'
+        ) {
+            Lampa.Controller.toggle(
+                'settings_component'
+            );
+        }
+    }
+
+    function showSelect(options) {
+        Lampa.Select.show(options);
+    }
+
+    /* =====================================
+       CATEGORY MENU
+       ===================================== */
+
+    function buildCategoryItems(category) {
+        return category.plugins.map(
+            function (plugin) {
+                var state = getState(plugin);
+
+                var marker =
+                    state === 'enabled'
+                        ? '🟢'
+                        : state === 'disabled'
+                            ? '🟠'
+                            : '🔴';
+
+                return {
+                    title:
+                        marker + ' ' + plugin.name,
+
+                    subtitle:
+                        plugin.description,
+
+                    plugin: plugin,
+
+                    selected:
+                        selected[category.id] === plugin.id
+                };
+            }
+        );
+    }
+
+    function openCategory(category) {
+        if (!category) return;
+
+        showSelect({
+            title:
+                category.icon + ' ' +
+                category.name,
+
+            items:
+                buildCategoryItems(category),
 
             onSelect: function (item) {
-                if (typeof onSelect === 'function') {
-                    onSelect(item);
-                }
+                if (
+                    !item ||
+                    !item.plugin
+                ) return;
+
+                selected[category.id] =
+                    item.plugin.id;
+
+                openPlugin(
+                    item.plugin,
+                    category
+                );
             },
 
             onBack: function () {
-                if (typeof onBack === 'function') {
-                    onBack();
-                }
+                /*
+                 * CATEGORY -> ROOT SETTINGS
+                 *
+                 * This is the crucial fix.
+                 */
+
+                updateFolderRows();
+                updateRestartRow();
+
+                restoreSettingsController();
             }
         });
     }
 
     /* =====================================
-       PLUGIN ACTIONS
+       PLUGIN MENU
        ===================================== */
 
     function openPlugin(plugin, category) {
-        var state = getState(plugin.url);
+        var state = getState(plugin);
         var items = [];
 
         if (state === 'absent') {
@@ -344,16 +516,17 @@
                 action: 'install'
             });
         } else {
-            items.push({
-                title:
-                    state === 'enabled'
-                        ? '🟠 Вимкнути'
-                        : '🟢 Увімкнути',
-                action:
-                    state === 'enabled'
-                        ? 'disable'
-                        : 'enable'
-            });
+            if (state === 'enabled') {
+                items.push({
+                    title: '🟠 Вимкнути',
+                    action: 'disable'
+                });
+            } else {
+                items.push({
+                    title: '🟢 Увімкнути',
+                    action: 'enable'
+                });
+            }
 
             items.push({
                 title: '🔴 Видалити',
@@ -361,12 +534,25 @@
             });
         }
 
-        showSelect(
-            plugin.name,
-            items,
+        showSelect({
+            title: plugin.name,
 
-            function (item) {
-                if (!item) return;
+            items: items,
+
+            onSelect: function (item) {
+                if (!item) {
+                    openCategory(category);
+                    return;
+                }
+
+                if (item.action === 'remove') {
+                    confirmRemove(
+                        plugin,
+                        category
+                    );
+
+                    return;
+                }
 
                 switch (item.action) {
                     case 'install':
@@ -380,33 +566,25 @@
                     case 'disable':
                         disablePlugin(plugin);
                         break;
-
-                    case 'remove':
-                        confirmRemove(plugin, category);
-                        return;
                 }
 
-                /*
-                 * Select закривається штатно
-                 * після вибору дії.
-                 *
-                 * Повернення до папки:
-                 * через наступний цикл,
-                 * щоб не конфліктувати
-                 * із закриттям Select.
-                 */
+                selected[category.id] =
+                    plugin.id;
 
-                setTimeout(function () {
-                    openCategory(category);
-                }, 80);
+                openCategory(category);
             },
 
-            function () {
-                setTimeout(function () {
-                    openCategory(category);
-                }, 80);
+            onBack: function () {
+                /*
+                 * PLUGIN -> CATEGORY
+                 */
+
+                selected[category.id] =
+                    plugin.id;
+
+                openCategory(category);
             }
-        );
+        });
     }
 
     /* =====================================
@@ -414,10 +592,11 @@
        ===================================== */
 
     function confirmRemove(plugin, category) {
-        showSelect(
-            'Видалити ' + plugin.name + '?',
+        showSelect({
+            title:
+                'Видалити ' + plugin.name + '?',
 
-            [
+            items: [
                 {
                     title: 'Скасувати',
                     action: 'cancel'
@@ -428,7 +607,7 @@
                 }
             ],
 
-            function (item) {
+            onSelect: function (item) {
                 if (
                     item &&
                     item.action === 'remove'
@@ -436,126 +615,104 @@
                     removePlugin(plugin);
                 }
 
-                setTimeout(function () {
-                    openCategory(category);
-                }, 80);
+                selected[category.id] =
+                    plugin.id;
+
+                openCategory(category);
             },
 
-            function () {
-                setTimeout(function () {
-                    openCategory(category);
-                }, 80);
-            }
-        );
-    }
-
-    /* =====================================
-       CATEGORY MENU
-       ===================================== */
-
-    function categoryItems(category) {
-        return category.plugins.map(function (plugin) {
-            var state = getState(plugin.url);
-
-            var marker =
-                state === 'enabled'
-                    ? '🟢'
-                    : state === 'disabled'
-                        ? '🟠'
-                        : '🔴';
-
-            return {
-                title:
-                    marker + ' ' + plugin.name,
-                subtitle: plugin.description,
-                plugin: plugin
-            };
-        });
-    }
-
-    function openCategory(category) {
-        if (!category) return;
-
-        activeCategory = category;
-
-        showSelect(
-            category.icon + ' ' + category.name,
-
-            categoryItems(category),
-
-            function (item) {
-                if (!item || !item.plugin) return;
+            onBack: function () {
+                /*
+                 * CONFIRMATION -> PLUGIN
+                 */
 
                 openPlugin(
-                    item.plugin,
+                    plugin,
                     category
-                );
-            },
-
-            function () {
-                activeCategory = null;
-            }
-        );
-    }
-
-    /* =====================================
-       ROOT UI
-       ===================================== */
-
-    function updateRootRows() {
-        CATEGORIES.forEach(function (category) {
-            var item = rootRows[
-                'folder_' + category.id
-            ];
-
-            if (!item || !item.length) return;
-
-            var description = item.find(
-                '.settings-param__descr'
-            ).first();
-
-            if (description.length) {
-                description.text(
-                    getCount(category) +
-                    ' із ' +
-                    category.plugins.length +
-                    ' встановлено'
                 );
             }
         });
+    }
 
-        var restart = rootRows.restart;
+    /* =====================================
+       ROOT ROWS
+       ===================================== */
 
-        if (restart && restart.length) {
-            var title = restart.find(
-                '.settings-param__name'
-            ).first();
+    function updateFolderRow(category) {
+        var row = rows[
+            'folder_' + category.id
+        ];
 
-            if (title.length) {
-                title.text(
-                    pending
-                        ? '♻️ Застосувати зміни'
-                        : '♻️ Перезапуск Lampa'
-                );
-            }
+        if (!row || !row.length) return;
+
+        var description = row.find(
+            '.settings-param__descr'
+        ).first();
+
+        if (description.length) {
+            description.text(
+                getCount(category) +
+                ' із ' +
+                category.plugins.length +
+                ' встановлено'
+            );
         }
     }
 
-    function restartLampa() {
-        notify('♻️ Перезапуск Lampa...');
-
-        setTimeout(function () {
-            window.location.reload();
-        }, 450);
+    function updateFolderRows() {
+        CATEGORIES.forEach(function (category) {
+            updateFolderRow(category);
+        });
     }
 
     /* =====================================
-       ROOT COMPONENT
+       SMART RESTART
+       ===================================== */
+
+    function injectStyles() {
+        if (
+            document.getElementById(
+                'crowley-pm351-style'
+            )
+        ) return;
+
+        var style = document.createElement('style');
+
+        style.id = 'crowley-pm351-style';
+
+        style.textContent = `
+            .crowley-pm351-hidden {
+                display: none !important;
+            }
+
+            .crowley-pm351-restart
+            .settings-param__name {
+                color: #ffad24;
+            }
+        `;
+
+        document.head.appendChild(style);
+    }
+
+    function updateRestartRow() {
+        var row = rows.restart;
+
+        if (!row || !row.length) return;
+
+        row.toggleClass(
+            'crowley-pm351-hidden',
+            !pending
+        );
+    }
+
+    /* =====================================
+       SETTINGS COMPONENT
        ===================================== */
 
     function registerComponent() {
         Lampa.SettingsApi.addComponent({
             component: ROOT,
+
             name: 'Менеджер Плагінів',
 
             icon:
@@ -574,8 +731,9 @@
 
                 param: {
                     name:
-                        'crowley_pm34_folder_' +
+                        'crowley_pm351_folder_' +
                         category.id,
+
                     type: 'button'
                 },
 
@@ -583,6 +741,7 @@
                     name:
                         category.icon + '  ' +
                         category.name,
+
                     description:
                         getCount(category) +
                         ' із ' +
@@ -591,11 +750,11 @@
                 },
 
                 onRender: function (item) {
-                    rootRows[
+                    rows[
                         'folder_' + category.id
                     ] = item;
 
-                    updateRootRows();
+                    updateFolderRow(category);
                 },
 
                 onChange: function () {
@@ -610,19 +769,28 @@
             component: ROOT,
 
             param: {
-                name: 'crowley_pm34_restart',
+                name:
+                    'crowley_pm351_restart',
+
                 type: 'button'
             },
 
             field: {
-                name: '♻️ Перезапуск Lampa',
+                name:
+                    '♻️ Застосувати зміни',
+
                 description:
-                    'Застосувати встановлення та зміни'
+                    'Перезапустити Lampa'
             },
 
             onRender: function (item) {
-                rootRows.restart = item;
-                updateRootRows();
+                rows.restart = item;
+
+                item.addClass(
+                    'crowley-pm351-restart'
+                );
+
+                updateRestartRow();
             },
 
             onChange: function () {
@@ -632,7 +800,7 @@
     }
 
     /* =====================================
-       INIT
+       INITIALIZATION
        ===================================== */
 
     function init() {
@@ -645,12 +813,18 @@
             !Lampa.SettingsApi.addParam ||
             !Lampa.Storage ||
             !Lampa.Select ||
-            !Lampa.Select.show
+            !Lampa.Select.show ||
+            !Lampa.Controller ||
+            !Lampa.Controller.toggle
         ) {
             return false;
         }
 
         initialized = true;
+
+        migrateCustomButtons();
+
+        injectStyles();
 
         registerComponent();
         registerFolders();
@@ -659,19 +833,18 @@
         return true;
     }
 
-    /* =====================================
-       WAIT FOR LAMPA
-       ===================================== */
-
     function waitForLampa() {
         if (init()) return;
 
         attempts++;
 
-        if (attempts < maxAttempts) {
-            setTimeout(waitForLampa, 200);
+        if (attempts < 100) {
+            setTimeout(
+                waitForLampa,
+                200
+            );
         } else {
-            window[GLOBAL_KEY] = false;
+            window[READY] = false;
         }
     }
 
