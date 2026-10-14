@@ -105,10 +105,10 @@ var CATEGORIES = [
                 url: 'https://crowley24.github.io/main/InterfaceSize.js'
             },
             {
-                id: 'InterfaceHize',
+                id: 'InterfaceHide',
                 name: 'Interface Hide',
                 description: 'Приховування елементів інтерфейсу',
-                url: 'https://crowley24.github.io/interface_hide.js'
+                url: 'https://crowley24.github.io/main/InterfaceHide.js'
             }
         ]
     },
