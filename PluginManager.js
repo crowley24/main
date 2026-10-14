@@ -22,7 +22,7 @@
 },
 {
     name: 'Custom Buttons',
-    description: 'Розширена кастомізація кнопок у картці фільму з додатковими елементами керування (BazarNet | LampaUA)',
+    description: 'Розширена кастомізація кнопок у картці фільму з додатковими елементами керування (ko31k.giyhub.io)',
     url: 'http://crowley24.github.io/main/ButtonsManager+.js',
     id: 'custom_buttons'
 },
