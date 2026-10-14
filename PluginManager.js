@@ -53,7 +53,7 @@
         {
     name: 'Clock',
     description: 'Стильний годинник',
-    url: 'https://crowley24.github.io/clock.js',
+    url: 'https://crowley24.github.io/main/Clock.js',
     id: 'Clock'
 },    
         {
