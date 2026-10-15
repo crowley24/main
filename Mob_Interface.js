@@ -233,6 +233,9 @@
         if (/^(Великобританія|Сполучене Королівство|США|Україна|Канада|Франція|Німеччина|Іспанія|Італія|Японія|Південна Корея|United Kingdom|United States|USA|UK|Canada|France|Germany|Spain|Italy|Japan)$/i.test(text)) {
             return true;
         }
+        if (/^[,،]\s*[\p{L}\p{M}][\p{L}\p{M}\s,.'’()-]*$/u.test(text)) {
+        return true;
+        }
 
         return false;
     }
