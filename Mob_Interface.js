@@ -1,24 +1,30 @@
+
 (function () {
     'use strict';
 
     /*
      * @name MOB_INTERFACE
-     * @version 3.1.1
+     * @version 3.1.2
      * @author Crowley24
-     * @description Кастомізація інтерфейсу картки фільму на мобільному пристрої
-     * @platforms Lampa | Mobile
+     * @description Преміальний мобільний інтерфейс Lampa
      */
 
-    if (window.MOB_INTERFACE_V311_READY) return;
-    window.MOB_INTERFACE_V311_READY = true;
+    if (window.MOB_INTERFACE_V312_READY) return;
+    window.MOB_INTERFACE_V312_READY = true;
+
+    var VERSION = '3.1.2';
+    var STYLE_ID = 'mobile-interface-styles';
+    var pluginPath = 'https://crowley24.github.io/Icons/';
 
     var slideshowTimer = null;
-    var pluginPath = 'https://crowley24.github.io/Icons/';
     var detailsCache = {};
     var currentActiveId = null;
     var requestSequence = 0;
-
-    var STYLE_ID = 'mobile-interface-styles';
+    var activeRender = null;
+    var cleanupObserver = null;
+    var cleanupTimer = null;
+    var cleanupBusy = false;
+    var started = false;
 
     var settings_list = [
         { id: 'mobile_interface_animation', default: true },
@@ -37,9 +43,9 @@
         { id: 'mobile_interface_quality', default: true }
     ];
 
-    settings_list.forEach(function (opt) {
-        if (Lampa.Storage.get(opt.id, 'unset') === 'unset') {
-            Lampa.Storage.set(opt.id, opt.default);
+    settings_list.forEach(function (option) {
+        if (Lampa.Storage.get(option.id, 'unset') === 'unset') {
+            Lampa.Storage.set(option.id, option.default);
         }
     });
 
@@ -72,7 +78,7 @@
         },
         {
             id: 'hdr',
-            pattern: /\b(hdr10\+|hdr10\s*plus\b|hdr\s*10\s*\+|hdr10|hdr\s*10|hdr)\b/i,
+            pattern: /\b(hdr10\+|hdr10\s*plus|hdr\s*10\s*\+|hdr10|hdr\s*10|hdr)\b/i,
             imageURL: 'https://raw.githubusercontent.com/leonevz/Elite-Badges/main/Badges/hdr.png',
             group: 'hdr'
         },
@@ -123,6 +129,20 @@
         cub: 'https://raw.githubusercontent.com/yumata/lampa/9381985ad4371d2a7d5eb5ca8e3daf0f32669eb7/img/logo-icon.svg'
     };
 
+    function enabled(id) {
+        var value = Lampa.Storage.get(id);
+        return value === true || value === 'true' || value === 1;
+    }
+
+    function escapeHtml(value) {
+        return String(value == null ? '' : value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
     function stopSlideshow() {
         if (slideshowTimer) {
             clearInterval(slideshowTimer);
@@ -132,6 +152,320 @@
         if (window.mobileInterfaceBgInterval) {
             clearInterval(window.mobileInterfaceBgInterval);
             window.mobileInterfaceBgInterval = null;
+        }
+    }
+
+    /*
+     * ПРИХОВУВАННЯ СТАНДАРТНИХ МЕТАДАНИХ
+     *
+     * Не змінюємо DOM інших плагінів.
+     * Не видаляємо елементи Lampa.
+     * Лише додаємо клас приховування до
+     * стандартних блоків усередині картки.
+     */
+
+    function stopCleanupObserver() {
+        if (cleanupObserver) {
+            cleanupObserver.disconnect();
+            cleanupObserver = null;
+        }
+
+        if (cleanupTimer) {
+            clearTimeout(cleanupTimer);
+            cleanupTimer = null;
+        }
+
+        activeRender = null;
+    }
+
+    function isProtectedElement(element) {
+        if (!element || element.nodeType !== 1) return true;
+
+        return !!$(element).closest(
+            '.plugin-meta-row,' +
+            '.quality-row-inline,' +
+            '.studio-header-brand,' +
+            '.full-start-new__title,' +
+            '.full-start-new__tagline,' +
+            '.full-start-new__buttons,' +
+            '.full-start-new__poster,' +
+            '.full-start__button,' +
+            '.mi312-standard-hidden'
+        ).length;
+    }
+
+    function isStandardInfoText(text) {
+        text = String(text || '')
+            .replace(/\s+/g, ' ')
+            .trim();
+
+        if (!text || text.length > 100) return false;
+
+        /*
+         * Рік + країна:
+         * 2026, Великобританія
+         * 2026, United Kingdom
+         */
+        var yearCountry =
+            /^(?:19|20)\d{2}\s*[,·•|]\s*[^0-9]{2,65}$/i;
+
+        /*
+         * Окремий рік.
+         */
+        var yearOnly = /^(?:19|20)\d{2}$/;
+
+        /*
+         * Віковий рейтинг:
+         * 17+, 18+, 16+, 12+ тощо.
+         */
+        var ageOnly = /^(?:0|3|6|7|10|12|13|14|15|16|17|18|21)\s*\+$/;
+
+        return yearCountry.test(text) ||
+            yearOnly.test(text) ||
+            ageOnly.test(text);
+    }
+
+    function isLikelyStandardInfoClass(element) {
+        var cls = String(element.className || '');
+
+        if (cls.indexOf('plugin-') !== -1) return false;
+
+        return /(?:^|[\s_-])(age|year|country|info|meta|details|status|pg|pgs|certification|released)(?:$|[\s_-])/i.test(cls);
+    }
+
+    function getSafeHideTarget(element, root) {
+        if (!element || !root) return null;
+
+        var candidate = element;
+        var current = element;
+
+        /*
+         * Шукаємо найближчий невеликий контейнер
+         * стандартної інформації, але не піднімаємося
+         * до колонки, заголовка чи всього вікна.
+         */
+
+        for (var depth = 0; depth < 3; depth++) {
+            var parent = current.parentElement;
+
+            if (!parent || parent === root) break;
+
+            if (
+                parent.classList.contains('full-start-new__right') ||
+                parent.classList.contains('full-start-new__left') ||
+                parent.classList.contains('full-start-new__title') ||
+                parent.classList.contains('full-start-new__buttons')
+            ) {
+                break;
+            }
+
+            if (isProtectedElement(parent)) break;
+
+            var parentText = String(parent.textContent || '')
+                .replace(/\s+/g, ' ')
+                .trim();
+
+            if (!isStandardInfoText(parentText)) break;
+
+            if (
+                parent.querySelector('button,a,input,video') ||
+                parent.querySelector('.plugin-meta-row,.studio-header-brand')
+            ) {
+                break;
+            }
+
+            if (isLikelyStandardInfoClass(parent)) {
+                candidate = parent;
+            }
+
+            current = parent;
+        }
+
+        return candidate;
+    }
+
+    function hideStandardMetadata($render) {
+        if (!$render || !$render.length) return;
+        if (window.innerWidth > 480) return;
+        if (cleanupBusy) return;
+
+        var $card = $render.find('.full-start-new').first();
+
+        if (!$card.length) return;
+
+        var root = $card[0];
+        var title = $card.find('.full-start-new__title').first()[0];
+
+        if (!title) return;
+
+        cleanupBusy = true;
+
+        try {
+            /*
+             * Спочатку приховуємо відомі стандартні
+             * блоки. Усі селектори обмежені карткою.
+             */
+
+            var standardSelectors = [
+                '.full-start-new__age',
+                '.full-start__age',
+                '.full-start-new__status',
+                '.full-start__status',
+                '.full-start-new__details',
+                '.full-start__details',
+                '.full-start__info',
+                '.full-start-new__info',
+                '.full-start-new__meta',
+                '.full-start-new__year',
+                '.full-start-new__country',
+                '.full-start-new__certification'
+            ].join(',');
+
+            $card.find(standardSelectors).each(function () {
+                if (isProtectedElement(this)) return;
+
+                if (
+                    $(this).find(
+                        '.full-start-new__title,' +
+                        '.full-start-new__buttons,' +
+                        '.plugin-meta-row'
+                    ).length
+                ) {
+                    return;
+                }
+
+                $(this).addClass('mi312-standard-hidden');
+            });
+
+            /*
+             * Додаткова перевірка для Lampa / TMDB Mod,
+             * де класи стандартних блоків можуть
+             * відрізнятися.
+             *
+             * Перевіряємо лише короткі текстові вузли
+             * у верхній частині картки.
+             */
+
+            var walker = document.createTreeWalker(
+                root,
+                NodeFilter.SHOW_TEXT,
+                null,
+                false
+            );
+
+            var matches = [];
+            var node;
+
+            while ((node = walker.nextNode())) {
+                var text = String(node.nodeValue || '').trim();
+
+                if (!isStandardInfoText(text)) continue;
+
+                var element = node.parentElement;
+
+                if (!element || isProtectedElement(element)) {
+                    continue;
+                }
+
+                /*
+                 * Елемент повинен перебувати вище
+                 * нашого логотипа в DOM або бути
+                 * стандартним елементом інформації.
+                 */
+
+                var position = element.compareDocumentPosition(title);
+
+                var beforeTitle = !!(
+                    position & Node.DOCUMENT_POSITION_FOLLOWING
+                );
+
+                if (!beforeTitle) continue;
+
+                /*
+                 * Не чіпаємо елементи керування,
+                 * кнопки та інтерактивні блоки.
+                 */
+
+                if (
+                    $(element).closest(
+                        'button,a,input,select,textarea,' +
+                        '.full-start-new__buttons,' +
+                        '.full-start__button'
+                    ).length
+                ) {
+                    continue;
+                }
+
+                matches.push(element);
+            }
+
+            matches.forEach(function (element) {
+                var target = getSafeHideTarget(element, root);
+
+                if (!target || isProtectedElement(target)) return;
+
+                $(target).addClass('mi312-standard-hidden');
+            });
+
+        } catch (error) {
+            console.warn('[MOB_INTERFACE] Metadata cleanup:', error);
+        }
+
+        cleanupBusy = false;
+    }
+
+    function scheduleMetadataCleanup($render) {
+        if (cleanupTimer) {
+            clearTimeout(cleanupTimer);
+        }
+
+        cleanupTimer = setTimeout(function () {
+            cleanupTimer = null;
+            hideStandardMetadata($render);
+        }, 80);
+    }
+
+    function watchStandardMetadata($render) {
+        stopCleanupObserver();
+
+        activeRender = $render;
+
+        var $card = $render.find('.full-start-new').first();
+
+        if (!$card.length) return;
+
+        hideStandardMetadata($render);
+
+        /*
+         * Спостерігаємо лише за карткою.
+         * Налаштування та Plugin Manager
+         * не потрапляють під спостереження.
+         */
+
+        if (typeof MutationObserver !== 'undefined') {
+            cleanupObserver = new MutationObserver(function (mutations) {
+                var shouldCheck = false;
+
+                for (var i = 0; i < mutations.length; i++) {
+                    var mutation = mutations[i];
+
+                    if (mutation.type === 'childList' ||
+                        mutation.type === 'characterData') {
+                        shouldCheck = true;
+                        break;
+                    }
+                }
+
+                if (shouldCheck) {
+                    scheduleMetadataCleanup($render);
+                }
+            });
+
+            cleanupObserver.observe($card[0], {
+                childList: true,
+                subtree: true,
+                characterData: true
+            });
         }
     }
 
@@ -150,37 +484,44 @@
 
                 ctx.drawImage(img, 0, 0, 40, 40);
 
-                var imgData = ctx.getImageData(0, 0, 40, 40);
-                var data = imgData.data;
-                var totalBrightness = 0;
-                var hasColor = false;
+                var data = ctx.getImageData(
+                    0, 0, 40, 40
+                ).data;
+
+                var brightness = 0;
+                var colored = false;
                 var count = 0;
 
                 for (var i = 0; i < data.length; i += 4) {
-                    var alpha = data[i + 3];
+                    if (data[i + 3] <= 50) continue;
 
-                    if (alpha > 50) {
-                        var r = data[i];
-                        var g = data[i + 1];
-                        var b = data[i + 2];
+                    var r = data[i];
+                    var g = data[i + 1];
+                    var b = data[i + 2];
 
-                        var brightness = (r * 299 + g * 587 + b * 114) / 1000;
+                    brightness += (
+                        r * 299 +
+                        g * 587 +
+                        b * 114
+                    ) / 1000;
 
-                        totalBrightness += brightness;
-                        count++;
+                    count++;
 
-                        if ((Math.max(r, g, b) - Math.min(r, g, b)) > 30) {
-                            hasColor = true;
-                        }
+                    if (
+                        Math.max(r, g, b) -
+                        Math.min(r, g, b) > 30
+                    ) {
+                        colored = true;
                     }
                 }
 
-                var avgBrightness = count > 0
-                    ? totalBrightness / count
+                var average = count
+                    ? brightness / count
                     : 255;
 
-                callback((avgBrightness < 110) && !hasColor);
-            } catch (e) {
+                callback(average < 110 && !colored);
+
+            } catch (error) {
                 callback(false);
             }
         };
@@ -201,138 +542,160 @@
             document.head.appendChild(style);
         }
 
-        var isPosterAnim = Lampa.Storage.get('mobile_interface_animation');
-        var isUIAnim = Lampa.Storage.get('mobile_interface_ui_anim');
-        var animEffect = Lampa.Storage.get('mobile_interface_ui_anim_effect', 'fluid');
-        var badgeAnim = Lampa.Storage.get('mobile_interface_badge_anim', 'pulse');
-        var rSize = Lampa.Storage.get('mobile_interface_ratings_size', '0.45em');
-        var lHeight = parseInt(Lampa.Storage.get('mobile_interface_logo_size_v2', '125'), 10);
-        var showTagline = Lampa.Storage.get('mobile_interface_show_tagline');
-        var blocksGap = Lampa.Storage.get('mobile_interface_blocks_gap', '8px');
+        var posterAnim = enabled('mobile_interface_animation');
+        var uiAnim = enabled('mobile_interface_ui_anim');
 
-        if ([125, 150, 180, 210].indexOf(lHeight) === -1) {
-            lHeight = 125;
+        var effect = Lampa.Storage.get(
+            'mobile_interface_ui_anim_effect',
+            'fluid'
+        );
+
+        var badgeAnim = Lampa.Storage.get(
+            'mobile_interface_badge_anim',
+            'pulse'
+        );
+
+        var ratingSize = Lampa.Storage.get(
+            'mobile_interface_ratings_size',
+            '0.45em'
+        );
+
+        var logoHeight = parseInt(
+            Lampa.Storage.get(
+                'mobile_interface_logo_size_v2',
+                '125'
+            ), 10
+        );
+
+        var gap = Lampa.Storage.get(
+            'mobile_interface_blocks_gap',
+            '8px'
+        );
+
+        var tagline = enabled('mobile_interface_show_tagline');
+
+        if ([125, 150, 180, 210].indexOf(logoHeight) < 0) {
+            logoHeight = 125;
         }
 
-        if (!/^(8|12|18|24)px$/.test(blocksGap)) {
-            blocksGap = '8px';
+        if (!/^(8|12|18|24)px$/.test(gap)) {
+            gap = '8px';
         }
 
-        if (!/^(0\.4|0\.45|0\.5|0\.55)em$/.test(rSize)) {
-            rSize = '0.45em';
+        if (!/^(0\.4|0\.45|0\.5|0\.55)em$/.test(ratingSize)) {
+            ratingSize = '0.45em';
         }
 
-        if (['fluid', 'cyber', 'cinematic', 'elastic', 'minimal'].indexOf(animEffect) === -1) {
-            animEffect = 'fluid';
-        }
+        var effects = {
+            fluid: 'mi312_fluid',
+            cyber: 'mi312_cyber',
+            cinematic: 'mi312_cinematic',
+            elastic: 'mi312_elastic',
+            minimal: 'mi312_minimal'
+        };
 
-        if (['none', 'pulse', 'breathe', 'spin_slow', 'float'].indexOf(badgeAnim) === -1) {
-            badgeAnim = 'pulse';
-        }
+        var animationName = effects[effect] ||
+            effects.fluid;
+
+        var timing = effect === 'elastic'
+            ? 'cubic-bezier(.34,1.56,.64,1)'
+            : 'cubic-bezier(.16,1,.3,1)';
+
+        var appearance = uiAnim
+            ? 'animation:' + animationName +
+              ' .8s ' + timing +
+              ' forwards;opacity:0;'
+            : '';
 
         var css = '';
 
-        css += '@keyframes mi311_kenBurns {';
-        css += '0%{transform:scale(1)}';
+        css += '@keyframes mi312_kenBurns{';
+        css += '0%,100%{transform:scale(1)}';
         css += '50%{transform:scale(1.08)}';
-        css += '100%{transform:scale(1)}';
         css += '}';
 
-        css += '@keyframes mi311_fluid {';
-        css += '0%{opacity:0;transform:translate3d(0,25px,0) scale(.95);filter:blur(10px)}';
-        css += '100%{opacity:1;transform:translate3d(0,0,0) scale(1);filter:blur(0)}';
+        css += '@keyframes mi312_fluid{';
+        css += 'from{opacity:0;transform:translateY(25px) scale(.95);filter:blur(10px)}';
+        css += 'to{opacity:1;transform:none;filter:blur(0)}';
         css += '}';
 
-        css += '@keyframes mi311_cyber {';
-        css += '0%{opacity:0;transform:translate3d(-40px,0,0) scale(.9);filter:brightness(1.5)}';
-        css += '100%{opacity:1;transform:translate3d(0,0,0) scale(1);filter:brightness(1)}';
+        css += '@keyframes mi312_cyber{';
+        css += 'from{opacity:0;transform:translateX(-40px) scale(.9);filter:brightness(1.5)}';
+        css += 'to{opacity:1;transform:none;filter:brightness(1)}';
         css += '}';
 
-        css += '@keyframes mi311_cinematic {';
-        css += '0%{opacity:0;transform:translate3d(0,15px,0) scale(1.08);filter:blur(6px)}';
-        css += '100%{opacity:1;transform:translate3d(0,0,0) scale(1);filter:blur(0)}';
+        css += '@keyframes mi312_cinematic{';
+        css += 'from{opacity:0;transform:translateY(15px) scale(1.08);filter:blur(6px)}';
+        css += 'to{opacity:1;transform:none;filter:blur(0)}';
         css += '}';
 
-        css += '@keyframes mi311_elastic {';
+        css += '@keyframes mi312_elastic{';
         css += '0%{opacity:0;transform:scale(.7)}';
         css += '70%{opacity:1;transform:scale(1.04)}';
         css += '100%{opacity:1;transform:scale(1)}';
         css += '}';
 
-        css += '@keyframes mi311_minimal {';
-        css += '0%{opacity:0;transform:translate3d(0,10px,0)}';
-        css += '100%{opacity:1;transform:translate3d(0,0,0)}';
+        css += '@keyframes mi312_minimal{';
+        css += 'from{opacity:0;transform:translateY(10px)}';
+        css += 'to{opacity:1;transform:none}';
         css += '}';
 
-        css += '@keyframes mi311_wave {';
-        css += '0%{opacity:0;transform:scale(.5) translateY(10px);filter:blur(4px)}';
-        css += '100%{opacity:1;transform:scale(1) translateY(0);filter:blur(0)}';
+        css += '@keyframes mi312_wave{';
+        css += 'from{opacity:0;transform:scale(.5) translateY(10px);filter:blur(4px)}';
+        css += 'to{opacity:1;transform:none;filter:blur(0)}';
         css += '}';
 
-        css += '@keyframes mi311_badge_pulse {';
+        css += '@keyframes mi312_pulse{';
         css += '0%,100%{transform:scale(1)}';
         css += '50%{transform:scale(1.1)}';
         css += '}';
 
-        css += '@keyframes mi311_badge_breathe {';
-        css += '0%,100%{transform:scale(1);opacity:.85;filter:drop-shadow(0 2px 4px rgba(0,0,0,.3))}';
-        css += '50%{transform:scale(1.06);opacity:1;filter:drop-shadow(0 0 10px rgba(255,255,255,.6))}';
+        css += '@keyframes mi312_breathe{';
+        css += '0%,100%{transform:scale(1);opacity:.85}';
+        css += '50%{transform:scale(1.06);opacity:1}';
         css += '}';
 
-        css += '@keyframes mi311_badge_spin_slow {';
+        css += '@keyframes mi312_spin{';
         css += '0%,100%{transform:rotate(0)}';
         css += '25%{transform:rotate(4deg)}';
         css += '75%{transform:rotate(-4deg)}';
         css += '}';
 
-        css += '@keyframes mi311_badge_float {';
+        css += '@keyframes mi312_float{';
         css += '0%,100%{transform:translateY(0)}';
         css += '50%{transform:translateY(-4px)}';
         css += '}';
 
-        css += '@keyframes mi311_poster_fade {';
-        css += '0%{opacity:0;transform:scale(1.05)}';
-        css += '100%{opacity:1;transform:scale(1)}';
+        css += '@keyframes mi312_posterFade{';
+        css += 'from{opacity:0;transform:scale(1.05)}';
+        css += 'to{opacity:1;transform:scale(1)}';
         css += '}';
 
         css += '@media screen and (max-width:480px){';
 
         /*
-         * ВАЖЛИВО:
-         * Усі правила приховування стандартних елементів обмежені
-         * карткою фільму. Глобальні селектори [class*="pg"],
-         * [class*="status"] і [class*="age"] не використовуються.
+         * Усі правила приховування діють
+         * виключно в межах картки Lampa.
          */
+
+        css += '.full-start-new .mi312-standard-hidden{';
+        css += 'display:none!important;';
+        css += 'visibility:hidden!important;';
+        css += '}';
 
         css += '.full-start-new .full-start__reactions,';
         css += '.full-start-new .full-start-new__reactions,';
-        css += '.full-start-new [class*="reactions"]{display:none!important;}';
-
-        css += '.full-start-new .full-start-new__details,';
-        css += '.full-start-new .full-start__info,';
-        css += '.full-start-new .full-start__details,';
-        css += '.full-start-new .full-start__age,';
-        css += '.full-start-new .full-start-new__age,';
-        css += '.full-start-new .full-start__status,';
-        css += '.full-start-new .full-start-new__status,';
+        css += '.full-start-new [class*="reactions"],';
         css += '.full-start-new .full-start__rates,';
         css += '.full-start-new .rate--tmdb,';
         css += '.full-start-new .rate--imdb,';
-        css += '.full-start-new .rate--kp{display:none!important;}';
+        css += '.full-start-new .rate--kp{';
+        css += 'display:none!important;';
+        css += '}';
 
-        /*
-         * Додатковий захист для стандартного інформаційного блоку.
-         * Правило діє тільки всередині правої колонки картки.
-         */
-        css += '.full-start-new .full-start-new__right > .full-start-new__details,';
-        css += '.full-start-new .full-start-new__right > .full-start__info,';
-        css += '.full-start-new .full-start-new__right > .full-start__details,';
-        css += '.full-start-new .full-start-new__right > .full-start__age,';
-        css += '.full-start-new .full-start-new__right > .full-start-new__age,';
-        css += '.full-start-new .full-start-new__right > .full-start__status,';
-        css += '.full-start-new .full-start-new__right > .full-start-new__status{display:none!important;}';
-
-        css += '.full-start-new{position:relative!important;}';
+        css += '.full-start-new{';
+        css += 'position:relative!important;';
+        css += '}';
 
         css += '.full-start-new__poster{';
         css += 'position:relative!important;';
@@ -340,20 +703,25 @@
         css += 'background:#000;';
         css += 'z-index:1;';
         css += 'height:62vh!important;';
-        if (isUIAnim) {
-            css += 'animation:mi311_poster_fade .9s cubic-bezier(.16,1,.3,1) forwards;';
+
+        if (uiAnim) {
+            css += 'animation:mi312_posterFade .9s cubic-bezier(.16,1,.3,1) forwards;';
         }
+
         css += '}';
 
         css += '.full-start-new__poster img{';
         css += 'filter:none!important;';
-        if (isPosterAnim) {
-            css += 'animation:mi311_kenBurns 25s ease-in-out infinite!important;';
+
+        if (posterAnim) {
+            css += 'animation:mi312_kenBurns 25s ease-in-out infinite!important;';
         }
-        css += 'transform-origin:center center!important;';
+
+        css += 'transform-origin:center!important;';
         css += 'transition:opacity 1.2s ease-in-out!important;';
         css += 'position:absolute;top:0;left:0;';
-        css += 'width:100%;height:100%;object-fit:cover;';
+        css += 'width:100%;height:100%;';
+        css += 'object-fit:cover;';
         css += 'mask-image:linear-gradient(to bottom,#000 0%,#000 55%,transparent 100%)!important;';
         css += '-webkit-mask-image:linear-gradient(to bottom,#000 0%,#000 55%,transparent 100%)!important;';
         css += '}';
@@ -366,42 +734,36 @@
         css += 'flex-direction:column!important;';
         css += 'align-items:center!important;';
         css += 'padding:0 10px!important;';
-        css += 'gap:' + blocksGap + '!important;';
+        css += 'gap:' + gap + '!important;';
         css += 'position:relative!important;';
         css += '}';
 
-        var animMap = {
-            fluid: 'mi311_fluid',
-            cyber: 'mi311_cyber',
-            cinematic: 'mi311_cinematic',
-            elastic: 'mi311_elastic',
-            minimal: 'mi311_minimal'
-        };
-
-        var chosenAnimName = animMap[animEffect] || 'mi311_fluid';
-        var animTiming = animEffect === 'elastic'
-            ? 'cubic-bezier(.34,1.56,.64,1)'
-            : 'cubic-bezier(.16,1,.3,1)';
-
-        var uiAnimClass = isUIAnim
-            ? 'animation:' + chosenAnimName + ' .8s ' + animTiming + ' forwards;opacity:0;will-change:transform,opacity,filter;transform:translateZ(0);'
-            : '';
-
         css += '.full-start-new .quality-row-inline{';
-        css += 'position:absolute;top:30px;right:12px;z-index:99;';
-        css += 'display:flex;flex-direction:column;align-items:flex-end;';
-        css += 'gap:4px;pointer-events:none;';
+        css += 'position:absolute;';
+        css += 'top:30px;right:12px;';
+        css += 'z-index:99;';
+        css += 'display:flex;';
+        css += 'flex-direction:column;';
+        css += 'align-items:flex-end;';
+        css += 'gap:4px;';
+        css += 'pointer-events:none;';
         css += '}';
 
         css += '.full-start-new .studio-header-brand{';
-        css += uiAnimClass;
-        css += 'animation-delay:.08s;order:1;width:100%;display:flex;';
-        css += 'justify-content:flex-start;align-items:center;';
-        css += 'padding-left:5vw;margin-bottom:-2px!important;';
+        css += appearance;
+        css += 'animation-delay:.08s;';
+        css += 'order:1;width:100%;';
+        css += 'display:flex;';
+        css += 'justify-content:flex-start;';
+        css += 'align-items:center;';
+        css += 'padding-left:5vw;';
+        css += 'margin-bottom:-2px!important;';
         css += '}';
 
         css += '.full-start-new .studio-header-brand img{';
-        css += 'height:18px!important;width:auto;max-width:110px;';
+        css += 'height:18px!important;';
+        css += 'width:auto;';
+        css += 'max-width:110px;';
         css += 'object-fit:contain;';
         css += 'filter:drop-shadow(0 2px 5px rgba(0,0,0,.9));';
         css += 'opacity:.95;';
@@ -412,136 +774,93 @@
         css += '}';
 
         css += '.full-start-new .full-start-new__title{';
-        css += uiAnimClass;
-        css += 'animation-delay:.15s;width:100%!important;';
-        css += 'display:flex!important;justify-content:center!important;';
-        css += 'align-items:center!important;margin:0!important;';
-        css += 'min-height:50px;order:2;overflow:visible!important;';
+        css += appearance;
+        css += 'animation-delay:.15s;';
+        css += 'width:100%!important;';
+        css += 'display:flex!important;';
+        css += 'justify-content:center!important;';
+        css += 'align-items:center!important;';
+        css += 'margin:0!important;';
+        css += 'min-height:50px;';
+        css += 'order:2;';
+        css += 'overflow:visible!important;';
         css += '}';
 
         css += '.full-start-new .full-start-new__title img{';
-        css += 'height:auto!important;max-height:' + lHeight + 'px!important;';
-        css += 'width:auto!important;max-width:90vw!important;';
+        css += 'height:auto!important;';
+        css += 'max-height:' + logoHeight + 'px!important;';
+        css += 'width:auto!important;';
+        css += 'max-width:90vw!important;';
         css += 'object-fit:contain!important;';
         css += 'filter:drop-shadow(0 4px 20px rgba(0,0,0,.9));';
         css += 'margin:0!important;';
         css += '}';
 
         css += '.full-start-new .full-start-new__tagline{';
-        css += uiAnimClass;
+        css += appearance;
         css += 'animation-delay:.22s;';
-        css += 'display:' + (showTagline ? 'block' : 'none') + '!important;';
-        css += 'font-style:italic!important;font-size:.9em!important;';
-        css += 'margin:0!important;color:rgba(255,255,255,.8)!important;';
-        css += 'text-align:center!important;order:3;';
+        css += 'display:' + (tagline ? 'block' : 'none') + '!important;';
+        css += 'font-style:italic!important;';
+        css += 'font-size:.9em!important;';
+        css += 'margin:0!important;';
+        css += 'color:rgba(255,255,255,.8)!important;';
+        css += 'text-align:center!important;';
+        css += 'order:3;';
         css += '}';
 
         css += '.full-start-new .plugin-meta-row{';
-        css += uiAnimClass;
-        css += 'animation-delay:.28s;display:flex;';
-        css += 'justify-content:center;align-items:center;';
-        css += 'flex-wrap:nowrap;gap:8px;margin:0!important;';
-        css += 'font-size:calc(' + rSize + ' * 2.5);';
-        css += 'width:100%;order:4;color:rgba(255,255,255,.85);';
+        css += appearance;
+        css += 'animation-delay:.28s;';
+        css += 'display:flex;';
+        css += 'justify-content:center;';
+        css += 'align-items:center;';
+        css += 'flex-wrap:nowrap;';
+        css += 'gap:8px;';
+        css += 'margin:0!important;';
+        css += 'font-size:calc(' + ratingSize + ' * 2.5);';
+        css += 'width:100%;';
+        css += 'order:4;';
+        css += 'color:rgba(255,255,255,.85);';
         css += 'font-family:Inter,-apple-system,system-ui,sans-serif;';
         css += '}';
 
-        var loopAnimMap = {
-            pulse: 'mi311_badge_pulse',
-            breathe: 'mi311_badge_breathe',
-            spin_slow: 'mi311_badge_spin_slow',
-            float: 'mi311_badge_float'
-        };
-
-        var loopAnimName = loopAnimMap[badgeAnim] || '';
-        var loopDuration = badgeAnim === 'spin_slow'
-            ? '4s'
-            : (badgeAnim === 'breathe' ? '3s' : '2.5s');
-
-        css += '.full-start-new .wave-item{';
-        css += 'transform-origin:center center;';
-        css += 'filter:drop-shadow(0 2px 4px rgba(0,0,0,.3));';
-
-        if (isUIAnim) {
-            css += 'opacity:0;';
-            css += 'animation:mi311_wave .5s cubic-bezier(.16,1,.3,1) forwards';
-
-            if (loopAnimName) {
-                css += ',' + loopAnimName + ' ' + loopDuration + ' ease-in-out infinite';
-                css += ';animation-delay:calc(.35s + (var(--item-index) * .08s)),';
-                css += 'calc(1s + (var(--item-index) * .15s))';
-            } else {
-                css += ';animation-delay:calc(.35s + (var(--item-index) * .08s))';
-            }
-
-            css += ';will-change:transform,opacity,filter;';
-        } else if (loopAnimName) {
-            css += 'animation:' + loopAnimName + ' ' + loopDuration + ' ease-in-out infinite;';
-            css += 'animation-delay:calc(var(--item-index) * .15s);';
-        }
-
-        css += '}';
-
-        css += '.full-start-new .quality-row-inline .plugin-rating-item{';
-        css += 'display:flex;align-items:center;gap:4px;';
-        css += 'font-weight:700;color:#fff;font-size:.95em;padding:2px 0;';
-        css += '}';
-
-        css += '.full-start-new .quality-row-inline .plugin-rating-item img{';
-        css += 'height:1em;width:auto;';
-        css += '}';
-
-        css += '.full-start-new .quality-item{';
-        css += 'transform-origin:center center;';
-        css += 'filter:drop-shadow(0 2px 5px rgba(0,0,0,.8));';
-        css += 'height:1.15em;display:flex;align-items:center;justify-content:flex-end;';
-
-        if (isUIAnim) {
-            css += 'opacity:0;';
-            css += 'animation:mi311_wave .5s cubic-bezier(.16,1,.3,1) forwards';
-
-            if (loopAnimName) {
-                css += ',' + loopAnimName + ' ' + loopDuration + ' ease-in-out infinite';
-                css += ';animation-delay:calc(.35s + (var(--item-index) * .08s)),';
-                css += 'calc(1s + (var(--item-index) * .15s))';
-            } else {
-                css += ';animation-delay:calc(.35s + (var(--item-index) * .08s))';
-            }
-
-            css += ';will-change:transform,opacity,filter;';
-        } else if (loopAnimName) {
-            css += 'animation:' + loopAnimName + ' ' + loopDuration + ' ease-in-out infinite;';
-            css += 'animation-delay:calc(var(--item-index) * .15s);';
-        }
-
-        css += '}';
-
-        css += '.full-start-new .quality-item img{';
-        css += 'height:100%;width:auto;max-width:60px;object-fit:contain;';
-        css += '}';
-
         css += '.full-start-new .info-text-item{';
-        css += 'opacity:.9;font-weight:500;font-size:.85em;white-space:nowrap;';
+        css += 'opacity:.9;';
+        css += 'font-weight:500;';
+        css += 'font-size:.85em;';
+        css += 'white-space:nowrap;';
         css += '}';
 
         css += '.full-start-new .info-separator{';
-        css += 'opacity:.35;font-size:.8em;margin:0 -2px;';
+        css += 'opacity:.35;';
+        css += 'font-size:.8em;';
+        css += 'margin:0 -2px;';
         css += '}';
 
         css += '.full-start-new .full-start-new__buttons{';
-        css += uiAnimClass;
-        css += 'animation-delay:.42s;display:flex!important;';
-        css += 'justify-content:space-around!important;align-items:center!important;';
-        css += 'width:100%!important;max-width:100%!important;';
-        css += 'padding:0 4px!important;box-sizing:border-box!important;';
-        css += 'margin-top:4px!important;order:6;';
+        css += appearance;
+        css += 'animation-delay:.42s;';
+        css += 'display:flex!important;';
+        css += 'justify-content:space-around!important;';
+        css += 'align-items:center!important;';
+        css += 'width:100%!important;';
+        css += 'max-width:100%!important;';
+        css += 'padding:0 4px!important;';
+        css += 'box-sizing:border-box!important;';
+        css += 'margin-top:4px!important;';
+        css += 'order:6;';
         css += '}';
 
         css += '.full-start-new .full-start__button{';
-        css += 'background:none!important;border:none!important;box-shadow:none!important;';
-        css += 'display:flex!important;flex-direction:column!important;';
-        css += 'align-items:center!important;width:42px!important;';
-        css += 'min-width:36px!important;padding:0!important;';
+        css += 'background:none!important;';
+        css += 'border:none!important;';
+        css += 'box-shadow:none!important;';
+        css += 'display:flex!important;';
+        css += 'flex-direction:column!important;';
+        css += 'align-items:center!important;';
+        css += 'width:42px!important;';
+        css += 'min-width:36px!important;';
+        css += 'padding:0!important;';
         css += 'transition:transform .2s ease,opacity .2s ease;';
         css += '}';
 
@@ -551,14 +870,91 @@
 
         css += '.full-start-new .full-start__button svg,';
         css += '.full-start-new .full-start__button img{';
-        css += 'width:24px!important;height:24px!important;';
-        css += 'margin-bottom:4px!important;fill:#fff!important;';
+        css += 'width:24px!important;';
+        css += 'height:24px!important;';
+        css += 'margin-bottom:4px!important;';
+        css += 'fill:#fff!important;';
         css += 'filter:drop-shadow(0 2px 8px rgba(0,0,0,.5));';
         css += '}';
 
         css += '.full-start-new .full-start__button span{';
-        css += 'font-size:9px!important;text-transform:uppercase!important;';
-        css += 'opacity:.75!important;font-weight:600;letter-spacing:.05em;';
+        css += 'font-size:9px!important;';
+        css += 'text-transform:uppercase!important;';
+        css += 'opacity:.75!important;';
+        css += 'font-weight:600;';
+        css += 'letter-spacing:.05em;';
+        css += '}';
+
+        var badgeAnimations = {
+            pulse: 'mi312_pulse',
+            breathe: 'mi312_breathe',
+            spin_slow: 'mi312_spin',
+            float: 'mi312_float'
+        };
+
+        var badgeName = badgeAnimations[badgeAnim] || '';
+
+        var badgeDuration = badgeAnim === 'spin_slow'
+            ? '4s'
+            : (badgeAnim === 'breathe' ? '3s' : '2.5s');
+
+        css += '.full-start-new .wave-item{';
+        css += 'transform-origin:center;';
+        css += 'filter:drop-shadow(0 2px 4px rgba(0,0,0,.3));';
+
+        if (uiAnim) {
+            css += 'opacity:0;';
+            css += 'animation:mi312_wave .5s cubic-bezier(.16,1,.3,1) forwards';
+
+            if (badgeName) {
+                css += ',' + badgeName + ' ' +
+                    badgeDuration + ' ease-in-out infinite';
+
+                css += ';animation-delay:';
+                css += 'calc(.35s + var(--item-index) * .08s),';
+                css += 'calc(1s + var(--item-index) * .15s)';
+            } else {
+                css += ';animation-delay:';
+                css += 'calc(.35s + var(--item-index) * .08s)';
+            }
+
+            css += ';';
+        } else if (badgeName) {
+            css += 'animation:' + badgeName + ' ' +
+                badgeDuration + ' ease-in-out infinite;';
+        }
+
+        css += '}';
+
+        css += '.full-start-new .quality-row-inline .plugin-rating-item{';
+        css += 'display:flex;';
+        css += 'align-items:center;';
+        css += 'gap:4px;';
+        css += 'font-weight:700;';
+        css += 'color:#fff;';
+        css += 'font-size:.95em;';
+        css += 'padding:2px 0;';
+        css += '}';
+
+        css += '.full-start-new .quality-row-inline .plugin-rating-item img{';
+        css += 'height:1em;';
+        css += 'width:auto;';
+        css += '}';
+
+        css += '.full-start-new .quality-item{';
+        css += 'transform-origin:center;';
+        css += 'filter:drop-shadow(0 2px 5px rgba(0,0,0,.8));';
+        css += 'height:1.15em;';
+        css += 'display:flex;';
+        css += 'align-items:center;';
+        css += 'justify-content:flex-end;';
+        css += '}';
+
+        css += '.full-start-new .quality-item img{';
+        css += 'height:100%;';
+        css += 'width:auto;';
+        css += 'max-width:60px;';
+        css += 'object-fit:contain;';
         css += '}';
 
         css += '}';
@@ -566,8 +962,8 @@
         style.textContent = css;
     }
 
-    function getRatingColor(val) {
-        var n = parseFloat(val);
+    function getRatingColor(value) {
+        var n = parseFloat(value);
 
         if (n >= 7.5) return '#2ecc71';
         if (n >= 6) return '#feca57';
@@ -577,29 +973,27 @@
     }
 
     function formatTime(mins) {
+        mins = parseInt(mins, 10);
+
         if (!mins) return '';
 
-        var h = Math.floor(mins / 60);
-        var m = mins % 60;
+        var hours = Math.floor(mins / 60);
+        var minutes = mins % 60;
 
-        return (h > 0 ? h + 'г ' : '') + m + 'хв';
-    }
-
-    function escapeHtml(value) {
-        return String(value == null ? '' : value)
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#39;');
+        return (hours ? hours + 'г ' : '') +
+            minutes + 'хв';
     }
 
     function getCubRating(e) {
-        if (!e.data || !e.data.reactions || !e.data.reactions.result) {
+        if (
+            !e.data ||
+            !e.data.reactions ||
+            !e.data.reactions.result
+        ) {
             return null;
         }
 
-        var reactionCoef = {
+        var coefficients = {
             fire: 10,
             nice: 7.5,
             think: 5,
@@ -608,183 +1002,268 @@
         };
 
         var sum = 0;
-        var cnt = 0;
+        var count = 0;
 
-        e.data.reactions.result.forEach(function (r) {
-            if (r.counter && Object.prototype.hasOwnProperty.call(reactionCoef, r.type)) {
-                sum += r.counter * reactionCoef[r.type];
-                cnt += r.counter;
+        e.data.reactions.result.forEach(function (reaction) {
+            if (
+                reaction.counter &&
+                Object.prototype.hasOwnProperty.call(
+                    coefficients,
+                    reaction.type
+                )
+            ) {
+                sum += reaction.counter *
+                    coefficients[reaction.type];
+
+                count += reaction.counter;
             }
         });
 
-        if (cnt >= 5) {
-            var isTv = e.object.method === 'tv';
-            var avg = isTv ? 7.4 : 6.5;
-            var m = isTv ? 50 : 150;
+        if (count < 5) return null;
 
-            return ((avg * m + sum) / (m + cnt)).toFixed(1);
-        }
+        var isTv = e.object.method === 'tv';
+        var average = isTv ? 7.4 : 6.5;
+        var weight = isTv ? 50 : 150;
 
-        return null;
+        return (
+            (average * weight + sum) /
+            (weight + count)
+        ).toFixed(1);
     }
 
-    function renderMeta(container, e) {
-        container.find('.plugin-meta-row').remove();
+    function renderMeta($container, movie) {
+        if (!$container || !$container.length) return;
 
-        var sep = '<span class="info-separator">•</span>';
-        var $metaRow = $('<div class="plugin-meta-row"></div>');
+        $container.find('.plugin-meta-row').remove();
 
-        var movie = e.data.movie || {};
-        var year = (movie.release_date || movie.first_air_date || '').substring(0, 4);
+        var $row = $('<div class="plugin-meta-row"></div>');
 
-        if (year) {
-            $metaRow.append(
-                '<div class="info-text-item">' + escapeHtml(year) + '</div>'
+        function appendValue(value) {
+            if (!value) return;
+
+            if ($row.children().length) {
+                $row.append(
+                    '<span class="info-separator">•</span>'
+                );
+            }
+
+            $row.append(
+                '<div class="info-text-item">' +
+                escapeHtml(value) +
+                '</div>'
             );
         }
+
+        var date = movie.release_date ||
+            movie.first_air_date ||
+            '';
+
+        appendValue(date.substring(0, 4));
 
         var country = '';
 
-        if (movie.production_countries && movie.production_countries.length > 0) {
-            country = movie.production_countries[0].name ||
+        if (
+            movie.production_countries &&
+            movie.production_countries.length
+        ) {
+            country =
+                movie.production_countries[0].name ||
                 movie.production_countries[0].iso_3166_1 ||
                 '';
-        } else if (movie.origin_country && movie.origin_country.length > 0) {
+        } else if (
+            movie.origin_country &&
+            movie.origin_country.length
+        ) {
             country = movie.origin_country[0];
         }
 
-        if (country) {
-            if ($metaRow.children().length > 0) {
-                $metaRow.append(sep);
-            }
-
-            $metaRow.append(
-                '<div class="info-text-item">' + escapeHtml(country) + '</div>'
-            );
-        }
+        appendValue(country);
 
         var runtime = movie.runtime ||
-            (movie.episode_run_time && movie.episode_run_time.length
-                ? movie.episode_run_time[0]
-                : 0);
+            (
+                movie.episode_run_time &&
+                movie.episode_run_time.length
+                    ? movie.episode_run_time[0]
+                    : 0
+            );
 
-        if (runtime) {
-            if ($metaRow.children().length > 0) {
-                $metaRow.append(sep);
-            }
+        appendValue(formatTime(runtime));
 
-            $metaRow.append(
-                '<div class="info-text-item">' + escapeHtml(formatTime(runtime)) + '</div>'
+        if (movie.genres && movie.genres.length) {
+            appendValue(
+                movie.genres.slice(0, 2).map(function (genre) {
+                    return genre.name;
+                }).join(', ')
             );
         }
 
-        if (movie.genres && movie.genres.length > 0) {
-            if ($metaRow.children().length > 0) {
-                $metaRow.append(sep);
-            }
-
-            var genres = movie.genres.slice(0, 2).map(function (g) {
-                return g.name;
-            }).join(', ');
-
-            $metaRow.append(
-                '<div class="info-text-item">' + escapeHtml(genres) + '</div>'
-            );
-        }
-
-        container.append($metaRow);
+        $container.append($row);
     }
 
-    function applyMovieDetailsData(data, movie, $render, requestId) {
+    function applyMovieDetailsData(
+        data,
+        movie,
+        $render,
+        requestId
+    ) {
         if (requestId !== requestSequence) return;
         if (currentActiveId !== movie.id) return;
 
-        var $title = $render.find('.full-start-new__title');
+        var $title = $render.find(
+            '.full-start-new__title'
+        ).first();
 
-        if (data.images && data.images.logos && data.images.logos.length > 0) {
-            var lang = Lampa.Storage.get('language') || 'uk';
+        if (!$title.length) return;
 
-            var logo = data.images.logos.filter(function (l) {
-                return l.iso_639_1 === lang;
-            })[0] || data.images.logos.filter(function (l) {
-                return l.iso_639_1 === 'en';
+        if (
+            data.images &&
+            data.images.logos &&
+            data.images.logos.length
+        ) {
+            var language =
+                Lampa.Storage.get('language') || 'uk';
+
+            var logo = data.images.logos.filter(function (item) {
+                return item.iso_639_1 === language;
+            })[0] || data.images.logos.filter(function (item) {
+                return item.iso_639_1 === 'en';
             })[0] || data.images.logos[0];
 
             if (logo && logo.file_path) {
-                var logoQuality = Lampa.Storage.get('mobile_interface_logo_quality', 'w500');
-                var logoPath = logo.file_path.replace(/\.svg$/i, '.png');
-                var logoUrl = Lampa.TMDB.image('/t/p/' + logoQuality + logoPath);
+                var quality = Lampa.Storage.get(
+                    'mobile_interface_logo_quality',
+                    'w500'
+                );
+
+                var path = logo.file_path.replace(
+                    /\.svg$/i,
+                    '.png'
+                );
+
+                var url = Lampa.TMDB.image(
+                    '/t/p/' + quality + path
+                );
 
                 $title.html(
-                    '<img src="' + escapeHtml(logoUrl) + '" alt="' +
-                    escapeHtml(movie.title || movie.name || '') + '">'
+                    '<img src="' + escapeHtml(url) +
+                    '" alt="' +
+                    escapeHtml(movie.title || movie.name || '') +
+                    '">'
                 );
             }
         }
 
-        if (Lampa.Storage.get('mobile_interface_studios')) {
-            $render.find('.studio-header-brand').remove();
+        $render.find('.studio-header-brand').remove();
 
+        if (enabled('mobile_interface_studios')) {
             var studio = null;
 
-            if (data.networks && data.networks.length > 0) {
-                studio = data.networks.find(function (n) {
-                    return n.logo_path;
+            if (data.networks && data.networks.length) {
+                studio = data.networks.find(function (item) {
+                    return item.logo_path;
                 });
             }
 
-            if (!studio && data.production_companies && data.production_companies.length > 0) {
-                studio = data.production_companies.find(function (c) {
-                    return c.logo_path;
-                });
+            if (
+                !studio &&
+                data.production_companies &&
+                data.production_companies.length
+            ) {
+                studio = data.production_companies.find(
+                    function (item) {
+                        return item.logo_path;
+                    }
+                );
             }
 
             if (studio && studio.logo_path) {
-                var studioLogoUrl = Lampa.TMDB.image('/t/p/w200' + studio.logo_path);
-
-                var $brand = $(
-                    '<div class="studio-header-brand"><img src="' +
-                    escapeHtml(studioLogoUrl) +
-                    '" alt="' + escapeHtml(studio.name || '') + '"></div>'
+                var studioUrl = Lampa.TMDB.image(
+                    '/t/p/w200' + studio.logo_path
                 );
 
-                var $img = $brand.find('img');
+                var $brand = $(
+                    '<div class="studio-header-brand">' +
+                    '<img src="' + escapeHtml(studioUrl) +
+                    '" alt="' +
+                    escapeHtml(studio.name || '') +
+                    '"></div>'
+                );
 
-                $img.on('error', function () {
+                var $image = $brand.find('img');
+
+                $image.on('error', function () {
                     $brand.remove();
                 });
 
-                isImageDark(studioLogoUrl, function (isDark) {
-                    if (isDark && document.body.contains($img[0])) {
-                        $img.addClass('is-dark-logo');
+                $title.before($brand);
+
+                isImageDark(studioUrl, function (dark) {
+                    if (
+                        dark &&
+                        $image.length &&
+                        document.body.contains($image[0])
+                    ) {
+                        $image.addClass('is-dark-logo');
                     }
                 });
-
-                $title.before($brand);
             }
-        } else {
-            $render.find('.studio-header-brand').remove();
         }
 
-        if (data.images && data.images.backdrops) {
-            var backdrops = data.images.backdrops.filter(function (elem) {
-                return elem.aspect_ratio > 1.5 &&
-                    (!elem.iso_639_1 || elem.iso_639_1 === 'xx');
-            });
+        /*
+         * Додаємо розширені метадані лише
+         * у власний нижній рядок.
+         */
 
-            if (backdrops.length === 0) {
-                backdrops = data.images.backdrops.filter(function (elem) {
-                    return elem.aspect_ratio > 1.5;
-                });
+        var $right = $render.find(
+            '.full-start-new__right'
+        ).first();
+
+        if ($right.length) {
+            renderMeta(
+                $right,
+                $.extend({}, movie, data)
+            );
+        }
+
+        /*
+         * Повторна перевірка стандартних
+         * елементів після відповіді TMDB.
+         */
+
+        hideStandardMetadata($render);
+
+        if (
+            data.images &&
+            data.images.backdrops
+        ) {
+            var backdrops = data.images.backdrops.filter(
+                function (item) {
+                    return item.aspect_ratio > 1.5 &&
+                        (
+                            !item.iso_639_1 ||
+                            item.iso_639_1 === 'xx'
+                        );
+                }
+            );
+
+            if (!backdrops.length) {
+                backdrops = data.images.backdrops.filter(
+                    function (item) {
+                        return item.aspect_ratio > 1.5;
+                    }
+                );
             }
 
-            if (backdrops.length > 0) {
+            if (backdrops.length) {
                 backdrops.sort(function (a, b) {
-                    return (b.vote_average || 0) - (a.vote_average || 0);
+                    return (b.vote_average || 0) -
+                        (a.vote_average || 0);
                 });
 
                 startPosterSlideshow(
-                    $render.find('.full-start-new__poster'),
+                    $render.find(
+                        '.full-start-new__poster'
+                    ).first(),
                     backdrops.slice(0, 15)
                 );
             }
@@ -797,16 +1276,30 @@
 
         currentActiveId = movieId;
 
-        if (detailsCache[movieId]) {
-            applyMovieDetailsData(detailsCache[movieId], movie, $render, requestId);
+        var type = (
+            movie.name || movie.first_air_date
+        ) ? 'tv' : 'movie';
+
+        var cacheKey = type + '_' + movieId;
+
+        if (detailsCache[cacheKey]) {
+            applyMovieDetailsData(
+                detailsCache[cacheKey],
+                movie,
+                $render,
+                requestId
+            );
+
             return;
         }
 
-        var type = (movie.name || movie.first_air_date) ? 'tv' : 'movie';
-
-        var url = 'https://api.themoviedb.org/3/' + type + '/' + movieId +
-            '?api_key=' + Lampa.TMDB.key() +
-            '&append_to_response=images&include_image_language=uk,en,null';
+        var url =
+            'https://api.themoviedb.org/3/' +
+            type + '/' + movieId +
+            '?api_key=' +
+            encodeURIComponent(Lampa.TMDB.key()) +
+            '&append_to_response=images' +
+            '&include_image_language=uk,en,null';
 
         $.ajax({
             url: url,
@@ -817,79 +1310,99 @@
                 if (requestId !== requestSequence) return;
                 if (currentActiveId !== movieId) return;
 
-                detailsCache[movieId] = data;
+                detailsCache[cacheKey] = data;
 
-                applyMovieDetailsData(data, movie, $render, requestId);
+                applyMovieDetailsData(
+                    data,
+                    movie,
+                    $render,
+                    requestId
+                );
+            },
+
+            error: function () {
+                if (requestId !== requestSequence) return;
+
+                hideStandardMetadata($render);
             }
         });
     }
 
     function getEliteBadges(results) {
-        var foundBadges = [];
+        if (!Array.isArray(results)) return [];
 
-        if (!results) return foundBadges;
-
-        var combinedText = '';
+        var combined = '';
 
         results.slice(0, 15).forEach(function (item) {
-            combinedText += ' ' + (item.Title || item.title || '');
+            combined += ' ' +
+                (item.Title || item.title || '');
         });
 
-        var matchedBadges = [];
+        var matched = [];
 
         eliteBadgesConfig.forEach(function (badge) {
-            if (badge.pattern && badge.pattern.test(combinedText)) {
-                matchedBadges.push(badge);
+            if (badge.pattern.test(combined)) {
+                matched.push(badge);
             }
         });
 
-        var highestResolution = null;
+        var highest = null;
 
-        matchedBadges.forEach(function (badge) {
-            if (badge.group === 'resolution') {
-                if (!highestResolution || badge.priority > highestResolution.priority) {
-                    highestResolution = badge;
-                }
+        matched.forEach(function (badge) {
+            if (
+                badge.group === 'resolution' &&
+                (!highest || badge.priority > highest.priority)
+            ) {
+                highest = badge;
             }
         });
 
-        matchedBadges.forEach(function (badge) {
+        var result = [];
+
+        matched.forEach(function (badge) {
             if (
                 badge.group !== 'resolution' ||
-                (highestResolution && badge.id === highestResolution.id)
+                (highest && badge.id === highest.id)
             ) {
-                foundBadges.push(badge.imageURL);
+                result.push(badge.imageURL);
             }
         });
 
-        var hasUkr = /ukr|укр/i.test(combinedText);
-        var hasDub = /dub|дуб/i.test(combinedText);
+        if (/ukr|укр/i.test(combined)) {
+            result.push(pluginPath + 'UKR.svg');
+        }
 
-        if (hasUkr) foundBadges.push(pluginPath + 'UKR.svg');
-        if (hasDub) foundBadges.push(pluginPath + 'DUB.svg');
+        if (/dub|дуб/i.test(combined)) {
+            result.push(pluginPath + 'DUB.svg');
+        }
 
-        return foundBadges.filter(function (elem, pos, arr) {
-            return arr.indexOf(elem) === pos;
+        return result.filter(function (url, index, array) {
+            return array.indexOf(url) === index;
         });
     }
 
     function startPosterSlideshow($poster, items) {
         stopSlideshow();
 
-        if (!Lampa.Storage.get('mobile_interface_slideshow')) return;
-        if (!$poster || !$poster.length || !items || items.length < 2) return;
+        if (!enabled('mobile_interface_slideshow')) return;
+        if (!$poster || !$poster.length) return;
+        if (!items || items.length < 2) return;
 
         var index = 0;
-        var intervalTime = parseInt(
-            Lampa.Storage.get('mobile_interface_slideshow_time', '10000'),
-            10
+
+        var interval = parseInt(
+            Lampa.Storage.get(
+                'mobile_interface_slideshow_time',
+                '10000'
+            ), 10
         );
 
-        if (!intervalTime || intervalTime < 1000) intervalTime = 10000;
+        if (!interval || interval < 1000) {
+            interval = 10000;
+        }
 
         slideshowTimer = setInterval(function () {
             if (
-                !$poster ||
                 !$poster.length ||
                 !document.body.contains($poster[0])
             ) {
@@ -904,66 +1417,195 @@
                 'w780'
             );
 
-            var imgUrl = Lampa.TMDB.image(
-                '/t/p/' + quality + items[index].file_path
+            var imageUrl = Lampa.TMDB.image(
+                '/t/p/' + quality +
+                items[index].file_path
             );
 
-            var $current = $poster.find('img').last();
-            var nextImg = new Image();
+            var preload = new Image();
 
-            nextImg.onload = function () {
-                if (!$poster.length || !document.body.contains($poster[0])) return;
+            preload.onload = function () {
+                if (
+                    !$poster.length ||
+                    !document.body.contains($poster[0])
+                ) {
+                    return;
+                }
 
-                var $next = $('<img>').attr('src', imgUrl).css({
-                    opacity: 0,
-                    transition: 'opacity 1.2s ease-in-out'
-                });
+                var $current = $poster.find('img').last();
+
+                var $next = $('<img>')
+                    .attr('src', imageUrl)
+                    .css({
+                        opacity: 0,
+                        transition: 'opacity 1.2s ease-in-out'
+                    });
 
                 $poster.append($next);
 
                 setTimeout(function () {
-                    if (!$next.length || !document.body.contains($next[0])) return;
+                    if (
+                        !$next.length ||
+                        !document.body.contains($next[0])
+                    ) {
+                        return;
+                    }
 
                     $next.css('opacity', '1');
 
-                    if ($current && $current.length) {
+                    if ($current.length) {
                         $current.css('opacity', '0');
 
                         setTimeout(function () {
-                            if ($current && $current.length) {
-                                $current.remove();
-                            }
+                            $current.remove();
                         }, 1250);
                     }
                 }, 100);
             };
 
-            nextImg.onerror = function () {};
-            nextImg.src = imgUrl;
-        }, intervalTime);
+            preload.onerror = function () {};
+            preload.src = imageUrl;
+
+        }, interval);
 
         window.mobileInterfaceBgInterval = slideshowTimer;
     }
 
-    function init() {
-        Lampa.Listener.follow('full', function (e) {
-            if (e.type === 'destroy' || e.type === 'onBeforeDestroy') {
-                stopSlideshow();
-                currentActiveId = null;
-                requestSequence++;
-                return;
-            }
+    function renderQuality($render, movie, e) {
+        var $card = $render.find(
+            '.full-start-new'
+        ).first();
+
+        if (!$card.length) return;
+
+        $card.find('.quality-row-inline').remove();
+
+        var $row = $(
+            '<div class="quality-row-inline"></div>'
+        );
+
+        $card.append($row);
+
+        var itemIndex = 0;
+
+        var tmdb = parseFloat(
+            movie.vote_average || 0
+        ).toFixed(1);
+
+        if (parseFloat(tmdb) > 0) {
+            var $tmdb = $(
+                '<div class="plugin-rating-item wave-item">' +
+                '<img src="' + ratingIcons.tmdb + '">' +
+                '<span style="color:' +
+                getRatingColor(tmdb) + '">' +
+                escapeHtml(tmdb) +
+                '</span></div>'
+            );
+
+            $tmdb.css('--item-index', itemIndex++);
+            $row.append($tmdb);
+        }
+
+        var cub = getCubRating(e);
+
+        if (cub) {
+            var $cub = $(
+                '<div class="plugin-rating-item wave-item">' +
+                '<img src="' + ratingIcons.cub + '">' +
+                '<span style="color:' +
+                getRatingColor(cub) + '">' +
+                escapeHtml(cub) +
+                '</span></div>'
+            );
+
+            $cub.css('--item-index', itemIndex++);
+            $row.append($cub);
+        }
+
+        if (
+            !enabled('mobile_interface_quality') ||
+            !Lampa.Parser ||
+            !Lampa.Parser.get
+        ) {
+            return;
+        }
+
+        var movieId = movie.id;
+        var currentRequest = requestSequence;
+
+        Lampa.Parser.get({
+            search: movie.title || movie.name,
+            movie: movie,
+            page: 1
+        }, function (response) {
+            if (currentActiveId !== movieId) return;
+            if (currentRequest !== requestSequence) return;
 
             if (
-                window.innerWidth > 480 ||
-                (e.type !== 'complite' && e.type !== 'complete')
+                !$row.length ||
+                !document.body.contains($row[0])
             ) {
                 return;
             }
 
-            stopSlideshow();
+            if (
+                !response ||
+                !Array.isArray(response.Results)
+            ) {
+                return;
+            }
 
-            if (!e.data || !e.data.movie || !e.object || !e.object.activity) {
+            getEliteBadges(response.Results).forEach(
+                function (url) {
+                    var $badge = $(
+                        '<div class="quality-item wave-item"></div>'
+                    );
+
+                    var $image = $('<img>')
+                        .attr('src', url);
+
+                    $badge.append($image);
+                    $badge.css(
+                        '--item-index',
+                        itemIndex++
+                    );
+
+                    $row.append($badge);
+                }
+            );
+        });
+    }
+
+    function init() {
+        Lampa.Listener.follow('full', function (e) {
+            if (
+                e.type === 'destroy' ||
+                e.type === 'onBeforeDestroy'
+            ) {
+                stopSlideshow();
+                stopCleanupObserver();
+
+                currentActiveId = null;
+                requestSequence++;
+
+                return;
+            }
+
+            if (window.innerWidth > 480) return;
+
+            if (
+                e.type !== 'complite' &&
+                e.type !== 'complete'
+            ) {
+                return;
+            }
+
+            if (
+                !e.data ||
+                !e.data.movie ||
+                !e.object ||
+                !e.object.activity
+            ) {
                 return;
             }
 
@@ -972,83 +1614,58 @@
 
             if (!$render || !$render.length) return;
 
+            var $card = $render.find(
+                '.full-start-new'
+            ).first();
+
+            var $right = $render.find(
+                '.full-start-new__right'
+            ).first();
+
+            if (!$card.length || !$right.length) {
+                return;
+            }
+
+            stopSlideshow();
+            stopCleanupObserver();
+
             if (window.lampa_settings) {
                 window.lampa_settings.blur_poster = false;
             }
 
-            var $mainContainer = $render.find('.full-start-new');
+            /*
+             * Власний рядок інформації
+             * залишається під логотипом.
+             */
 
-            if ($mainContainer.length === 0) {
-                $mainContainer = $render;
-            }
+            renderMeta($right, movie);
 
-            var $right = $render.find('.full-start-new__right');
+            /*
+             * Вмикаємо локальне приховування
+             * стандартних верхніх елементів.
+             */
 
-            renderMeta($right, e);
+            watchStandardMetadata($render);
+
+            /*
+             * Дані TMDB, логотипи, студії,
+             * фонові кадри.
+             */
+
             loadMovieDetails(movie, $render);
 
-            $mainContainer.find('.quality-row-inline').remove();
+            /*
+             * Рейтинги та бейджі.
+             */
 
-            var $qRow = $('<div class="quality-row-inline"></div>');
-            $mainContainer.append($qRow);
+            renderQuality($render, movie, e);
 
-            var globalIndex = 0;
-            var tmdb = parseFloat(movie.vote_average || 0).toFixed(1);
+            /*
+             * Контрольна перевірка після
+             * початкового формування картки.
+             */
 
-            if (parseFloat(tmdb) > 0) {
-                var $tmdbItem = $(
-                    '<div class="plugin-rating-item wave-item">' +
-                    '<img src="' + ratingIcons.tmdb + '">' +
-                    '<span style="color:' + getRatingColor(tmdb) + '">' +
-                    escapeHtml(tmdb) + '</span></div>'
-                );
-
-                $tmdbItem.css('--item-index', globalIndex++);
-                $qRow.append($tmdbItem);
-            }
-
-            var cub = getCubRating(e);
-
-            if (cub) {
-                var $cubItem = $(
-                    '<div class="plugin-rating-item wave-item">' +
-                    '<img src="' + ratingIcons.cub + '">' +
-                    '<span style="color:' + getRatingColor(cub) + '">' +
-                    escapeHtml(cub) + '</span></div>'
-                );
-
-                $cubItem.css('--item-index', globalIndex++);
-                $qRow.append($cubItem);
-            }
-
-            if (
-                Lampa.Storage.get('mobile_interface_quality') &&
-                Lampa.Parser &&
-                Lampa.Parser.get
-            ) {
-                var activeMovieId = movie.id;
-
-                Lampa.Parser.get({
-                    search: movie.title || movie.name,
-                    movie: movie,
-                    page: 1
-                }, function (res) {
-                    if (currentActiveId !== activeMovieId) return;
-
-                    if (res && Array.isArray(res.Results)) {
-                        var eliteBadgesList = getEliteBadges(res.Results);
-
-                        eliteBadgesList.forEach(function (imgUrl) {
-                            var $badge = $('<div class="quality-item wave-item"></div>');
-                            var $img = $('<img>').attr('src', imgUrl);
-
-                            $badge.append($img);
-                            $badge.css('--item-index', globalIndex++);
-                            $qRow.append($badge);
-                        });
-                    }
-                });
-            }
+            scheduleMetadataCleanup($render);
         });
     }
 
@@ -1061,15 +1678,27 @@
 
         Lampa.SettingsApi.addParam({
             component: 'mobile_interface',
-            param: { name: 'mobile_interface_animation', type: 'trigger', default: true },
-            field: { name: 'Зум-ефект постера (Ken Burns)' },
+            param: {
+                name: 'mobile_interface_animation',
+                type: 'trigger',
+                default: true
+            },
+            field: {
+                name: 'Зум-ефект постера (Ken Burns)'
+            },
             onChange: applyStyles
         });
 
         Lampa.SettingsApi.addParam({
             component: 'mobile_interface',
-            param: { name: 'mobile_interface_ui_anim', type: 'trigger', default: true },
-            field: { name: 'Плавна анімація появи елементів' },
+            param: {
+                name: 'mobile_interface_ui_anim',
+                type: 'trigger',
+                default: true
+            },
+            field: {
+                name: 'Плавна анімація появи елементів'
+            },
             onChange: applyStyles
         });
 
@@ -1087,7 +1716,9 @@
                 },
                 default: 'fluid'
             },
-            field: { name: 'Стиль анімації появи' },
+            field: {
+                name: 'Стиль анімації появи'
+            },
             onChange: applyStyles
         });
 
@@ -1105,14 +1736,22 @@
                 },
                 default: 'pulse'
             },
-            field: { name: 'Анімація бейджів' },
+            field: {
+                name: 'Анімація бейджів'
+            },
             onChange: applyStyles
         });
 
         Lampa.SettingsApi.addParam({
             component: 'mobile_interface',
-            param: { name: 'mobile_interface_slideshow', type: 'trigger', default: true },
-            field: { name: 'Автозміна фонових кадрів' }
+            param: {
+                name: 'mobile_interface_slideshow',
+                type: 'trigger',
+                default: true
+            },
+            field: {
+                name: 'Автозміна фонових кадрів'
+            }
         });
 
         Lampa.SettingsApi.addParam({
@@ -1127,7 +1766,9 @@
                 },
                 default: '10000'
             },
-            field: { name: 'Інтервал зміни фону' }
+            field: {
+                name: 'Інтервал зміни фону'
+            }
         });
 
         Lampa.SettingsApi.addParam({
@@ -1143,14 +1784,22 @@
                 },
                 default: '125'
             },
-            field: { name: 'Висота логотипу тайтлу' },
+            field: {
+                name: 'Висота логотипу тайтлу'
+            },
             onChange: applyStyles
         });
 
         Lampa.SettingsApi.addParam({
             component: 'mobile_interface',
-            param: { name: 'mobile_interface_show_tagline', type: 'trigger', default: true },
-            field: { name: 'Відображати слоган' },
+            param: {
+                name: 'mobile_interface_show_tagline',
+                type: 'trigger',
+                default: true
+            },
+            field: {
+                name: 'Відображати слоган'
+            },
             onChange: applyStyles
         });
 
@@ -1167,11 +1816,11 @@
                 },
                 default: '8px'
             },
-            field: { name: 'Відступи між блоками' },
+            field: {
+                name: 'Відступи між блоками'
+            },
             onChange: applyStyles
         });
-
-        Lampa.SettingsApi.addParserParam = Lampa.SettingsApi.addParam;
 
         Lampa.SettingsApi.addParam({
             component: 'mobile_interface',
@@ -1186,27 +1835,48 @@
                 },
                 default: '0.45em'
             },
-            field: { name: 'Розмір шрифту інфо-блоків' },
+            field: {
+                name: 'Розмір шрифту інфо-блоків'
+            },
             onChange: applyStyles
         });
 
         Lampa.SettingsApi.addParam({
             component: 'mobile_interface',
-            param: { name: 'mobile_interface_studios', type: 'trigger', default: true },
-            field: { name: 'Показувати логотип студії' }
+            param: {
+                name: 'mobile_interface_studios',
+                type: 'trigger',
+                default: true
+            },
+            field: {
+                name: 'Показувати логотип студії'
+            }
         });
 
         Lampa.SettingsApi.addParam({
             component: 'mobile_interface',
-            param: { name: 'mobile_interface_quality', type: 'trigger', default: true },
-            field: { name: 'Бейджі якості та звуку' }
+            param: {
+                name: 'mobile_interface_quality',
+                type: 'trigger',
+                default: true
+            },
+            field: {
+                name: 'Бейджі якості та звуку'
+            }
         });
     }
 
     function startPlugin() {
+        if (started) return;
+        started = true;
+
         applyStyles();
         setupSettings();
         init();
+
+        console.log(
+            '[MOB_INTERFACE] v' + VERSION + ' initialized'
+        );
     }
 
     if (window.appready) {
@@ -1218,4 +1888,5 @@
             }
         });
     }
+
 })();
