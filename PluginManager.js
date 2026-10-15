@@ -3,15 +3,16 @@
 'use strict';
 
 /*
- * CROWLEY PLUGIN MANAGER 3.6.3 PREMIUM
+ * CROWLEY PLUGIN MANAGER 3.6.4 PREMIUM
  * Lampa / Android TV / Mobile
+ * Fix: full-screen Select on portrait mobile devices
  */
 
-var VERSION = '3.6.3';
-var READY = 'crowley_plugin_manager_v363';
+var VERSION = '3.6.4';
+var READY = 'crowley_plugin_manager_v364';
 var ROOT = 'plugin_manager_page';
 var STORAGE = 'plugins';
-var STYLE_ID = 'crowley-pm363-style';
+var STYLE_ID = 'crowley-pm364-style';
 
 if (window[READY]) return;
 window[READY] = true;
@@ -313,6 +314,22 @@ function removePlugin(plugin) {
     notify(plugin.name + ': видалено');
 }
 
+/* ===== MOBILE ORIENTATION ===== */
+
+/*
+ * На телефоні у вертикальній орієнтації використовуємо
+ * штатний повноекранний режим Lampa.Select.
+ *
+ * На ТВ та в горизонтальному режимі нічого не змінюємо.
+ */
+
+function isMobilePortrait() {
+    var width = window.innerWidth || document.documentElement.clientWidth || 0;
+    var height = window.innerHeight || document.documentElement.clientHeight || 0;
+
+    return width > 0 && height > width && width <= 600;
+}
+
 /* ===== PREMIUM STYLES ===== */
 
 function injectStyles() {
@@ -376,10 +393,7 @@ function injectStyles() {
             border-radius: 10px;
         }
 
-        /*
-         * Status dot aligned with title.
-         * Extra left padding prevents clipping.
-         */
+        /* Status dot aligned with title */
 
         .crowley-pm-select-row .crowley-pm-plugin-title {
             display: inline-flex !important;
@@ -443,7 +457,7 @@ function injectStyles() {
             color: #e8b86b;
         }
 
-        /* Mobile */
+        /* Mobile category rows */
 
         @media (max-width: 600px) {
             .crowley-pm-folder .settings-param__name {
@@ -634,6 +648,14 @@ function restoreSettingsController() {
 
 function showSelect(options) {
     if (!Lampa.Select || !Lampa.Select.show) return;
+
+    /*
+     * Основне виправлення:
+     * Lampa.Select має вбудований режим fullsize.
+     * Вмикаємо його тільки на вузькому екрані у портретній
+     * орієнтації, щоб список не відкривався за нижнім краєм.
+     */
+    options.fullsize = isMobilePortrait();
 
     menuDepth = 1;
 
