@@ -2,15 +2,15 @@
 'use strict';
 
 /*
-CROWLEY PLUGIN MANAGER 3.6.4 PREMIUM
+CROWLEY PLUGIN MANAGER 3.6.5 PREMIUM
 Lampa / Android TV / Mobile
 */
 
-var VERSION = '3.6.4';
-var READY = 'crowley_plugin_manager_v364';
+var VERSION = '3.6.5';
+var READY = 'crowley_plugin_manager_v365';
 var ROOT = 'plugin_manager_page';
 var STORAGE = 'plugins';
-var STYLE_ID = 'crowley-pm364-style';
+var STYLE_ID = 'crowley-pm365-style';
 
 if (window[READY]) return;
 window[READY] = true;
@@ -288,8 +288,16 @@ style.textContent = `
   .crowley-pm-action-danger { color: #e58b8b; }
   .crowley-pm-restart .settings-param__name { color: #e8b86b; }
   
-  /* Fix for mobile vertical layout clipping */
-  .selectbox, .select, .select-modal { max-width: 100vw !important; box-sizing: border-box !important; }
+  /* Fix for mobile vertical layout positioning */
+  .selectbox, .select, .select-modal { 
+    max-width: 92vw !important; 
+    box-sizing: border-box !important; 
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    position: fixed !important;
+    max-height: 80vh !important;
+  }
   
   @media (max-width: 600px) { 
     .crowley-pm-folder .settings-param__name { gap: 9px; } 
@@ -314,14 +322,20 @@ var selectors = [
 '.selectbox-item__name',
 '.select__title',
 '.selector-item__title',
-'.selectbox__title',
-'div'
+'.selectbox__title'
 ];
 
 for (var i = 0; i < selectors.length; i++) { 
   var found = element.querySelector(selectors[i]); 
   if (found && found.textContent.trim() === titleText) { 
     return found; 
+  } 
+} 
+var descendants = element.querySelectorAll('*'); 
+for (var j = 0; j < descendants.length; j++) { 
+  var node = descendants[j]; 
+  if (node.children.length === 0 && node.textContent.trim() === titleText) { 
+    return node; 
   } 
 } 
 return null; 
@@ -334,18 +348,18 @@ var generation = ++decorationGeneration;
 clearTimeout(decorationTimer); 
 function retry() { 
   retries++; 
-  if (retries < 15) { decorationTimer = setTimeout(apply, 100); } 
+  if (retries < 10) { decorationTimer = setTimeout(apply, 70); } 
 } 
 function apply() { 
   if (menuDepth <= 0 || generation !== decorationGeneration) return; 
-  var roots = document.querySelectorAll('.selectbox, .select, .select-modal, .modal'); 
+  var roots = document.querySelectorAll('.selectbox, .select, .select-modal'); 
   var root = null; 
   var candidates = null; 
   for (var r = roots.length - 1; r >= 0; r--) { 
     var candidateRoot = roots[r]; 
     if (!candidateRoot.getClientRects().length) continue; 
-    var foundRows = candidateRoot.querySelectorAll('.selectbox-item, .select__item, .selector-item, li, .modal__item'); 
-    if (foundRows.length > 0) { 
+    var foundRows = candidateRoot.querySelectorAll('.selectbox-item, .select__item, .selector-item'); 
+    if (foundRows.length >= Math.min(items.length, 2)) { 
       root = candidateRoot; 
       candidates = foundRows; 
       break; 
@@ -355,7 +369,8 @@ function apply() {
     retry(); 
     return; 
   } 
-  
+
+  var matched = 0;
   for (var i = 0; i < items.length && i < candidates.length; i++) { 
     var element = candidates[i]; 
     var item = items[i]; 
@@ -365,14 +380,16 @@ function apply() {
       if (title) { 
         element.classList.add('crowley-pm-status-' + item.pmState); 
         title.classList.add('crowley-pm-plugin-title'); 
+        matched++;
       } 
     } 
     if (item.action === 'remove') { 
       element.classList.add('crowley-pm-action-danger'); 
     } 
   } 
+  if (matched === 0 && items.length > 0) retry();
 } 
-decorationTimer = setTimeout(apply, 80); 
+decorationTimer = setTimeout(apply, 60); 
 }
 
 /* ===== NAVIGATION ===== */
@@ -453,7 +470,7 @@ var state = getState(plugin);
 var items = [];
 
 if (state === 'absent') { 
-  items.items ? '' : items.push({ title: 'Встановити', action: 'install' }); 
+  items.push({ title: 'Встановити', action: 'install' }); 
 } else { 
   items.push({ title: state === 'enabled' ? 'Вимкнути' : 'Увімкнути', action: state === 'enabled' ? 'disable' : 'enable' }); 
   items.push({ title: 'Видалити', action: 'remove' }); 
@@ -561,7 +578,7 @@ function registerFolders() {
 CATEGORIES.forEach(function (category) {
 Lampa.SettingsApi.addParam({
 component: ROOT,
-param: { name: 'crowley_pm363_folder_' + category.id, type: 'button' }, 
+param: { name: 'crowley_pm365_folder_' + category.id, type: 'button' }, 
 field: { name: category.name, description: getCount(category) + ' із ' + category.plugins.length + ' встановлено' }, 
 onRender: function (item) { 
   rows['folder_' + category.id] = item; 
@@ -578,7 +595,7 @@ onChange: function () {
 function registerRestart() {
 Lampa.SettingsApi.addParam({
 component: ROOT,
-param: { name: 'crowley_pm363_restart', type: 'button' }, 
+param: { name: 'crowley_pm365_restart', type: 'button' }, 
 field: { name: 'Застосувати зміни', description: 'Перезапустити Lampa' }, 
 onRender: function (item) { 
   rows.restart = item; 
