@@ -2,15 +2,15 @@
 'use strict';
 
 /*
-CROWLEY PLUGIN MANAGER 3.6.5 PREMIUM
+CROWLEY PLUGIN MANAGER 3.6.6 PREMIUM
 Lampa / Android TV / Mobile
 */
 
-var VERSION = '3.6.5';
-var READY = 'crowley_plugin_manager_v365';
+var VERSION = '3.6.6';
+var READY = 'crowley_plugin_manager_v366';
 var ROOT = 'plugin_manager_page';
 var STORAGE = 'plugins';
-var STYLE_ID = 'crowley-pm365-style';
+var STYLE_ID = 'crowley-pm366-style';
 
 if (window[READY]) return;
 window[READY] = true;
@@ -288,15 +288,13 @@ style.textContent = `
   .crowley-pm-action-danger { color: #e58b8b; }
   .crowley-pm-restart .settings-param__name { color: #e8b86b; }
   
-  /* Fix for mobile vertical layout positioning */
-  .selectbox, .select, .select-modal { 
-    max-width: 92vw !important; 
-    box-sizing: border-box !important; 
-    top: 50% !important;
-    left: 50% !important;
-    transform: translate(-50%, -50%) !important;
-    position: fixed !important;
-    max-height: 80vh !important;
+  /* Safe mobile modal fix */
+  @media (max-width: 768px) {
+    .selectbox, .select, .select-modal { 
+      max-width: 100vw !important; 
+      width: 100vw !important;
+      box-sizing: border-box !important; 
+    }
   }
   
   @media (max-width: 600px) { 
@@ -578,7 +576,7 @@ function registerFolders() {
 CATEGORIES.forEach(function (category) {
 Lampa.SettingsApi.addParam({
 component: ROOT,
-param: { name: 'crowley_pm365_folder_' + category.id, type: 'button' }, 
+param: { name: 'crowley_pm366_folder_' + category.id, type: 'button' }, 
 field: { name: category.name, description: getCount(category) + ' із ' + category.plugins.length + ' встановлено' }, 
 onRender: function (item) { 
   rows['folder_' + category.id] = item; 
@@ -595,7 +593,7 @@ onChange: function () {
 function registerRestart() {
 Lampa.SettingsApi.addParam({
 component: ROOT,
-param: { name: 'crowley_pm365_restart', type: 'button' }, 
+param: { name: 'crowley_pm366_restart', type: 'button' }, 
 field: { name: 'Застосувати зміни', description: 'Перезапустити Lampa' }, 
 onRender: function (item) { 
   rows.restart = item; 
