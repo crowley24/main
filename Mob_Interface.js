@@ -4,15 +4,15 @@
 
     /*
      * @name MOB_INTERFACE
-     * @version 3.1.2
+     * @version 3.1.3
      * @author Crowley24
      * @description Преміальний мобільний інтерфейс Lampa
      */
 
-    if (window.MOB_INTERFACE_V312_READY) return;
-    window.MOB_INTERFACE_V312_READY = true;
+    if (window.MOB_INTERFACE_V313_READY) return;
+    window.MOB_INTERFACE_V313_READY = true;
 
-    var VERSION = '3.1.2';
+    var VERSION = '3.1.3';
     var STYLE_ID = 'mobile-interface-styles';
     var pluginPath = 'https://crowley24.github.io/Icons/';
 
@@ -158,10 +158,11 @@
     /*
      * ПРИХОВУВАННЯ СТАНДАРТНИХ МЕТАДАНИХ
      *
-     * Не змінюємо DOM інших плагінів.
-     * Не видаляємо елементи Lampa.
-     * Лише додаємо клас приховування до
-     * стандартних блоків усередині картки.
+     * Версія 3.1.3:
+     * - окремі назви країн
+     * - вікові рейтинги
+     * - додаткова перевірка класів
+     * - жодних глобальних CSS-селекторів
      */
 
     function stopCleanupObserver() {
@@ -194,6 +195,13 @@
         ).length;
     }
 
+    /*
+     * ОНОВЛЕНО У 3.1.3
+     *
+     * Розпізнаємо не тільки рік,
+     * а й окрему країну та рейтинг.
+     */
+
     function isStandardInfoText(text) {
         text = String(text || '')
             .replace(/\s+/g, ' ')
@@ -201,28 +209,32 @@
 
         if (!text || text.length > 100) return false;
 
-        /*
-         * Рік + країна:
-         * 2026, Великобританія
-         * 2026, United Kingdom
-         */
-        var yearCountry =
-            /^(?:19|20)\d{2}\s*[,·•|]\s*[^0-9]{2,65}$/i;
+        // Окремий рік
+        if (/^(19|20)\d{2}$/.test(text)) {
+            return true;
+        }
 
-        /*
-         * Окремий рік.
-         */
-        var yearOnly = /^(?:19|20)\d{2}$/;
+        // Рік + країна
+        if (/^(19|20)\d{2}\s*[,·•|]\s*.+$/.test(text)) {
+            return true;
+        }
 
-        /*
-         * Віковий рейтинг:
-         * 17+, 18+, 16+, 12+ тощо.
-         */
-        var ageOnly = /^(?:0|3|6|7|10|12|13|14|15|16|17|18|21)\s*\+$/;
+        // Вікові рейтинги
+        if (/^(0|3|6|7|10|12|13|14|15|16|17|18|21)\s*\+$/.test(text)) {
+            return true;
+        }
 
-        return yearCountry.test(text) ||
-            yearOnly.test(text) ||
-            ageOnly.test(text);
+        // Альтернативні позначення рейтингів
+        if (/^(PG|PG-13|R|NC-17|TV-MA|TV-14|TV-PG|G)$/i.test(text)) {
+            return true;
+        }
+
+        // Окремі назви країн
+        if (/^(Великобританія|Сполучене Королівство|США|Україна|Канада|Франція|Німеччина|Іспанія|Італія|Японія|Південна Корея|United Kingdom|United States|USA|UK|Canada|France|Germany|Spain|Italy|Japan)$/i.test(text)) {
+            return true;
+        }
+
+        return false;
     }
 
     function isLikelyStandardInfoClass(element) {
@@ -238,12 +250,6 @@
 
         var candidate = element;
         var current = element;
-
-        /*
-         * Шукаємо найближчий невеликий контейнер
-         * стандартної інформації, але не піднімаємося
-         * до колонки, заголовка чи всього вікна.
-         */
 
         for (var depth = 0; depth < 3; depth++) {
             var parent = current.parentElement;
@@ -269,7 +275,9 @@
 
             if (
                 parent.querySelector('button,a,input,video') ||
-                parent.querySelector('.plugin-meta-row,.studio-header-brand')
+                parent.querySelector(
+                    '.plugin-meta-row,.studio-header-brand'
+                )
             ) {
                 break;
             }
@@ -294,18 +302,15 @@
         if (!$card.length) return;
 
         var root = $card[0];
-        var title = $card.find('.full-start-new__title').first()[0];
+        var title = $card.find(
+            '.full-start-new__title'
+        ).first()[0];
 
         if (!title) return;
 
         cleanupBusy = true;
 
         try {
-            /*
-             * Спочатку приховуємо відомі стандартні
-             * блоки. Усі селектори обмежені карткою.
-             */
-
             var standardSelectors = [
                 '.full-start-new__age',
                 '.full-start__age',
@@ -338,12 +343,8 @@
             });
 
             /*
-             * Додаткова перевірка для Lampa / TMDB Mod,
-             * де класи стандартних блоків можуть
-             * відрізнятися.
-             *
-             * Перевіряємо лише короткі текстові вузли
-             * у верхній частині картки.
+             * Пошук текстових вузлів.
+             * Обмеження: тільки поточна картка.
              */
 
             var walker = document.createTreeWalker(
@@ -357,34 +358,44 @@
             var node;
 
             while ((node = walker.nextNode())) {
-                var text = String(node.nodeValue || '').trim();
+                var text = String(
+                    node.nodeValue || ''
+                ).trim();
 
-                if (!isStandardInfoText(text)) continue;
-
-                var element = node.parentElement;
-
-                if (!element || isProtectedElement(element)) {
+                if (!isStandardInfoText(text)) {
                     continue;
                 }
 
-                /*
-                 * Елемент повинен перебувати вище
-                 * нашого логотипа в DOM або бути
-                 * стандартним елементом інформації.
-                 */
+                var element = node.parentElement;
 
-                var position = element.compareDocumentPosition(title);
+                if (
+                    !element ||
+                    isProtectedElement(element)
+                ) {
+                    continue;
+                }
+
+                var position =
+                    element.compareDocumentPosition(title);
 
                 var beforeTitle = !!(
-                    position & Node.DOCUMENT_POSITION_FOLLOWING
+                    position &
+                    Node.DOCUMENT_POSITION_FOLLOWING
                 );
 
-                if (!beforeTitle) continue;
-
                 /*
-                 * Не чіпаємо елементи керування,
-                 * кнопки та інтерактивні блоки.
+                 * ОНОВЛЕНО У 3.1.3:
+                 * Дозволяємо обробку стандартних
+                 * класів незалежно від позиції
+                 * щодо заголовка.
                  */
+
+                if (
+                    !beforeTitle &&
+                    !isLikelyStandardInfoClass(element)
+                ) {
+                    continue;
+                }
 
                 if (
                     $(element).closest(
@@ -400,15 +411,28 @@
             }
 
             matches.forEach(function (element) {
-                var target = getSafeHideTarget(element, root);
+                var target = getSafeHideTarget(
+                    element,
+                    root
+                );
 
-                if (!target || isProtectedElement(target)) return;
+                if (
+                    !target ||
+                    isProtectedElement(target)
+                ) {
+                    return;
+                }
 
-                $(target).addClass('mi312-standard-hidden');
+                $(target).addClass(
+                    'mi312-standard-hidden'
+                );
             });
 
         } catch (error) {
-            console.warn('[MOB_INTERFACE] Metadata cleanup:', error);
+            console.warn(
+                '[MOB_INTERFACE] Metadata cleanup:',
+                error
+            );
         }
 
         cleanupBusy = false;
@@ -430,36 +454,38 @@
 
         activeRender = $render;
 
-        var $card = $render.find('.full-start-new').first();
+        var $card = $render.find(
+            '.full-start-new'
+        ).first();
 
         if (!$card.length) return;
 
         hideStandardMetadata($render);
 
-        /*
-         * Спостерігаємо лише за карткою.
-         * Налаштування та Plugin Manager
-         * не потрапляють під спостереження.
-         */
-
         if (typeof MutationObserver !== 'undefined') {
-            cleanupObserver = new MutationObserver(function (mutations) {
-                var shouldCheck = false;
+            cleanupObserver = new MutationObserver(
+                function (mutations) {
+                    var shouldCheck = false;
 
-                for (var i = 0; i < mutations.length; i++) {
-                    var mutation = mutations[i];
+                    for (
+                        var i = 0;
+                        i < mutations.length;
+                        i++
+                    ) {
+                        if (
+                            mutations[i].type === 'childList' ||
+                            mutations[i].type === 'characterData'
+                        ) {
+                            shouldCheck = true;
+                            break;
+                        }
+                    }
 
-                    if (mutation.type === 'childList' ||
-                        mutation.type === 'characterData') {
-                        shouldCheck = true;
-                        break;
+                    if (shouldCheck) {
+                        scheduleMetadataCleanup($render);
                     }
                 }
-
-                if (shouldCheck) {
-                    scheduleMetadataCleanup($render);
-                }
-            });
+            );
 
             cleanupObserver.observe($card[0], {
                 childList: true,
@@ -492,7 +518,11 @@
                 var colored = false;
                 var count = 0;
 
-                for (var i = 0; i < data.length; i += 4) {
+                for (
+                    var i = 0;
+                    i < data.length;
+                    i += 4
+                ) {
                     if (data[i + 3] <= 50) continue;
 
                     var r = data[i];
@@ -519,7 +549,9 @@
                     ? brightness / count
                     : 255;
 
-                callback(average < 110 && !colored);
+                callback(
+                    average < 110 && !colored
+                );
 
             } catch (error) {
                 callback(false);
@@ -534,7 +566,9 @@
     }
 
     function applyStyles() {
-        var style = document.getElementById(STYLE_ID);
+        var style = document.getElementById(
+            STYLE_ID
+        );
 
         if (!style) {
             style = document.createElement('style');
@@ -542,8 +576,13 @@
             document.head.appendChild(style);
         }
 
-        var posterAnim = enabled('mobile_interface_animation');
-        var uiAnim = enabled('mobile_interface_ui_anim');
+        var posterAnim = enabled(
+            'mobile_interface_animation'
+        );
+
+        var uiAnim = enabled(
+            'mobile_interface_ui_anim'
+        );
 
         var effect = Lampa.Storage.get(
             'mobile_interface_ui_anim_effect',
@@ -572,9 +611,15 @@
             '8px'
         );
 
-        var tagline = enabled('mobile_interface_show_tagline');
+        var tagline = enabled(
+            'mobile_interface_show_tagline'
+        );
 
-        if ([125, 150, 180, 210].indexOf(logoHeight) < 0) {
+        if (
+            [125, 150, 180, 210].indexOf(
+                logoHeight
+            ) < 0
+        ) {
             logoHeight = 125;
         }
 
@@ -582,19 +627,24 @@
             gap = '8px';
         }
 
-        if (!/^(0\.4|0\.45|0\.5|0\.55)em$/.test(ratingSize)) {
+        if (
+            !/^(0\.4|0\.45|0\.5|0\.55)em$/.test(
+                ratingSize
+            )
+        ) {
             ratingSize = '0.45em';
         }
 
         var effects = {
-            fluid: 'mi312_fluid',
-            cyber: 'mi312_cyber',
-            cinematic: 'mi312_cinematic',
-            elastic: 'mi312_elastic',
-            minimal: 'mi312_minimal'
+            fluid: 'mi313_fluid',
+            cyber: 'mi313_cyber',
+            cinematic: 'mi313_cinematic',
+            elastic: 'mi313_elastic',
+            minimal: 'mi313_minimal'
         };
 
-        var animationName = effects[effect] ||
+        var animationName =
+            effects[effect] ||
             effects.fluid;
 
         var timing = effect === 'elastic'
@@ -602,71 +652,73 @@
             : 'cubic-bezier(.16,1,.3,1)';
 
         var appearance = uiAnim
-            ? 'animation:' + animationName +
-              ' .8s ' + timing +
+            ? 'animation:' +
+              animationName +
+              ' .8s ' +
+              timing +
               ' forwards;opacity:0;'
             : '';
 
         var css = '';
 
-        css += '@keyframes mi312_kenBurns{';
+        css += '@keyframes mi313_kenBurns{';
         css += '0%,100%{transform:scale(1)}';
         css += '50%{transform:scale(1.08)}';
         css += '}';
 
-        css += '@keyframes mi312_fluid{';
+        css += '@keyframes mi313_fluid{';
         css += 'from{opacity:0;transform:translateY(25px) scale(.95);filter:blur(10px)}';
         css += 'to{opacity:1;transform:none;filter:blur(0)}';
         css += '}';
 
-        css += '@keyframes mi312_cyber{';
+        css += '@keyframes mi313_cyber{';
         css += 'from{opacity:0;transform:translateX(-40px) scale(.9);filter:brightness(1.5)}';
         css += 'to{opacity:1;transform:none;filter:brightness(1)}';
         css += '}';
 
-        css += '@keyframes mi312_cinematic{';
+        css += '@keyframes mi313_cinematic{';
         css += 'from{opacity:0;transform:translateY(15px) scale(1.08);filter:blur(6px)}';
         css += 'to{opacity:1;transform:none;filter:blur(0)}';
         css += '}';
 
-        css += '@keyframes mi312_elastic{';
+        css += '@keyframes mi313_elastic{';
         css += '0%{opacity:0;transform:scale(.7)}';
         css += '70%{opacity:1;transform:scale(1.04)}';
         css += '100%{opacity:1;transform:scale(1)}';
         css += '}';
 
-        css += '@keyframes mi312_minimal{';
+        css += '@keyframes mi313_minimal{';
         css += 'from{opacity:0;transform:translateY(10px)}';
         css += 'to{opacity:1;transform:none}';
         css += '}';
 
-        css += '@keyframes mi312_wave{';
+        css += '@keyframes mi313_wave{';
         css += 'from{opacity:0;transform:scale(.5) translateY(10px);filter:blur(4px)}';
         css += 'to{opacity:1;transform:none;filter:blur(0)}';
         css += '}';
 
-        css += '@keyframes mi312_pulse{';
+        css += '@keyframes mi313_pulse{';
         css += '0%,100%{transform:scale(1)}';
         css += '50%{transform:scale(1.1)}';
         css += '}';
 
-        css += '@keyframes mi312_breathe{';
+        css += '@keyframes mi313_breathe{';
         css += '0%,100%{transform:scale(1);opacity:.85}';
         css += '50%{transform:scale(1.06);opacity:1}';
         css += '}';
 
-        css += '@keyframes mi312_spin{';
+        css += '@keyframes mi313_spin{';
         css += '0%,100%{transform:rotate(0)}';
         css += '25%{transform:rotate(4deg)}';
         css += '75%{transform:rotate(-4deg)}';
         css += '}';
 
-        css += '@keyframes mi312_float{';
+        css += '@keyframes mi313_float{';
         css += '0%,100%{transform:translateY(0)}';
         css += '50%{transform:translateY(-4px)}';
         css += '}';
 
-        css += '@keyframes mi312_posterFade{';
+        css += '@keyframes mi313_posterFade{';
         css += 'from{opacity:0;transform:scale(1.05)}';
         css += 'to{opacity:1;transform:scale(1)}';
         css += '}';
@@ -674,8 +726,7 @@
         css += '@media screen and (max-width:480px){';
 
         /*
-         * Усі правила приховування діють
-         * виключно в межах картки Lampa.
+         * Жодного глобального приховування.
          */
 
         css += '.full-start-new .mi312-standard-hidden{';
@@ -705,7 +756,7 @@
         css += 'height:62vh!important;';
 
         if (uiAnim) {
-            css += 'animation:mi312_posterFade .9s cubic-bezier(.16,1,.3,1) forwards;';
+            css += 'animation:mi313_posterFade .9s cubic-bezier(.16,1,.3,1) forwards;';
         }
 
         css += '}';
@@ -714,7 +765,7 @@
         css += 'filter:none!important;';
 
         if (posterAnim) {
-            css += 'animation:mi312_kenBurns 25s ease-in-out infinite!important;';
+            css += 'animation:mi313_kenBurns 25s ease-in-out infinite!important;';
         }
 
         css += 'transform-origin:center!important;';
@@ -788,7 +839,9 @@
 
         css += '.full-start-new .full-start-new__title img{';
         css += 'height:auto!important;';
-        css += 'max-height:' + logoHeight + 'px!important;';
+        css += 'max-height:' +
+            logoHeight +
+            'px!important;';
         css += 'width:auto!important;';
         css += 'max-width:90vw!important;';
         css += 'object-fit:contain!important;';
@@ -799,7 +852,9 @@
         css += '.full-start-new .full-start-new__tagline{';
         css += appearance;
         css += 'animation-delay:.22s;';
-        css += 'display:' + (tagline ? 'block' : 'none') + '!important;';
+        css += 'display:' +
+            (tagline ? 'block' : 'none') +
+            '!important;';
         css += 'font-style:italic!important;';
         css += 'font-size:.9em!important;';
         css += 'margin:0!important;';
@@ -817,7 +872,9 @@
         css += 'flex-wrap:nowrap;';
         css += 'gap:8px;';
         css += 'margin:0!important;';
-        css += 'font-size:calc(' + ratingSize + ' * 2.5);';
+        css += 'font-size:calc(' +
+            ratingSize +
+            ' * 2.5);';
         css += 'width:100%;';
         css += 'order:4;';
         css += 'color:rgba(255,255,255,.85);';
@@ -886,17 +943,23 @@
         css += '}';
 
         var badgeAnimations = {
-            pulse: 'mi312_pulse',
-            breathe: 'mi312_breathe',
-            spin_slow: 'mi312_spin',
-            float: 'mi312_float'
+            pulse: 'mi313_pulse',
+            breathe: 'mi313_breathe',
+            spin_slow: 'mi313_spin',
+            float: 'mi313_float'
         };
 
-        var badgeName = badgeAnimations[badgeAnim] || '';
+        var badgeName =
+            badgeAnimations[badgeAnim] || '';
 
-        var badgeDuration = badgeAnim === 'spin_slow'
-            ? '4s'
-            : (badgeAnim === 'breathe' ? '3s' : '2.5s');
+        var badgeDuration =
+            badgeAnim === 'spin_slow'
+                ? '4s'
+                : (
+                    badgeAnim === 'breathe'
+                        ? '3s'
+                        : '2.5s'
+                );
 
         css += '.full-start-new .wave-item{';
         css += 'transform-origin:center;';
@@ -904,11 +967,14 @@
 
         if (uiAnim) {
             css += 'opacity:0;';
-            css += 'animation:mi312_wave .5s cubic-bezier(.16,1,.3,1) forwards';
+            css += 'animation:mi313_wave .5s cubic-bezier(.16,1,.3,1) forwards';
 
             if (badgeName) {
-                css += ',' + badgeName + ' ' +
-                    badgeDuration + ' ease-in-out infinite';
+                css += ',' +
+                    badgeName +
+                    ' ' +
+                    badgeDuration +
+                    ' ease-in-out infinite';
 
                 css += ';animation-delay:';
                 css += 'calc(.35s + var(--item-index) * .08s),';
@@ -920,8 +986,11 @@
 
             css += ';';
         } else if (badgeName) {
-            css += 'animation:' + badgeName + ' ' +
-                badgeDuration + ' ease-in-out infinite;';
+            css += 'animation:' +
+                badgeName +
+                ' ' +
+                badgeDuration +
+                ' ease-in-out infinite;';
         }
 
         css += '}';
@@ -980,8 +1049,9 @@
         var hours = Math.floor(mins / 60);
         var minutes = mins % 60;
 
-        return (hours ? hours + 'г ' : '') +
-            minutes + 'хв';
+        return (
+            hours ? hours + 'г ' : ''
+        ) + minutes + 'хв';
     }
 
     function getCubRating(e) {
@@ -1004,20 +1074,22 @@
         var sum = 0;
         var count = 0;
 
-        e.data.reactions.result.forEach(function (reaction) {
-            if (
-                reaction.counter &&
-                Object.prototype.hasOwnProperty.call(
-                    coefficients,
-                    reaction.type
-                )
-            ) {
-                sum += reaction.counter *
-                    coefficients[reaction.type];
+        e.data.reactions.result.forEach(
+            function (reaction) {
+                if (
+                    reaction.counter &&
+                    Object.prototype.hasOwnProperty.call(
+                        coefficients,
+                        reaction.type
+                    )
+                ) {
+                    sum += reaction.counter *
+                        coefficients[reaction.type];
 
-                count += reaction.counter;
+                    count += reaction.counter;
+                }
             }
-        });
+        );
 
         if (count < 5) return null;
 
@@ -1032,11 +1104,17 @@
     }
 
     function renderMeta($container, movie) {
-        if (!$container || !$container.length) return;
+        if (!$container || !$container.length) {
+            return;
+        }
 
-        $container.find('.plugin-meta-row').remove();
+        $container.find(
+            '.plugin-meta-row'
+        ).remove();
 
-        var $row = $('<div class="plugin-meta-row"></div>');
+        var $row = $(
+            '<div class="plugin-meta-row"></div>'
+        );
 
         function appendValue(value) {
             if (!value) return;
@@ -1054,7 +1132,8 @@
             );
         }
 
-        var date = movie.release_date ||
+        var date =
+            movie.release_date ||
             movie.first_air_date ||
             '';
 
@@ -1079,7 +1158,8 @@
 
         appendValue(country);
 
-        var runtime = movie.runtime ||
+        var runtime =
+            movie.runtime ||
             (
                 movie.episode_run_time &&
                 movie.episode_run_time.length
@@ -1089,11 +1169,16 @@
 
         appendValue(formatTime(runtime));
 
-        if (movie.genres && movie.genres.length) {
+        if (
+            movie.genres &&
+            movie.genres.length
+        ) {
             appendValue(
-                movie.genres.slice(0, 2).map(function (genre) {
-                    return genre.name;
-                }).join(', ')
+                movie.genres.slice(0, 2).map(
+                    function (genre) {
+                        return genre.name;
+                    }
+                ).join(', ')
             );
         }
 
@@ -1106,8 +1191,13 @@
         $render,
         requestId
     ) {
-        if (requestId !== requestSequence) return;
-        if (currentActiveId !== movie.id) return;
+        if (requestId !== requestSequence) {
+            return;
+        }
+
+        if (currentActiveId !== movie.id) {
+            return;
+        }
 
         var $title = $render.find(
             '.full-start-new__title'
@@ -1121,13 +1211,18 @@
             data.images.logos.length
         ) {
             var language =
-                Lampa.Storage.get('language') || 'uk';
+                Lampa.Storage.get('language') ||
+                'uk';
 
-            var logo = data.images.logos.filter(function (item) {
-                return item.iso_639_1 === language;
-            })[0] || data.images.logos.filter(function (item) {
-                return item.iso_639_1 === 'en';
-            })[0] || data.images.logos[0];
+            var logo = data.images.logos.filter(
+                function (item) {
+                    return item.iso_639_1 === language;
+                }
+            )[0] || data.images.logos.filter(
+                function (item) {
+                    return item.iso_639_1 === 'en';
+                }
+            )[0] || data.images.logos[0];
 
             if (logo && logo.file_path) {
                 var quality = Lampa.Storage.get(
@@ -1145,23 +1240,35 @@
                 );
 
                 $title.html(
-                    '<img src="' + escapeHtml(url) +
+                    '<img src="' +
+                    escapeHtml(url) +
                     '" alt="' +
-                    escapeHtml(movie.title || movie.name || '') +
+                    escapeHtml(
+                        movie.title ||
+                        movie.name ||
+                        ''
+                    ) +
                     '">'
                 );
             }
         }
 
-        $render.find('.studio-header-brand').remove();
+        $render.find(
+            '.studio-header-brand'
+        ).remove();
 
         if (enabled('mobile_interface_studios')) {
             var studio = null;
 
-            if (data.networks && data.networks.length) {
-                studio = data.networks.find(function (item) {
-                    return item.logo_path;
-                });
+            if (
+                data.networks &&
+                data.networks.length
+            ) {
+                studio = data.networks.find(
+                    function (item) {
+                        return item.logo_path;
+                    }
+                );
             }
 
             if (
@@ -1169,21 +1276,24 @@
                 data.production_companies &&
                 data.production_companies.length
             ) {
-                studio = data.production_companies.find(
-                    function (item) {
-                        return item.logo_path;
-                    }
-                );
+                studio =
+                    data.production_companies.find(
+                        function (item) {
+                            return item.logo_path;
+                        }
+                    );
             }
 
             if (studio && studio.logo_path) {
                 var studioUrl = Lampa.TMDB.image(
-                    '/t/p/w200' + studio.logo_path
+                    '/t/p/w200' +
+                    studio.logo_path
                 );
 
                 var $brand = $(
                     '<div class="studio-header-brand">' +
-                    '<img src="' + escapeHtml(studioUrl) +
+                    '<img src="' +
+                    escapeHtml(studioUrl) +
                     '" alt="' +
                     escapeHtml(studio.name || '') +
                     '"></div>'
@@ -1197,22 +1307,24 @@
 
                 $title.before($brand);
 
-                isImageDark(studioUrl, function (dark) {
-                    if (
-                        dark &&
-                        $image.length &&
-                        document.body.contains($image[0])
-                    ) {
-                        $image.addClass('is-dark-logo');
+                isImageDark(
+                    studioUrl,
+                    function (dark) {
+                        if (
+                            dark &&
+                            $image.length &&
+                            document.body.contains(
+                                $image[0]
+                            )
+                        ) {
+                            $image.addClass(
+                                'is-dark-logo'
+                            );
+                        }
                     }
-                });
+                );
             }
         }
-
-        /*
-         * Додаємо розширені метадані лише
-         * у власний нижній рядок.
-         */
 
         var $right = $render.find(
             '.full-start-new__right'
@@ -1225,40 +1337,42 @@
             );
         }
 
-        /*
-         * Повторна перевірка стандартних
-         * елементів після відповіді TMDB.
-         */
-
         hideStandardMetadata($render);
 
         if (
             data.images &&
             data.images.backdrops
         ) {
-            var backdrops = data.images.backdrops.filter(
-                function (item) {
-                    return item.aspect_ratio > 1.5 &&
-                        (
-                            !item.iso_639_1 ||
-                            item.iso_639_1 === 'xx'
-                        );
-                }
-            );
-
-            if (!backdrops.length) {
-                backdrops = data.images.backdrops.filter(
+            var backdrops =
+                data.images.backdrops.filter(
                     function (item) {
-                        return item.aspect_ratio > 1.5;
+                        return item.aspect_ratio > 1.5 &&
+                            (
+                                !item.iso_639_1 ||
+                                item.iso_639_1 === 'xx'
+                            );
                     }
                 );
+
+            if (!backdrops.length) {
+                backdrops =
+                    data.images.backdrops.filter(
+                        function (item) {
+                            return item.aspect_ratio > 1.5;
+                        }
+                    );
             }
 
             if (backdrops.length) {
-                backdrops.sort(function (a, b) {
-                    return (b.vote_average || 0) -
-                        (a.vote_average || 0);
-                });
+                backdrops.sort(
+                    function (a, b) {
+                        return (
+                            b.vote_average || 0
+                        ) - (
+                            a.vote_average || 0
+                        );
+                    }
+                );
 
                 startPosterSlideshow(
                     $render.find(
@@ -1277,10 +1391,12 @@
         currentActiveId = movieId;
 
         var type = (
-            movie.name || movie.first_air_date
+            movie.name ||
+            movie.first_air_date
         ) ? 'tv' : 'movie';
 
-        var cacheKey = type + '_' + movieId;
+        var cacheKey =
+            type + '_' + movieId;
 
         if (detailsCache[cacheKey]) {
             applyMovieDetailsData(
@@ -1297,7 +1413,9 @@
             'https://api.themoviedb.org/3/' +
             type + '/' + movieId +
             '?api_key=' +
-            encodeURIComponent(Lampa.TMDB.key()) +
+            encodeURIComponent(
+                Lampa.TMDB.key()
+            ) +
             '&append_to_response=images' +
             '&include_image_language=uk,en,null';
 
@@ -1307,8 +1425,12 @@
             dataType: 'json',
 
             success: function (data) {
-                if (requestId !== requestSequence) return;
-                if (currentActiveId !== movieId) return;
+                if (
+                    requestId !== requestSequence ||
+                    currentActiveId !== movieId
+                ) {
+                    return;
+                }
 
                 detailsCache[cacheKey] = data;
 
@@ -1321,7 +1443,11 @@
             },
 
             error: function () {
-                if (requestId !== requestSequence) return;
+                if (
+                    requestId !== requestSequence
+                ) {
+                    return;
+                }
 
                 hideStandardMetadata($render);
             }
@@ -1329,29 +1455,44 @@
     }
 
     function getEliteBadges(results) {
-        if (!Array.isArray(results)) return [];
+        if (!Array.isArray(results)) {
+            return [];
+        }
 
         var combined = '';
 
-        results.slice(0, 15).forEach(function (item) {
-            combined += ' ' +
-                (item.Title || item.title || '');
-        });
+        results.slice(0, 15).forEach(
+            function (item) {
+                combined += ' ' +
+                    (
+                        item.Title ||
+                        item.title ||
+                        ''
+                    );
+            }
+        );
 
         var matched = [];
 
-        eliteBadgesConfig.forEach(function (badge) {
-            if (badge.pattern.test(combined)) {
-                matched.push(badge);
+        eliteBadgesConfig.forEach(
+            function (badge) {
+                if (
+                    badge.pattern.test(combined)
+                ) {
+                    matched.push(badge);
+                }
             }
-        });
+        );
 
         var highest = null;
 
         matched.forEach(function (badge) {
             if (
                 badge.group === 'resolution' &&
-                (!highest || badge.priority > highest.priority)
+                (
+                    !highest ||
+                    badge.priority > highest.priority
+                )
             ) {
                 highest = badge;
             }
@@ -1362,31 +1503,56 @@
         matched.forEach(function (badge) {
             if (
                 badge.group !== 'resolution' ||
-                (highest && badge.id === highest.id)
+                (
+                    highest &&
+                    badge.id === highest.id
+                )
             ) {
                 result.push(badge.imageURL);
             }
         });
 
         if (/ukr|укр/i.test(combined)) {
-            result.push(pluginPath + 'UKR.svg');
+            result.push(
+                pluginPath + 'UKR.svg'
+            );
         }
 
         if (/dub|дуб/i.test(combined)) {
-            result.push(pluginPath + 'DUB.svg');
+            result.push(
+                pluginPath + 'DUB.svg'
+            );
         }
 
-        return result.filter(function (url, index, array) {
-            return array.indexOf(url) === index;
-        });
+        return result.filter(
+            function (url, index, array) {
+                return array.indexOf(url) === index;
+            }
+        );
     }
 
-    function startPosterSlideshow($poster, items) {
+    function startPosterSlideshow(
+        $poster,
+        items
+    ) {
         stopSlideshow();
 
-        if (!enabled('mobile_interface_slideshow')) return;
-        if (!$poster || !$poster.length) return;
-        if (!items || items.length < 2) return;
+        if (
+            !enabled(
+                'mobile_interface_slideshow'
+            )
+        ) {
+            return;
+        }
+
+        if (
+            !$poster ||
+            !$poster.length ||
+            !items ||
+            items.length < 2
+        ) {
+            return;
+        }
 
         var index = 0;
 
@@ -1397,88 +1563,120 @@
             ), 10
         );
 
-        if (!interval || interval < 1000) {
+        if (
+            !interval ||
+            interval < 1000
+        ) {
             interval = 10000;
         }
 
-        slideshowTimer = setInterval(function () {
-            if (
-                !$poster.length ||
-                !document.body.contains($poster[0])
-            ) {
-                stopSlideshow();
-                return;
-            }
-
-            index = (index + 1) % items.length;
-
-            var quality = Lampa.Storage.get(
-                'mobile_interface_slideshow_quality',
-                'w780'
-            );
-
-            var imageUrl = Lampa.TMDB.image(
-                '/t/p/' + quality +
-                items[index].file_path
-            );
-
-            var preload = new Image();
-
-            preload.onload = function () {
+        slideshowTimer = setInterval(
+            function () {
                 if (
                     !$poster.length ||
-                    !document.body.contains($poster[0])
+                    !document.body.contains(
+                        $poster[0]
+                    )
                 ) {
+                    stopSlideshow();
                     return;
                 }
 
-                var $current = $poster.find('img').last();
+                index = (
+                    index + 1
+                ) % items.length;
 
-                var $next = $('<img>')
-                    .attr('src', imageUrl)
-                    .css({
-                        opacity: 0,
-                        transition: 'opacity 1.2s ease-in-out'
-                    });
+                var quality = Lampa.Storage.get(
+                    'mobile_interface_slideshow_quality',
+                    'w780'
+                );
 
-                $poster.append($next);
+                var imageUrl = Lampa.TMDB.image(
+                    '/t/p/' +
+                    quality +
+                    items[index].file_path
+                );
 
-                setTimeout(function () {
+                var preload = new Image();
+
+                preload.onload = function () {
                     if (
-                        !$next.length ||
-                        !document.body.contains($next[0])
+                        !$poster.length ||
+                        !document.body.contains(
+                            $poster[0]
+                        )
                     ) {
                         return;
                     }
 
-                    $next.css('opacity', '1');
+                    var $current =
+                        $poster.find('img').last();
 
-                    if ($current.length) {
-                        $current.css('opacity', '0');
+                    var $next = $('<img>')
+                        .attr('src', imageUrl)
+                        .css({
+                            opacity: 0,
+                            transition:
+                                'opacity 1.2s ease-in-out'
+                        });
 
-                        setTimeout(function () {
-                            $current.remove();
-                        }, 1250);
-                    }
-                }, 100);
-            };
+                    $poster.append($next);
 
-            preload.onerror = function () {};
-            preload.src = imageUrl;
+                    setTimeout(function () {
+                        if (
+                            !$next.length ||
+                            !document.body.contains(
+                                $next[0]
+                            )
+                        ) {
+                            return;
+                        }
 
-        }, interval);
+                        $next.css(
+                            'opacity',
+                            '1'
+                        );
 
-        window.mobileInterfaceBgInterval = slideshowTimer;
+                        if ($current.length) {
+                            $current.css(
+                                'opacity',
+                                '0'
+                            );
+
+                            setTimeout(
+                                function () {
+                                    $current.remove();
+                                },
+                                1250
+                            );
+                        }
+                    }, 100);
+                };
+
+                preload.onerror = function () {};
+                preload.src = imageUrl;
+            },
+            interval
+        );
+
+        window.mobileInterfaceBgInterval =
+            slideshowTimer;
     }
 
-    function renderQuality($render, movie, e) {
+    function renderQuality(
+        $render,
+        movie,
+        e
+    ) {
         var $card = $render.find(
             '.full-start-new'
         ).first();
 
         if (!$card.length) return;
 
-        $card.find('.quality-row-inline').remove();
+        $card.find(
+            '.quality-row-inline'
+        ).remove();
 
         var $row = $(
             '<div class="quality-row-inline"></div>'
@@ -1495,14 +1693,21 @@
         if (parseFloat(tmdb) > 0) {
             var $tmdb = $(
                 '<div class="plugin-rating-item wave-item">' +
-                '<img src="' + ratingIcons.tmdb + '">' +
+                '<img src="' +
+                ratingIcons.tmdb +
+                '">' +
                 '<span style="color:' +
-                getRatingColor(tmdb) + '">' +
+                getRatingColor(tmdb) +
+                '">' +
                 escapeHtml(tmdb) +
                 '</span></div>'
             );
 
-            $tmdb.css('--item-index', itemIndex++);
+            $tmdb.css(
+                '--item-index',
+                itemIndex++
+            );
+
             $row.append($tmdb);
         }
 
@@ -1511,19 +1716,28 @@
         if (cub) {
             var $cub = $(
                 '<div class="plugin-rating-item wave-item">' +
-                '<img src="' + ratingIcons.cub + '">' +
+                '<img src="' +
+                ratingIcons.cub +
+                '">' +
                 '<span style="color:' +
-                getRatingColor(cub) + '">' +
+                getRatingColor(cub) +
+                '">' +
                 escapeHtml(cub) +
                 '</span></div>'
             );
 
-            $cub.css('--item-index', itemIndex++);
+            $cub.css(
+                '--item-index',
+                itemIndex++
+            );
+
             $row.append($cub);
         }
 
         if (
-            !enabled('mobile_interface_quality') ||
+            !enabled(
+                'mobile_interface_quality'
+            ) ||
             !Lampa.Parser ||
             !Lampa.Parser.get
         ) {
@@ -1534,28 +1748,40 @@
         var currentRequest = requestSequence;
 
         Lampa.Parser.get({
-            search: movie.title || movie.name,
+            search:
+                movie.title ||
+                movie.name,
             movie: movie,
             page: 1
         }, function (response) {
-            if (currentActiveId !== movieId) return;
-            if (currentRequest !== requestSequence) return;
+            if (
+                currentActiveId !== movieId ||
+                currentRequest !== requestSequence
+            ) {
+                return;
+            }
 
             if (
                 !$row.length ||
-                !document.body.contains($row[0])
+                !document.body.contains(
+                    $row[0]
+                )
             ) {
                 return;
             }
 
             if (
                 !response ||
-                !Array.isArray(response.Results)
+                !Array.isArray(
+                    response.Results
+                )
             ) {
                 return;
             }
 
-            getEliteBadges(response.Results).forEach(
+            getEliteBadges(
+                response.Results
+            ).forEach(
                 function (url) {
                     var $badge = $(
                         '<div class="quality-item wave-item"></div>'
@@ -1565,6 +1791,7 @@
                         .attr('src', url);
 
                     $badge.append($image);
+
                     $badge.css(
                         '--item-index',
                         itemIndex++
@@ -1577,96 +1804,106 @@
     }
 
     function init() {
-        Lampa.Listener.follow('full', function (e) {
-            if (
-                e.type === 'destroy' ||
-                e.type === 'onBeforeDestroy'
-            ) {
+        Lampa.Listener.follow(
+            'full',
+            function (e) {
+                if (
+                    e.type === 'destroy' ||
+                    e.type === 'onBeforeDestroy'
+                ) {
+                    stopSlideshow();
+                    stopCleanupObserver();
+
+                    currentActiveId = null;
+                    requestSequence++;
+
+                    return;
+                }
+
+                if (
+                    window.innerWidth > 480
+                ) {
+                    return;
+                }
+
+                if (
+                    e.type !== 'complite' &&
+                    e.type !== 'complete'
+                ) {
+                    return;
+                }
+
+                if (
+                    !e.data ||
+                    !e.data.movie ||
+                    !e.object ||
+                    !e.object.activity
+                ) {
+                    return;
+                }
+
+                var movie = e.data.movie;
+
+                var $render =
+                    e.object.activity.render();
+
+                if (
+                    !$render ||
+                    !$render.length
+                ) {
+                    return;
+                }
+
+                var $card = $render.find(
+                    '.full-start-new'
+                ).first();
+
+                var $right = $render.find(
+                    '.full-start-new__right'
+                ).first();
+
+                if (
+                    !$card.length ||
+                    !$right.length
+                ) {
+                    return;
+                }
+
                 stopSlideshow();
                 stopCleanupObserver();
 
-                currentActiveId = null;
-                requestSequence++;
+                if (
+                    window.lampa_settings
+                ) {
+                    window.lampa_settings.blur_poster =
+                        false;
+                }
 
-                return;
+                renderMeta(
+                    $right,
+                    movie
+                );
+
+                watchStandardMetadata(
+                    $render
+                );
+
+                loadMovieDetails(
+                    movie,
+                    $render
+                );
+
+                renderQuality(
+                    $render,
+                    movie,
+                    e
+                );
+
+                scheduleMetadataCleanup(
+                    $render
+                );
             }
-
-            if (window.innerWidth > 480) return;
-
-            if (
-                e.type !== 'complite' &&
-                e.type !== 'complete'
-            ) {
-                return;
-            }
-
-            if (
-                !e.data ||
-                !e.data.movie ||
-                !e.object ||
-                !e.object.activity
-            ) {
-                return;
-            }
-
-            var movie = e.data.movie;
-            var $render = e.object.activity.render();
-
-            if (!$render || !$render.length) return;
-
-            var $card = $render.find(
-                '.full-start-new'
-            ).first();
-
-            var $right = $render.find(
-                '.full-start-new__right'
-            ).first();
-
-            if (!$card.length || !$right.length) {
-                return;
-            }
-
-            stopSlideshow();
-            stopCleanupObserver();
-
-            if (window.lampa_settings) {
-                window.lampa_settings.blur_poster = false;
-            }
-
-            /*
-             * Власний рядок інформації
-             * залишається під логотипом.
-             */
-
-            renderMeta($right, movie);
-
-            /*
-             * Вмикаємо локальне приховування
-             * стандартних верхніх елементів.
-             */
-
-            watchStandardMetadata($render);
-
-            /*
-             * Дані TMDB, логотипи, студії,
-             * фонові кадри.
-             */
-
-            loadMovieDetails(movie, $render);
-
-            /*
-             * Рейтинги та бейджі.
-             */
-
-            renderQuality($render, movie, e);
-
-            /*
-             * Контрольна перевірка після
-             * початкового формування картки.
-             */
-
-            scheduleMetadataCleanup($render);
-        });
+        );
     }
 
     function setupSettings() {
@@ -1868,6 +2105,7 @@
 
     function startPlugin() {
         if (started) return;
+
         started = true;
 
         applyStyles();
@@ -1875,18 +2113,23 @@
         init();
 
         console.log(
-            '[MOB_INTERFACE] v' + VERSION + ' initialized'
+            '[MOB_INTERFACE] v' +
+            VERSION +
+            ' initialized'
         );
     }
 
     if (window.appready) {
         startPlugin();
     } else {
-        Lampa.Listener.follow('app', function (e) {
-            if (e.type === 'ready') {
-                startPlugin();
+        Lampa.Listener.follow(
+            'app',
+            function (e) {
+                if (e.type === 'ready') {
+                    startPlugin();
+                }
             }
-        });
+        );
     }
 
 })();
