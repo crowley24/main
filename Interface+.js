@@ -1,944 +1,1974 @@
 
 (function () {
-'use strict';
+    'use strict';
 
-/*
- * INTERFACE+ 1.5.4 — COMPACT EDITION
- * TMDB Only • Ukrainian logos • Premium banners
- */
+    /*
+     * INTERFACE+ 1.6.0 — CINEMATIC PREMIUM
+     * Lampa / Android TV / Mobile
+     *
+     * TMDB only
+     * Ukrainian -> English -> text fallback
+     * Cinematic hero / card logos / cache
+     */
 
-var VER = '1.5.4', FLAG = 'interface_plus_154';
-if (window[FLAG]) return;
-window[FLAG] = true;
+    var VERSION = '1.6.0';
+    var FLAG = '__interface_plus_160';
 
-var S = {
-    hero: 'banner_hero_enabled',
-    card: 'interface_plus_card_logo',
-    quality: 'interface_plus_logo_quality',
-    scale: 'interface_plus_logo_scale',
-    size: 'interface_size',
-    font: 'fontchanger_selected'
-};
+    if (window[FLAG]) return;
 
-var CK = 'interface_plus_tmdb_cache_v154';
-var DAY = 86400000, HOUR = 3600000;
-var cache = {}, pending = {}, searches = {};
-var epoch = 0, started = false, focusTimer;
-var hero = null, card = null, cardToken = 0;
-var lastFocus = '', currentFont = '', currentSize = '';
-
-var TITLE = [
-    '.full-start__title',
-    '.full-start-new__title',
-    '.full__title',
-    '.full-card__title'
-].join(',');
-
-/* ---------- HELPERS ---------- */
-
-function get(k, d) {
-    try { return Lampa.Storage.get(k, d); }
-    catch (e) { return d; }
-}
-
-function set(k, v) {
-    try { Lampa.Storage.set(k, v); }
-    catch (e) {}
-}
-
-function enabled(k) {
-    var v = get(k, true);
-    return v === true || v === 'true' || v === 1;
-}
-
-function str(v) {
-    return String(v == null ? '' : v).trim();
-}
-
-function first() {
-    for (var i = 0; i < arguments.length; i++) {
-        var v = str(arguments[i]);
-        if (v) return v;
+    var previous = window.__interface_plus_runtime;
+    if (previous && typeof previous.destroy === 'function') {
+        try { previous.destroy(); } catch (e) {}
     }
-    return '';
-}
 
-function el(v) {
-    return v && v.nodeType === 1 ? v :
-        v && v[0] && v[0].nodeType === 1 ? v[0] : null;
-}
+    window[FLAG] = true;
 
-function root(o) {
-    try {
-        return el(o.activity && o.activity.render ?
-            o.activity.render(true) : o.render(true));
-    } catch (e) { return null; }
-}
-
-function active() {
-    try { return Lampa.Activity.active(); }
-    catch (e) { return null; }
-}
-
-function full(o) {
-    return /^(full|full_start|fullstart)$/.test(
-        str(o && o.component).toLowerCase());
-}
-
-function type(d) {
-    return d && (
-        d.media_type === 'tv' || d.type === 'tv' ||
-        d.type === 'series' || d.first_air_date ||
-        d.number_of_seasons || (d.name && !d.title)
-    ) ? 'tv' : 'movie';
-}
-
-function name(d) {
-    return first(d && d.title, d && d.name,
-        d && d.original_title, d && d.original_name);
-}
-
-function year(d) {
-    var m = first(d && d.release_date,
-        d && d.first_air_date, d && d.year)
-        .match(/\b(19|20)\d{2}\b/);
-    return m ? m[0] : '';
-}
-
-function norm(s) {
-    return str(s).toLowerCase()
-        .normalize('NFKD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .replace(/[^\p{L}\p{N}]+/gu, ' ')
-        .replace(/\s+/g, ' ').trim();
-}
-
-function ident(d) {
-    return [type(d), first(d && d.tmdb_id,
-        d && d.tmdbId, d && d.id),
-        norm(name(d)), year(d)].join('|');
-}
-
-function movie(o) {
-    if (!o) return null;
-    var a = [
-        o.movie, o.data && o.data.movie, o.data,
-        o.card, o.card_data,
-        o.params && o.params.movie,
-        o.params && o.params.data,
-        o.activity && o.activity.movie,
-        o.activity && o.activity.data
-    ], best = null, score = -1;
-
-    a.forEach(function (d) {
-        if (!d || typeof d !== 'object' || !name(d)) return;
-        var s = 10 + (year(d) ? 4 : 0) +
-            (d.tmdb_id || d.tmdbId ? 5 : 0) +
-            (d.id ? 2 : 0) + (d.backdrop_path ? 2 : 0);
-        if (s > score) { best = d; score = s; }
-    });
-    return best;
-}
-
-function quality() {
-    var q = str(get(S.quality, 'original'));
-    return /^(w300|w500|original)$/.test(q) ? q : 'original';
-}
-
-function scale() {
-    return Math.max(70, Math.min(120,
-        parseInt(get(S.scale, '100'), 10) || 100)) / 100;
-}
-
-function img(path, size) {
-    if (!path) return '';
-    return 'https://image.tmdb.org/t/p/' +
-        (size || quality()) + '/' +
-        str(path).replace(/^\//, '').replace(/\.svg$/i, '.png');
-}
-
-function preload(src, cb) {
-    if (!src) return cb(false);
-    var i = new Image(), done = false;
-    function end(ok) {
-        if (done) return;
-        done = true;
-        i.onload = i.onerror = null;
-        cb(ok);
-    }
-    i.onload = function () { end(true); };
-    i.onerror = function () { end(false); };
-    i.src = src;
-    if (i.complete && i.naturalWidth) end(true);
-}
-
-/* ---------- TMDB API ---------- */
-
-function api(path, params, cb) {
-    var key = '';
-    try { key = Lampa.TMDB.key(); } catch (e) {}
-    if (!key || typeof $ === 'undefined') return cb(null, true);
-
-    var url = 'https://api.themoviedb.org/3/' + path +
-        '?api_key=' + encodeURIComponent(key);
-
-    Object.keys(params || {}).forEach(function (k) {
-        if (params[k] !== '' && params[k] != null)
-            url += '&' + encodeURIComponent(k) + '=' +
-                encodeURIComponent(params[k]);
-    });
-
-    $.ajax({
-        url: url, type: 'GET', dataType: 'json', timeout: 12000,
-        success: function (d) { cb(d, false); },
-        error: function () { cb(null, true); }
-    });
-}
-
-function details(t, id, cb) {
-    api(t + '/' + id, {
-        language: 'uk-UA',
-        append_to_response: 'images',
-        include_image_language: 'uk,en,null'
-    }, cb);
-}
-
-function matching(a, b) {
-    if (!a || !b) return false;
-    var ya = year(a), yb = year(b);
-    if (ya && yb && Math.abs(+ya - +yb) > 1) return false;
-
-    var x = [a.title, a.name, a.original_title, a.original_name];
-    var y = [b.title, b.name, b.original_title, b.original_name];
-
-    return x.some(function (v) {
-        return v && y.some(function (w) {
-            return w && norm(v) === norm(w);
-        });
-    });
-}
-
-function search(d, cb) {
-    var t = type(d), n = name(d), y = year(d);
-    if (!n) return cb(null);
-
-    var k = [t, norm(n), y].join('|');
-    if (searches[k]) return searches[k].push(cb);
-    searches[k] = [cb];
-
-    var params = {
-        query: n, language: 'uk-UA', include_adult: 'false'
+    var S = {
+        hero: 'banner_hero_enabled',
+        card: 'interface_plus_card_logo',
+        quality: 'interface_plus_logo_quality',
+        scale: 'interface_plus_logo_scale',
+        size: 'interface_size',
+        font: 'fontchanger_selected'
     };
-    if (y) params[t === 'tv' ? 'first_air_date_year' : 'year'] = y;
 
-    api('search/' + t, params, function (res) {
-        var list = res && Array.isArray(res.results) ?
-            res.results.filter(function (x) {
-                return matching(d, x);
-            }) : [];
+    var CACHE_KEY = 'interface_plus_tmdb_cache_v160';
+    var DAY = 86400000;
+    var HOUR = 3600000;
+    var MAX_CACHE = 120;
 
-        list.sort(function (a, b) {
-            return (+b.popularity || 0) - (+a.popularity || 0);
-        });
+    var cache = {};
+    var pending = {};
+    var searches = {};
+    var epoch = 0;
 
-        var callbacks = searches[k] || [];
-        delete searches[k];
-        callbacks.forEach(function (fn) {
-            try { fn(list[0] || null); } catch (e) {}
-        });
-    });
-}
+    var started = false;
+    var destroyed = false;
+    var focusTimer = null;
+    var refreshTimer = null;
+    var hero = null;
+    var card = null;
+    var cardToken = 0;
+    var lastFocus = '';
+    var currentFont = '';
+    var currentSize = '';
 
-function resolve(d, cb) {
-    var t = type(d);
-    var explicit = first(d.tmdb_id, d.tmdbId);
-    var id = first(explicit, d.id);
+    var listeners = [];
+    var styles = [];
 
-    function fallback() {
-        search(d, function (found) {
-            if (!found) return cb(null, true);
-            details(t, found.id, cb);
-        });
-    }
+    var TITLE_SELECTORS = [
+        '.full-start__title',
+        '.full-start-new__title',
+        '.full__title',
+        '.full-card__title'
+    ].join(',');
 
-    if (!/^\d+$/.test(id)) return fallback();
+    /* ========================================
+       HELPERS
+    ======================================== */
 
-    details(t, id, function (res, err) {
-        if (!err && res &&
-            (matching(d, res) ||
-             (explicit && str(res.id) === explicit))) {
-            cb(res, false);
-        } else fallback();
-    });
-}
-
-function pickLogo(list) {
-    if (!Array.isArray(list)) return null;
-
-    for (var i = 0; i < 2; i++) {
-        var lang = i ? 'en' : 'uk';
-        var a = list.filter(function (x) {
-            return x && x.file_path && x.iso_639_1 === lang;
-        });
-
-        a.sort(function (x, y) {
-            return (+y.vote_average || 0) -
-                (+x.vote_average || 0) ||
-                (+y.vote_count || 0) - (+x.vote_count || 0);
-        });
-
-        if (a.length) return a[0].file_path;
-    }
-    return '';
-}
-
-/* ---------- CACHE + LOGOS ---------- */
-
-function readDB() {
-    var v = get(CK, {});
-    return v && typeof v === 'object' ? v : {};
-}
-
-function valid(v) {
-    var ttl = v && v.failed ? 60000 :
-        v && v.path ? DAY : HOUR;
-    return !!(v && v.time && Date.now() - v.time < ttl);
-}
-
-function save(k, v) {
-    cache[k] = v;
-    if (v.failed) return;
-
-    var db = readDB();
-    db[k] = v;
-    var keys = Object.keys(db);
-    if (keys.length > 120) {
-        keys.sort(function (a, b) {
-            return (db[a].time || 0) - (db[b].time || 0);
-        });
-        keys.slice(0, keys.length - 120).forEach(function (x) {
-            delete db[x];
-        });
-    }
-    set(CK, db);
-}
-
-function logo(d, cb, force) {
-    if (!d) return cb({ src: '', title: '' });
-    var k = ident(d), fallback = name(d);
-
-    if (!force) {
-        var hit = valid(cache[k]) ? cache[k] : readDB()[k];
-        if (valid(hit)) {
-            cache[k] = hit;
-            return cb({
-                src: img(hit.path),
-                title: hit.title || fallback
-            });
+    function get(k, d) {
+        try {
+            return Lampa.Storage.get(k, d);
+        } catch (e) {
+            return d;
         }
     }
 
-    if (pending[k]) return pending[k].push(cb);
-    pending[k] = [cb];
-    var requestEpoch = epoch;
-
-    resolve(d, function (res, err) {
-        if (requestEpoch !== epoch) return;
-
-        var v = {
-            path: !err && res ? pickLogo(
-                res.images && res.images.logos) : '',
-            title: !err && res ?
-                first(type(d) === 'tv' ? res.name : res.title,
-                    fallback) : fallback,
-            failed: !!err,
-            time: Date.now()
-        };
-
-        save(k, v);
-        var callbacks = pending[k] || [];
-        delete pending[k];
-
-        callbacks.forEach(function (fn) {
-            try {
-                fn({ src: img(v.path), title: v.title });
-            } catch (e) {}
-        });
-    });
-}
-
-function clearCache() {
-    epoch++;
-    cache = {};
-    pending = {};
-    searches = {};
-
-    [
-        CK,
-        'interface_plus_tmdb_only_cache_v153',
-        'interface_plus_logo_cache_v152',
-        'interface_plus_logo_cache_v151',
-        'interface_plus_logo_cache_v150'
-    ].forEach(function (k) { set(k, {}); });
-
-    refresh(true);
-    try { Lampa.Noty.show('Кеш логотипів очищено'); }
-    catch (e) {}
-}
-
-/* ---------- STYLES ---------- */
-
-var CSS = [
-'.banner-host{position:relative}',
-'.banner-enabled .banner-host .activity__body{padding-top:42vh!important;box-sizing:border-box}',
-'.banner-hero{position:absolute;inset:0 0 auto;height:50vh;overflow:hidden;pointer-events:none;z-index:0;-webkit-mask-image:linear-gradient(180deg,#000 55%,transparent 100%);mask-image:linear-gradient(180deg,#000 55%,transparent 100%)}',
-'.banner-hero__bg{position:absolute;inset:0;background-size:cover;background-position:center 20%;background-repeat:no-repeat;opacity:0;transition:opacity .35s ease}',
-'.banner-hero__bg.show{opacity:1}',
-'.banner-hero:after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,rgba(0,0,0,.85),rgba(0,0,0,.55) 40%,transparent 75%)}',
-'.banner-hero__info{position:absolute;left:3em;bottom:5.5em;width:46%;z-index:2}',
-'.banner-hero__logo{display:block;width:auto;height:auto;max-width:100%;max-height:7em;object-fit:contain;object-position:left center;opacity:0;transition:opacity .25s ease;filter:drop-shadow(0 4px 12px rgba(0,0,0,.6))}',
-'.banner-hero__logo.ready{opacity:1}',
-'.banner-hero__title{font-size:2.8em;font-weight:900;line-height:1.05;color:#f5f5f1;margin-bottom:.35em;text-shadow:0 3px 14px rgba(0,0,0,.7)}',
-'.banner-hero__meta{font-size:1.15em;color:#f5f5f1;margin-bottom:.6em;display:flex;gap:.8em;align-items:center;flex-wrap:wrap}',
-'.banner-hero__rate{padding:.1em .5em;border-radius:6px;font-weight:800;background:#1db954;color:#fff}',
-'.banner-hero__descr{font-size:1.1em;line-height:1.45;color:#f5f5f1;opacity:.85;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}',
-'.interface-plus-logo-title{position:relative}',
-'.interface-plus-card-logo{display:block;width:auto;height:auto;max-width:100%;max-height:105px;object-fit:contain;object-position:left center;opacity:0;transition:opacity .25s ease;filter:drop-shadow(0 3px 10px rgba(0,0,0,.45))}',
-'.interface-plus-card-logo.ready{opacity:1}',
-'.interface-plus-logo-title.interface-plus-logo-active{font-size:0!important;line-height:0!important}',
-'.interface-plus-logo-active>.interface-plus-original-title{display:none!important}',
-'.interface-plus-logo-active>.interface-plus-card-logo{font-size:initial;line-height:normal}',
-'@media(max-width:480px){.interface-plus-card-logo{max-height:75px}.banner-hero__info{left:1.5em;width:75%}.banner-hero__logo{max-height:5em}}'
-].join('\n');
-
-function style() {
-    var e = document.getElementById('interface-plus-154-css');
-    if (!e) {
-        e = document.createElement('style');
-        e.id = 'interface-plus-154-css';
-        document.head.appendChild(e);
-    }
-    e.textContent = CSS;
-}
-
-/* ---------- HERO ---------- */
-
-function makeHero(r) {
-    if (!r) return null;
-    if (r.__ipHero && r.contains(r.__ipHero)) return r.__ipHero;
-
-    var h = document.createElement('div');
-    h.className = 'banner-hero';
-    h.innerHTML =
-        '<div class="banner-hero__bg"></div>' +
-        '<div class="banner-hero__info">' +
-        '<img class="banner-hero__logo" alt=""/>' +
-        '<div class="banner-hero__title"></div>' +
-        '<div class="banner-hero__meta"></div>' +
-        '<div class="banner-hero__descr"></div></div>';
-
-    r.insertBefore(h, r.firstChild);
-    r.classList.add('banner-host');
-
-    h.parts = {
-        bg: h.querySelector('.banner-hero__bg'),
-        logo: h.querySelector('.banner-hero__logo'),
-        title: h.querySelector('.banner-hero__title'),
-        meta: h.querySelector('.banner-hero__meta'),
-        descr: h.querySelector('.banner-hero__descr')
-    };
-    h.token = 0;
-    r.__ipHero = h;
-    return h;
-}
-
-function showHero(h, d, force) {
-    if (!h || !d) return;
-    var key = ident(d);
-    if (!force && h.key === key) return;
-
-    h.key = key;
-    var token = ++h.token, p = h.parts;
-
-    p.logo.classList.remove('ready');
-    p.logo.style.display = 'none';
-    p.logo.removeAttribute('src');
-    p.logo.style.transform = 'scale(' + scale() + ')';
-    p.logo.style.transformOrigin = 'left center';
-
-    p.title.style.display = '';
-    p.title.textContent = name(d);
-    p.descr.textContent = d.overview || '';
-    p.meta.textContent = '';
-
-    var rate = +d.vote_average || 0;
-    if (rate > 0) {
-        var r = document.createElement('span');
-        r.className = 'banner-hero__rate';
-        r.textContent = rate.toFixed(1);
-        p.meta.appendChild(r);
+    function set(k, v) {
+        try {
+            Lampa.Storage.set(k, v);
+        } catch (e) {}
     }
 
-    [year(d), type(d) === 'tv' ? 'Серіал' : 'Фільм']
-        .filter(Boolean).forEach(function (v) {
-            var e = document.createElement('span');
-            e.textContent = v;
-            p.meta.appendChild(e);
-        });
-
-    p.bg.classList.remove('show');
-    p.bg.style.backgroundImage = 'none';
-
-    if (d.backdrop_path) {
-        var bg = img(d.backdrop_path, 'w1280');
-        preload(bg, function (ok) {
-            if (!ok || token !== h.token) return;
-            p.bg.style.backgroundImage = 'url("' + bg + '")';
-            requestAnimationFrame(function () {
-                if (token === h.token) p.bg.classList.add('show');
-            });
-        });
+    function enabled(k) {
+        var v = get(k, true);
+        return v === true || v === 'true' || v === 1;
     }
 
-    logo(d, function (v) {
-        if (token !== h.token) return;
-        p.title.textContent = v.title || name(d);
-        if (!v.src) return;
-
-        preload(v.src, function (ok) {
-            if (!ok || token !== h.token) return;
-            p.logo.src = v.src;
-            p.logo.style.display = 'block';
-            requestAnimationFrame(function () {
-                if (token !== h.token) return;
-                p.logo.classList.add('ready');
-                p.title.style.display = 'none';
-            });
-        });
-    }, !!force);
-}
-
-function attachHero(o) {
-    if (!enabled(S.hero) || !o ||
-        !/^(main|category)$/.test(str(o.component))) return;
-    makeHero(root(o));
-}
-
-function focus(e) {
-    if (!enabled(S.hero) || !e.target ||
-        !e.target.closest) return;
-
-    var c = e.target.closest('.card');
-    if (!c || !c.card_data) return;
-
-    var a = c.closest('.activity');
-    if (!a || !a.__ipHero) return;
-
-    var d = c.card_data, key = ident(d);
-    if (lastFocus === key) return;
-
-    clearTimeout(focusTimer);
-    focusTimer = setTimeout(function () {
-        if (!enabled(S.hero) || !a.isConnected) return;
-        lastFocus = key;
-        hero = a.__ipHero;
-        showHero(hero, d);
-    }, 220);
-}
-
-function applyHero() {
-    document.body.classList.toggle(
-        'banner-enabled', enabled(S.hero));
-    if (enabled(S.hero)) attachHero(active());
-    else {
-        clearTimeout(focusTimer);
-        lastFocus = '';
+    function str(v) {
+        return String(v == null ? '' : v).trim();
     }
-}
 
-/* ---------- CARD LOGOS ---------- */
-
-function titleNode(r) {
-    return r && r.querySelector && r.querySelector(TITLE);
-}
-
-function restore(r) {
-    if (!r) return;
-    var list = [];
-    if (r.classList &&
-        r.classList.contains('interface-plus-logo-title')) list.push(r);
-
-    if (r.querySelectorAll)
-        Array.prototype.push.apply(list,
-            r.querySelectorAll('.interface-plus-logo-title'));
-
-    list.forEach(function (t) {
-        var image = t.querySelector('.interface-plus-card-logo');
-        if (image) {
-            image.onload = image.onerror = null;
-            image.remove();
+    function first() {
+        for (var i = 0; i < arguments.length; i++) {
+            var v = str(arguments[i]);
+            if (v) return v;
         }
-        var old = t.querySelector('.interface-plus-original-title');
-        if (old) {
-            while (old.firstChild)
-                t.insertBefore(old.firstChild, old);
-            old.remove();
+        return '';
+    }
+
+    function element(v) {
+        if (v && v.nodeType === 1) return v;
+        if (v && v[0] && v[0].nodeType === 1) return v[0];
+        return null;
+    }
+
+    function activityRoot(o) {
+        if (!o) return null;
+
+        try {
+            if (o.activity && o.activity.render) {
+                return element(o.activity.render(true));
+            }
+
+            if (o.render) {
+                return element(o.render(true));
+            }
+        } catch (e) {}
+
+        return null;
+    }
+
+    function active() {
+        try {
+            return Lampa.Activity.active();
+        } catch (e) {
+            return null;
         }
-        t.classList.remove('interface-plus-logo-title',
-            'interface-plus-logo-active');
-    });
-}
-
-function stopCard(revert) {
-    cardToken++;
-    if (card && card.observer) card.observer.disconnect();
-    if (revert && card) restore(card.root);
-    card = null;
-}
-
-function cardOK(token, key) {
-    return !!(card && cardToken === token &&
-        card.key === key && card.root &&
-        card.root.isConnected && enabled(S.card));
-}
-
-function cardText(token, key, value) {
-    if (!cardOK(token, key)) return;
-    var t = titleNode(card.root);
-    if (!t) return;
-    restore(t);
-    if (value) t.textContent = value;
-}
-
-function cardLogo(token, key, src) {
-    if (!cardOK(token, key)) return;
-    var t = titleNode(card.root);
-    if (!t) return;
-
-    var image = t.querySelector('.interface-plus-card-logo');
-    if (!image) {
-        t.classList.add('interface-plus-logo-title');
-        var old = document.createElement('span');
-        old.className = 'interface-plus-original-title';
-        while (t.firstChild) old.appendChild(t.firstChild);
-        t.appendChild(old);
-
-        image = document.createElement('img');
-        image.className = 'interface-plus-card-logo';
-        image.alt = '';
-        image.draggable = false;
-        t.appendChild(image);
     }
 
-    image.style.transform = 'scale(' + scale() + ')';
-    image.style.transformOrigin = 'left center';
+    function isFull(o) {
+        return /^(full|full_start|fullstart)$/.test(
+            str(o && o.component).toLowerCase()
+        );
+    }
 
-    image.onload = function () {
-        if (!cardOK(token, key)) return;
-        image.classList.add('ready');
-        t.classList.add('interface-plus-logo-active');
-    };
+    function isHome(o) {
+        return /^(main|category)$/.test(
+            str(o && o.component).toLowerCase()
+        );
+    }
 
-    image.onerror = function () {
-        if (cardOK(token, key)) cardText(token, key, card.title);
-    };
+    function mediaType(d) {
+        if (!d) return 'movie';
 
-    image.src = src;
-    if (image.complete && image.naturalWidth) image.onload();
-}
+        return (
+            d.media_type === 'tv' ||
+            d.type === 'tv' ||
+            d.type === 'series' ||
+            d.first_air_date ||
+            d.number_of_seasons ||
+            (d.name && !d.title)
+        ) ? 'tv' : 'movie';
+    }
 
-function startCard(o, override, force) {
-    if (!enabled(S.card) || !full(o)) return;
-    var d = override || movie(o), r = root(o);
-    if (!d || !r) return;
+    function mediaName(d) {
+        return first(
+            d && d.title,
+            d && d.name,
+            d && d.original_title,
+            d && d.original_name
+        );
+    }
 
-    var key = ident(d);
-    if (!force && card && card.key === key && card.root === r)
-        return;
+    function mediaYear(d) {
+        var m = first(
+            d && d.release_date,
+            d && d.first_air_date,
+            d && d.year
+        ).match(/\b(19|20)\d{2}\b/);
 
-    stopCard(false);
-    var token = cardToken;
+        return m ? m[0] : '';
+    }
 
-    card = {
-        root: r, key: key, title: name(d),
-        src: '', observer: null
-    };
+    function normalize(s) {
+        s = str(s).toLowerCase();
 
-    if (window.MutationObserver) {
-        card.observer = new MutationObserver(function () {
-            if (!cardOK(token, key) || !card.src) return;
-            var t = titleNode(r);
-            if (t && !t.querySelector('.interface-plus-card-logo'))
-                cardLogo(token, key, card.src);
+        try {
+            s = s.normalize('NFKD');
+        } catch (e) {}
+
+        return s
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/[^a-z0-9\u0400-\u052f]+/gi, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+    }
+
+    function mediaKey(d) {
+        return [
+            mediaType(d),
+            first(d && d.tmdb_id, d && d.tmdbId, d && d.id),
+            normalize(mediaName(d)),
+            mediaYear(d)
+        ].join('|');
+    }
+
+    function mediaFromActivity(o) {
+        if (!o) return null;
+
+        var candidates = [
+            o.movie,
+            o.data && o.data.movie,
+            o.data,
+            o.card,
+            o.card_data,
+            o.params && o.params.movie,
+            o.params && o.params.data,
+            o.activity && o.activity.movie,
+            o.activity && o.activity.data
+        ];
+
+        var best = null;
+        var score = -1;
+
+        candidates.forEach(function (d) {
+            if (!d || typeof d !== 'object') return;
+            if (!mediaName(d)) return;
+
+            var s = 10;
+
+            if (mediaYear(d)) s += 4;
+            if (d.tmdb_id || d.tmdbId) s += 5;
+            if (d.id) s += 2;
+            if (d.backdrop_path) s += 2;
+            if (d.overview) s += 1;
+
+            if (s > score) {
+                best = d;
+                score = s;
+            }
         });
 
-        card.observer.observe(r, {
-            childList: true, subtree: true
-        });
+        return best;
     }
 
-    logo(d, function (v) {
-        if (!cardOK(token, key)) return;
-        card.title = v.title || name(d);
+    function quality() {
+        var q = str(get(S.quality, 'original'));
 
-        if (!v.src)
-            return cardText(token, key, card.title);
-
-        preload(v.src, function (ok) {
-            if (!cardOK(token, key)) return;
-            if (!ok) return cardText(token, key, card.title);
-            card.src = v.src;
-            cardLogo(token, key, v.src);
-        });
-    }, !!force);
-}
-
-function refresh(force) {
-    lastFocus = '';
-    if (hero) hero.key = '';
-    var a = active();
-    if (full(a)) {
-        stopCard(true);
-        startCard(a, null, !!force);
-    }
-}
-
-/* ---------- FONTS ---------- */
-
-var FONTS = {
-    default: ['Roboto,Arial,sans-serif', ''],
-    netflix: ['"Netflix Sans",Arial,sans-serif',
-        'https://assets.nflxext.com/ffe/siteui/fonts/netflix-sans/v3/NetflixSans_W_Rg.woff2'],
-    montserrat: ['"Montserrat",sans-serif',
-        'https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap'],
-    inter: ['"Inter",sans-serif',
-        'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap'],
-    nunito: ['"Nunito",sans-serif',
-        'https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;600;700&display=swap']
-};
-
-function font() {
-    var k = str(get(S.font, 'default'));
-    if (k === currentFont) return;
-    currentFont = k;
-
-    var f = FONTS[k] || FONTS.default;
-    ['interface-plus-font-style',
-     'interface-plus-font-face'].forEach(function (id) {
-        var e = document.getElementById(id);
-        if (e) e.remove();
-    });
-
-    if (f[1]) {
-        var face = document.createElement('style');
-        face.id = 'interface-plus-font-face';
-        face.textContent = f[1].indexOf('googleapis.com') >= 0 ?
-            '@import url("' + f[1] + '");' :
-            '@font-face{font-family:"Netflix Sans";src:url("' +
-            f[1] + '") format("woff2");font-weight:400}';
-        document.head.appendChild(face);
+        return /^(w300|w500|original)$/.test(q)
+            ? q
+            : 'original';
     }
 
-    var e = document.createElement('style');
-    e.id = 'interface-plus-font-style';
-    e.textContent = 'body,.body,*{font-family:' +
-        f[0] + '!important}';
-    document.head.appendChild(e);
-}
+    function logoScale() {
+        var n = parseInt(get(S.scale, '100'), 10);
 
-/* ---------- INTERFACE SIZE ---------- */
+        if (!n) n = 100;
 
-function patchMaker(n) {
-    if (!Lampa.Maker || !Lampa.Maker.map) return;
+        return Math.max(70, Math.min(120, n)) / 100;
+    }
 
-    ['Line', 'Category'].forEach(function (t) {
-        var m = Lampa.Maker.map(t);
-        if (!m || !m.Items || !m.Items.onInit) return;
+    function imageUrl(path, size) {
+        if (!path) return '';
 
-        if (m.Items.__ipPatched) {
-            m.Items.__ipCount = n;
+        return 'https://image.tmdb.org/t/p/' +
+            (size || quality()) + '/' +
+            str(path)
+                .replace(/^\//, '')
+                .replace(/\.svg$/i, '.png');
+    }
+
+    function preload(src, cb) {
+        if (!src) {
+            cb(false);
             return;
         }
 
-        var original = m.Items.onInit;
-        m.Items.onInit = function () {
-            original.apply(this, arguments);
-            var count = m.Items.__ipCount || n;
-            if (t === 'Line') this.view = count;
-            else this.limit_view = count;
+        var image = new Image();
+        var completed = false;
+
+        function finish(ok) {
+            if (completed) return;
+
+            completed = true;
+            image.onload = null;
+            image.onerror = null;
+
+            cb(ok);
+        }
+
+        image.onload = function () {
+            finish(true);
         };
-        m.Items.__ipPatched = true;
-        m.Items.__ipCount = n;
-    });
-}
 
-function size() {
-    var v = parseFloat(get(S.size, '10.6')) || 10.6;
-    try {
-        if (Lampa.Platform.screen('mobile')) v = 10.1;
-    } catch (e) {}
+        image.onerror = function () {
+            finish(false);
+        };
 
-    if (currentSize === String(v)) return;
-    currentSize = String(v);
-    document.body.style.fontSize = v + 'px';
-    patchMaker(v <= 9.6 ? 8 : v <= 11.1 ? 7 : 6);
-}
+        image.src = src;
 
-/* ---------- SETTINGS ---------- */
+        if (image.complete && image.naturalWidth) {
+            finish(true);
+        }
+    }
 
-function settings() {
-    if (!Lampa.SettingsApi) return;
-    var api = Lampa.SettingsApi;
+    function raf(fn) {
+        if (window.requestAnimationFrame) {
+            requestAnimationFrame(fn);
+        } else {
+            setTimeout(fn, 16);
+        }
+    }
 
-    api.addComponent({
-        component: 'interface_plus_settings',
-        name: 'Інтерфейс +',
-        icon: '<svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M19 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2zm0 16H5V5h14v14zM7 10h2v7H7zm4-3h2v10h-2zm4 5h2v5h-2z"/></svg>'
-    });
+    /* ========================================
+       TMDB API
+    ======================================== */
 
-    function add(key, type, def, label, desc, values, cb) {
-        api.addParam({
-            component: 'interface_plus_settings',
-            param: {
-                name: key, type: type,
-                default: def, values: values
+    function tmdbApi(path, params, cb) {
+        var key = '';
+
+        try {
+            key = Lampa.TMDB.key();
+        } catch (e) {}
+
+        if (!key || typeof $ === 'undefined') {
+            cb(null, true);
+            return;
+        }
+
+        var url = 'https://api.themoviedb.org/3/' +
+            path + '?api_key=' + encodeURIComponent(key);
+
+        Object.keys(params || {}).forEach(function (k) {
+            if (params[k] !== '' && params[k] != null) {
+                url += '&' + encodeURIComponent(k) +
+                    '=' + encodeURIComponent(params[k]);
+            }
+        });
+
+        $.ajax({
+            url: url,
+            type: 'GET',
+            dataType: 'json',
+            timeout: 12000,
+
+            success: function (data) {
+                cb(data, false);
             },
-            field: { name: label, description: desc },
-            onChange: cb
+
+            error: function () {
+                cb(null, true);
+            }
         });
     }
 
-    add(S.hero, 'trigger', true, 'Динамічні банери',
-        'Преміальні банери на головній сторінці',
-        null, applyHero);
+    function tmdbDetails(type, id, cb) {
+        tmdbApi(type + '/' + id, {
+            language: 'uk-UA',
+            append_to_response: 'images',
+            include_image_language: 'uk,en,null'
+        }, cb);
+    }
 
-    add(S.card, 'trigger', true, 'Логотип у картці фільму',
-        'Український або англійський логотип з TMDB',
-        null, function () {
-            if (enabled(S.card)) refresh(true);
-            else stopCard(true);
-        });
+    function matches(a, b) {
+        if (!a || !b) return false;
 
-    add(S.quality, 'select', 'original', 'Якість логотипів',
-        'Роздільна здатність зображень',
-        { w300: '300px', w500: '500px', original: 'Original' },
-        function () { refresh(false); });
+        var ya = mediaYear(a);
+        var yb = mediaYear(b);
 
-    add(S.scale, 'select', '100', 'Розмір логотипів',
-        'Масштаб логотипів',
-        {
-            '70': '70%', '80': '80%', '90': '90%',
-            '100': '100%', '110': '110%', '120': '120%'
-        }, function () { refresh(false); });
+        if (ya && yb && Math.abs(+ya - +yb) > 1) {
+            return false;
+        }
 
-    add('interface_plus_clear_logo_cache', 'button', '',
-        'Очистити кеш логотипів',
-        'Повторно завантажити логотипи з TMDB',
-        null, clearCache);
+        var x = [
+            a.title,
+            a.name,
+            a.original_title,
+            a.original_name
+        ];
 
-    add(S.size, 'select', '10.6', 'Розмір інтерфейсу',
-        'Масштаб елементів',
-        {
-            '09.1': 'Міні', '09.6': 'Дуже малий',
-            '10.1': 'Малий', '10.6': 'Середній'
-        }, size);
+        var y = [
+            b.title,
+            b.name,
+            b.original_title,
+            b.original_name
+        ];
 
-    add(S.font, 'select', 'default', 'Шрифт інтерфейсу',
-        'Стиль тексту',
-        {
-            default: 'Roboto', netflix: 'Netflix Sans',
-            montserrat: 'Montserrat', inter: 'Inter',
-            nunito: 'Nunito'
-        }, function () {
-            currentFont = '';
-            font();
-        });
-}
-
-/* ---------- EVENTS ---------- */
-
-function listeners() {
-    document.addEventListener('hover:focus', focus, true);
-
-    if (Lampa.Listener) {
-        Lampa.Listener.follow('activity', function (e) {
-            if (!e) return;
-
-            if (e.type === 'start') {
-                requestAnimationFrame(function () {
-                    attachHero(e.object);
-                    if (full(e.object)) startCard(e.object);
-                    else stopCard(false);
-                });
-            }
-
-            if (e.type === 'destroy' && full(e.object))
-                stopCard(false);
-        });
-
-        Lampa.Listener.follow('full', function (e) {
-            if (!e || !/^(complete|complite)$/.test(e.type))
-                return;
-
-            requestAnimationFrame(function () {
-                var a = active();
-                if (full(a))
-                    startCard(a, e.data && e.data.movie, true);
+        return x.some(function (v) {
+            return v && y.some(function (w) {
+                return w && normalize(v) === normalize(w);
             });
         });
     }
 
-    try {
-        Lampa.Storage.listener.follow('change', function (e) {
-            if (!e || !e.name) return;
-            if (e.name === S.hero) applyHero();
-            if (e.name === S.card) {
-                if (enabled(S.card)) refresh(true);
-                else stopCard(true);
-            }
-            if (e.name === S.font) {
-                currentFont = '';
-                font();
-            }
-            if (e.name === S.size) {
-                currentSize = '';
-                size();
-            }
-            if (e.name === S.quality || e.name === S.scale)
-                refresh(false);
+    function tmdbSearch(d, cb) {
+        var type = mediaType(d);
+        var name = mediaName(d);
+        var year = mediaYear(d);
+
+        if (!name) {
+            cb(null);
+            return;
+        }
+
+        var key = [
+            type,
+            normalize(name),
+            year
+        ].join('|');
+
+        if (searches[key]) {
+            searches[key].push(cb);
+            return;
+        }
+
+        searches[key] = [cb];
+
+        var params = {
+            query: name,
+            language: 'uk-UA',
+            include_adult: 'false'
+        };
+
+        if (year) {
+            params[
+                type === 'tv'
+                    ? 'first_air_date_year'
+                    : 'year'
+            ] = year;
+        }
+
+        tmdbApi('search/' + type, params, function (res) {
+            var list = res && Array.isArray(res.results)
+                ? res.results.filter(function (item) {
+                    return matches(d, item);
+                })
+                : [];
+
+            list.sort(function (a, b) {
+                return (+b.popularity || 0) -
+                    (+a.popularity || 0);
+            });
+
+            var callbacks = searches[key] || [];
+            delete searches[key];
+
+            callbacks.forEach(function (fn) {
+                try {
+                    fn(list[0] || null);
+                } catch (e) {}
+            });
         });
-    } catch (e) {}
-}
+    }
 
-/* ---------- START ---------- */
+    function resolveMedia(d, cb) {
+        var type = mediaType(d);
 
-function init() {
-    if (started || !window.Lampa || !Lampa.Storage)
-        return;
+        var explicit = first(
+            d.tmdb_id,
+            d.tmdbId
+        );
 
-    started = true;
-    style();
-    font();
-    size();
-    applyHero();
-    settings();
-    listeners();
+        function fallback() {
+            tmdbSearch(d, function (found) {
+                if (!found) {
+                    cb(null, true);
+                    return;
+                }
 
-    requestAnimationFrame(function () {
-        var a = active();
-        attachHero(a);
-        if (full(a)) startCard(a);
-    });
+                tmdbDetails(type, found.id, cb);
+            });
+        }
 
-    console.log('[INTERFACE+] ' + VER + ' Compact Edition');
-}
+        if (!/^\d+$/.test(explicit)) {
+            fallback();
+            return;
+        }
 
-if (window.appready) {
-    setTimeout(init, 400);
-} else if (window.Lampa && Lampa.Listener) {
-    Lampa.Listener.follow('app', function (e) {
-        if (e.type === 'ready') setTimeout(init, 400);
-    });
-}
+        tmdbDetails(type, explicit, function (res, err) {
+            if (!err && res && (
+                matches(d, res) ||
+                str(res.id) === explicit
+            )) {
+                cb(res, false);
+            } else {
+                fallback();
+            }
+        });
+    }
+
+    /* ========================================
+       SMART LOGO ENGINE
+    ======================================== */
+
+    function rankedLogos(list) {
+        if (!Array.isArray(list)) return [];
+
+        var result = [];
+
+        ['uk', 'en'].forEach(function (lang) {
+            var items = list.filter(function (x) {
+                return x &&
+                    x.file_path &&
+                    x.iso_639_1 === lang;
+            });
+
+            items.sort(function (a, b) {
+                return (+b.vote_average || 0) -
+                    (+a.vote_average || 0) ||
+                    (+b.vote_count || 0) -
+                    (+a.vote_count || 0);
+            });
+
+            items.forEach(function (x) {
+                if (result.indexOf(x.file_path) < 0) {
+                    result.push(x.file_path);
+                }
+            });
+        });
+
+        return result.slice(0, 8);
+    }
+
+    function readCache() {
+        var data = get(CACHE_KEY, {});
+
+        return data && typeof data === 'object'
+            ? data
+            : {};
+    }
+
+    function cacheValid(v) {
+        if (!v || !v.time) return false;
+
+        var ttl = v.failed
+            ? 60000
+            : v.logos && v.logos.length
+                ? DAY
+                : HOUR;
+
+        return Date.now() - v.time < ttl;
+    }
+
+    function saveCache(key, value) {
+        cache[key] = value;
+
+        if (value.failed) return;
+
+        var db = readCache();
+        db[key] = value;
+
+        var keys = Object.keys(db);
+
+        if (keys.length > MAX_CACHE) {
+            keys.sort(function (a, b) {
+                return (db[a].time || 0) -
+                    (db[b].time || 0);
+            });
+
+            keys.slice(
+                0,
+                keys.length - MAX_CACHE
+            ).forEach(function (k) {
+                delete db[k];
+            });
+        }
+
+        set(CACHE_KEY, db);
+    }
+
+    function getLogoData(d, cb, force) {
+        if (!d) {
+            cb({
+                logos: [],
+                title: ''
+            });
+            return;
+        }
+
+        var key = mediaKey(d);
+        var fallback = mediaName(d);
+
+        if (!force) {
+            var hit = cacheValid(cache[key])
+                ? cache[key]
+                : readCache()[key];
+
+            if (cacheValid(hit)) {
+                cache[key] = hit;
+
+                cb({
+                    logos: hit.logos || [],
+                    title: hit.title || fallback
+                });
+                return;
+            }
+        }
+
+        if (pending[key]) {
+            pending[key].push(cb);
+            return;
+        }
+
+        pending[key] = [cb];
+
+        var requestEpoch = epoch;
+
+        resolveMedia(d, function (res, err) {
+            if (requestEpoch !== epoch || destroyed) {
+                return;
+            }
+
+            var value = {
+                logos: !err && res
+                    ? rankedLogos(
+                        res.images && res.images.logos
+                    )
+                    : [],
+
+                title: !err && res
+                    ? first(
+                        mediaType(d) === 'tv'
+                            ? res.name
+                            : res.title,
+                        fallback
+                    )
+                    : fallback,
+
+                failed: !!err,
+                time: Date.now()
+            };
+
+            saveCache(key, value);
+
+            var callbacks = pending[key] || [];
+            delete pending[key];
+
+            callbacks.forEach(function (fn) {
+                try {
+                    fn({
+                        logos: value.logos,
+                        title: value.title
+                    });
+                } catch (e) {}
+            });
+        });
+    }
+
+    function loadBestLogo(paths, cb) {
+        var index = 0;
+
+        function next() {
+            if (!paths || index >= paths.length) {
+                cb('');
+                return;
+            }
+
+            var src = imageUrl(paths[index++]);
+
+            preload(src, function (ok) {
+                if (ok) {
+                    cb(src);
+                } else {
+                    next();
+                }
+            });
+        }
+
+        next();
+    }
+
+    /* ========================================
+       CINEMATIC CSS
+    ======================================== */
+
+    var CSS = [
+        '.ip160-host{position:relative!important}',
+
+        '.ip160-host.ip160-enabled .activity__body{' +
+            'position:relative;z-index:2;' +
+            'padding-top:43vh!important}',
+
+        '.ip160-hero{' +
+            'position:absolute;' +
+            'top:0;left:0;right:0;' +
+            'height:55vh;' +
+            'overflow:hidden;' +
+            'pointer-events:none;' +
+            'z-index:0;' +
+            'background:#101014}',
+
+        '.ip160-background{' +
+            'position:absolute;inset:0;' +
+            'background-size:cover;' +
+            'background-position:center 24%;' +
+            'background-repeat:no-repeat;' +
+            'opacity:0;' +
+            'transform:scale(1.035);' +
+            'transition:opacity .7s ease,' +
+            'transform 7s ease}',
+
+        '.ip160-background.visible{' +
+            'opacity:1;' +
+            'transform:scale(1)}',
+
+        '.ip160-hero:after{' +
+            'content:"";' +
+            'position:absolute;inset:0;' +
+            'background:' +
+            'linear-gradient(90deg,' +
+            'rgba(8,8,12,.94) 0%,' +
+            'rgba(8,8,12,.75) 27%,' +
+            'rgba(8,8,12,.28) 65%,' +
+            'rgba(8,8,12,.05) 100%),' +
+            'linear-gradient(0deg,' +
+            'rgba(8,8,12,1) 0%,' +
+            'rgba(8,8,12,.1) 55%,' +
+            'rgba(8,8,12,.12) 100%)}',
+
+        '.ip160-content{' +
+            'position:absolute;' +
+            'left:4%;' +
+            'bottom:18%;' +
+            'width:46%;' +
+            'max-width:780px;' +
+            'z-index:3;' +
+            'color:#fff}',
+
+        '.ip160-logo{' +
+            'display:none;' +
+            'width:auto;height:auto;' +
+            'max-width:100%;' +
+            'max-height:8em;' +
+            'object-fit:contain;' +
+            'object-position:left center;' +
+            'opacity:0;' +
+            'transition:opacity .35s ease;' +
+            'filter:drop-shadow(0 4px 14px ' +
+            'rgba(0,0,0,.65))}',
+
+        '.ip160-logo.ready{opacity:1}',
+
+        '.ip160-title{' +
+            'font-size:3.3em;' +
+            'font-weight:900;' +
+            'line-height:1.08;' +
+            'letter-spacing:-.025em;' +
+            'color:#f5f5f1;' +
+            'text-shadow:0 4px 18px ' +
+            'rgba(0,0,0,.65);' +
+            'margin-bottom:.35em}',
+
+        '.ip160-meta{' +
+            'display:flex;' +
+            'align-items:center;' +
+            'flex-wrap:wrap;' +
+            'gap:.85em;' +
+            'font-size:1.15em;' +
+            'font-weight:600;' +
+            'color:#e8e8e8;' +
+            'margin-top:1em;' +
+            'margin-bottom:.7em}',
+
+        '.ip160-rating{' +
+            'background:#1db954;' +
+            'color:white;' +
+            'border-radius:5px;' +
+            'padding:.12em .55em;' +
+            'font-weight:800}',
+
+        '.ip160-description{' +
+            'font-size:1.16em;' +
+            'line-height:1.48;' +
+            'color:#eee;' +
+            'opacity:.88;' +
+            'display:-webkit-box;' +
+            '-webkit-line-clamp:3;' +
+            '-webkit-box-orient:vertical;' +
+            'overflow:hidden;' +
+            'text-shadow:0 2px 8px ' +
+            'rgba(0,0,0,.5)}',
+
+        '.ip160-card-title{' +
+            'position:relative}',
+
+        '.ip160-card-logo{' +
+            'display:block;' +
+            'width:auto;height:auto;' +
+            'max-width:100%;' +
+            'max-height:105px;' +
+            'object-fit:contain;' +
+            'object-position:left center;' +
+            'opacity:0;' +
+            'transition:opacity .25s ease;' +
+            'filter:drop-shadow(0 3px 10px ' +
+            'rgba(0,0,0,.45))}',
+
+        '.ip160-card-logo.ready{' +
+            'opacity:1}',
+
+        '.ip160-card-title.ip160-active{' +
+            'font-size:0!important;' +
+            'line-height:0!important}',
+
+        '.ip160-active>.ip160-original{' +
+            'display:none!important}',
+
+        '.ip160-active>.ip160-card-logo{' +
+            'font-size:initial;' +
+            'line-height:normal}',
+
+        '@media(max-width:700px){' +
+            '.ip160-hero{height:48vh}' +
+            '.ip160-content{' +
+                'left:5%;width:85%;bottom:16%}' +
+            '.ip160-title{font-size:2.4em}' +
+            '.ip160-logo{max-height:5.5em}' +
+            '.ip160-description{' +
+                '-webkit-line-clamp:2;' +
+                'font-size:1em}' +
+            '.ip160-card-logo{max-height:75px}' +
+            '.ip160-host.ip160-enabled ' +
+            '.activity__body{' +
+                'padding-top:37vh!important}' +
+        '}',
+
+        '@media(prefers-reduced-motion:reduce){' +
+            '.ip160-background,' +
+            '.ip160-logo,' +
+            '.ip160-card-logo{' +
+                'transition:none!important;' +
+                'transform:none!important}' +
+        '}'
+    ].join('\n');
+
+    function injectStyle(id, css) {
+        var node = document.getElementById(id);
+
+        if (!node) {
+            node = document.createElement('style');
+            node.id = id;
+            document.head.appendChild(node);
+        }
+
+        node.textContent = css;
+
+        if (styles.indexOf(id) < 0) {
+            styles.push(id);
+        }
+    }
+
+    /* ========================================
+       CINEMATIC HERO
+    ======================================== */
+
+    function createHero(root) {
+        if (!root) return null;
+
+        if (root.__ip160Hero &&
+            root.contains(root.__ip160Hero)) {
+            return root.__ip160Hero;
+        }
+
+        var h = document.createElement('div');
+        h.className = 'ip160-hero';
+
+        h.innerHTML =
+            '<div class="ip160-background"></div>' +
+            '<div class="ip160-background"></div>' +
+            '<div class="ip160-content">' +
+                '<img class="ip160-logo" alt=""/>' +
+                '<div class="ip160-title"></div>' +
+                '<div class="ip160-meta"></div>' +
+                '<div class="ip160-description"></div>' +
+            '</div>';
+
+        root.insertBefore(h, root.firstChild);
+
+        root.classList.add('ip160-host');
+
+        h.parts = {
+            backgrounds: h.querySelectorAll(
+                '.ip160-background'
+            ),
+            logo: h.querySelector('.ip160-logo'),
+            title: h.querySelector('.ip160-title'),
+            meta: h.querySelector('.ip160-meta'),
+            description: h.querySelector(
+                '.ip160-description'
+            )
+        };
+
+        h.token = 0;
+        h.index = 0;
+        h.key = '';
+
+        root.__ip160Hero = h;
+
+        return h;
+    }
+
+    function heroBackground(h, path, token) {
+        if (!path) {
+            Array.prototype.forEach.call(
+                h.parts.backgrounds,
+                function (bg) {
+                    bg.classList.remove('visible');
+                }
+            );
+            return;
+        }
+
+        var src = imageUrl(path, 'w1280');
+
+        preload(src, function (ok) {
+            if (!ok || token !== h.token) return;
+
+            var next = 1 - h.index;
+            var incoming = h.parts.backgrounds[next];
+            var outgoing = h.parts.backgrounds[h.index];
+
+            incoming.classList.remove('visible');
+            incoming.style.backgroundImage =
+                'url("' + src + '")';
+
+            raf(function () {
+                if (token !== h.token) return;
+
+                incoming.classList.add('visible');
+                outgoing.classList.remove('visible');
+                h.index = next;
+            });
+        });
+    }
+
+    function showHero(h, d, force) {
+        if (!h || !d || destroyed) return;
+
+        var key = mediaKey(d);
+
+        if (!force && h.key === key) return;
+
+        h.key = key;
+
+        var token = ++h.token;
+        var p = h.parts;
+
+        p.logo.classList.remove('ready');
+        p.logo.style.display = 'none';
+        p.logo.removeAttribute('src');
+
+        p.title.style.display = '';
+        p.title.textContent = mediaName(d);
+
+        p.description.textContent =
+            d.overview || '';
+
+        p.meta.textContent = '';
+
+        var rating = +d.vote_average || 0;
+
+        if (rating > 0) {
+            var r = document.createElement('span');
+            r.className = 'ip160-rating';
+            r.textContent = rating.toFixed(1);
+            p.meta.appendChild(r);
+        }
+
+        [
+            mediaYear(d),
+            mediaType(d) === 'tv'
+                ? 'Серіал'
+                : 'Фільм'
+        ].filter(Boolean).forEach(function (value) {
+            var span = document.createElement('span');
+            span.textContent = value;
+            p.meta.appendChild(span);
+        });
+
+        heroBackground(
+            h,
+            d.backdrop_path,
+            token
+        );
+
+        getLogoData(d, function (data) {
+            if (token !== h.token || destroyed) return;
+
+            p.title.textContent =
+                data.title || mediaName(d);
+
+            loadBestLogo(data.logos, function (src) {
+                if (token !== h.token || destroyed) {
+                    return;
+                }
+
+                if (!src) return;
+
+                p.logo.style.transform =
+                    'scale(' + logoScale() + ')';
+
+                p.logo.style.transformOrigin =
+                    'left center';
+
+                p.logo.src = src;
+                p.logo.style.display = 'block';
+
+                raf(function () {
+                    if (token !== h.token) return;
+
+                    p.logo.classList.add('ready');
+                    p.title.style.display = 'none';
+                });
+            });
+        }, !!force);
+    }
+
+    function attachHero(o) {
+        if (!enabled(S.hero) || !isHome(o)) {
+            return;
+        }
+
+        var root = activityRoot(o);
+        if (!root) return;
+
+        root.classList.add('ip160-enabled');
+
+        hero = createHero(root);
+    }
+
+    function focusHandler(e) {
+        if (!enabled(S.hero) ||
+            !e.target ||
+            !e.target.closest) {
+            return;
+        }
+
+        var item = e.target.closest('.card');
+
+        if (!item || !item.card_data) return;
+
+        var activity = item.closest('.activity');
+
+        if (!activity || !activity.__ip160Hero) {
+            return;
+        }
+
+        var d = item.card_data;
+        var key = mediaKey(d);
+
+        clearTimeout(focusTimer);
+
+        focusTimer = setTimeout(function () {
+            if (!enabled(S.hero) ||
+                !activity.isConnected) {
+                return;
+            }
+
+            var h = activity.__ip160Hero;
+
+            if (lastFocus === key && h.key === key) {
+                return;
+            }
+
+            lastFocus = key;
+            hero = h;
+
+            showHero(h, d);
+        }, 180);
+    }
+
+    function applyHero() {
+        var on = enabled(S.hero);
+
+        document.querySelectorAll(
+            '.ip160-host'
+        ).forEach(function (root) {
+            root.classList.toggle(
+                'ip160-enabled',
+                on
+            );
+
+            if (root.__ip160Hero) {
+                root.__ip160Hero.style.display =
+                    on ? '' : 'none';
+            }
+        });
+
+        if (on) {
+            attachHero(active());
+        } else {
+            clearTimeout(focusTimer);
+            lastFocus = '';
+        }
+    }
+
+    /* ========================================
+       CARD LOGOS
+    ======================================== */
+
+    function titleNode(root) {
+        return root && root.querySelector
+            ? root.querySelector(TITLE_SELECTORS)
+            : null;
+    }
+
+    function restoreTitle(root) {
+        if (!root) return;
+
+        var nodes = [];
+
+        if (root.classList &&
+            root.classList.contains(
+                'ip160-card-title'
+            )) {
+            nodes.push(root);
+        }
+
+        if (root.querySelectorAll) {
+            Array.prototype.push.apply(
+                nodes,
+                root.querySelectorAll(
+                    '.ip160-card-title'
+                )
+            );
+        }
+
+        nodes.forEach(function (node) {
+            var image = node.querySelector(
+                '.ip160-card-logo'
+            );
+
+            if (image) {
+                image.onload = null;
+                image.onerror = null;
+                image.remove();
+            }
+
+            var original = node.querySelector(
+                '.ip160-original'
+            );
+
+            if (original) {
+                while (original.firstChild) {
+                    node.insertBefore(
+                        original.firstChild,
+                        original
+                    );
+                }
+
+                original.remove();
+            }
+
+            node.classList.remove(
+                'ip160-card-title',
+                'ip160-active'
+            );
+        });
+    }
+
+    function stopCard(restore) {
+        cardToken++;
+
+        if (card && card.observer) {
+            card.observer.disconnect();
+        }
+
+        if (restore && card) {
+            restoreTitle(card.root);
+        }
+
+        card = null;
+    }
+
+    function cardValid(token, key) {
+        return !!(
+            card &&
+            cardToken === token &&
+            card.key === key &&
+            card.root &&
+            card.root.isConnected &&
+            enabled(S.card) &&
+            !destroyed
+        );
+    }
+
+    function showCardText(token, key, value) {
+        if (!cardValid(token, key)) return;
+
+        var title = titleNode(card.root);
+        if (!title) return;
+
+        restoreTitle(title);
+
+        if (value) {
+            title.textContent = value;
+        }
+    }
+
+    function insertCardLogo(token, key, src) {
+        if (!cardValid(token, key)) return;
+
+        var title = titleNode(card.root);
+        if (!title) return;
+
+        var image = title.querySelector(
+            '.ip160-card-logo'
+        );
+
+        if (!image) {
+            title.classList.add(
+                'ip160-card-title'
+            );
+
+            var original = document.createElement(
+                'span'
+            );
+
+            original.className = 'ip160-original';
+
+            while (title.firstChild) {
+                original.appendChild(
+                    title.firstChild
+                );
+            }
+
+            title.appendChild(original);
+
+            image = document.createElement('img');
+            image.className = 'ip160-card-logo';
+            image.alt = '';
+            image.draggable = false;
+
+            title.appendChild(image);
+        }
+
+        image.style.transform =
+            'scale(' + logoScale() + ')';
+
+        image.style.transformOrigin =
+            'left center';
+
+        image.onload = function () {
+            if (!cardValid(token, key)) return;
+
+            image.classList.add('ready');
+            title.classList.add('ip160-active');
+        };
+
+        image.onerror = function () {
+            if (!cardValid(token, key)) return;
+
+            showCardText(
+                token,
+                key,
+                card.title
+            );
+        };
+
+        image.src = src;
+
+        if (image.complete && image.naturalWidth) {
+            image.onload();
+        }
+    }
+
+    function startCard(o, override, force) {
+        if (!enabled(S.card) || !isFull(o)) {
+            return;
+        }
+
+        var d = override || mediaFromActivity(o);
+        var root = activityRoot(o);
+
+        if (!d || !root) return;
+
+        var key = mediaKey(d);
+
+        if (!force &&
+            card &&
+            card.key === key &&
+            card.root === root) {
+            return;
+        }
+
+        stopCard(true);
+
+        var token = cardToken;
+
+        card = {
+            root: root,
+            key: key,
+            title: mediaName(d),
+            src: '',
+            observer: null
+        };
+
+        if (window.MutationObserver) {
+            var scheduled = false;
+
+            card.observer = new MutationObserver(
+                function () {
+                    if (scheduled ||
+                        !cardValid(token, key) ||
+                        !card.src) {
+                        return;
+                    }
+
+                    scheduled = true;
+
+                    raf(function () {
+                        scheduled = false;
+
+                        if (!cardValid(token, key)) {
+                            return;
+                        }
+
+                        var title = titleNode(root);
+
+                        if (title &&
+                            !title.querySelector(
+                                '.ip160-card-logo'
+                            )) {
+                            insertCardLogo(
+                                token,
+                                key,
+                                card.src
+                            );
+                        }
+                    });
+                }
+            );
+
+            card.observer.observe(root, {
+                childList: true,
+                subtree: true
+            });
+        }
+
+        getLogoData(d, function (data) {
+            if (!cardValid(token, key)) return;
+
+            card.title =
+                data.title || mediaName(d);
+
+            loadBestLogo(data.logos, function (src) {
+                if (!cardValid(token, key)) return;
+
+                if (!src) {
+                    showCardText(
+                        token,
+                        key,
+                        card.title
+                    );
+                    return;
+                }
+
+                card.src = src;
+
+                insertCardLogo(
+                    token,
+                    key,
+                    src
+                );
+            });
+        }, !!force);
+    }
+
+    /* ========================================
+       FONTS
+    ======================================== */
+
+    var FONTS = {
+        default: {
+            family: 'Roboto,Arial,sans-serif',
+            url: ''
+        },
+
+        netflix: {
+            family: '"Netflix Sans",Arial,sans-serif',
+            url: 'https://assets.nflxext.com/ffe/siteui/fonts/netflix-sans/v3/NetflixSans_W_Rg.woff2'
+        },
+
+        montserrat: {
+            family: '"Montserrat",Arial,sans-serif',
+            url: 'https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap'
+        },
+
+        inter: {
+            family: '"Inter",Arial,sans-serif',
+            url: 'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap'
+        },
+
+        nunito: {
+            family: '"Nunito",Arial,sans-serif',
+            url: 'https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;600;700&display=swap'
+        }
+    };
+
+    function applyFont() {
+        var key = str(get(S.font, 'default'));
+
+        if (key === currentFont) return;
+
+        currentFont = key;
+
+        var f = FONTS[key] || FONTS.default;
+
+        [
+            'ip160-font-face',
+            'ip160-font-style'
+        ].forEach(function (id) {
+            var node = document.getElementById(id);
+
+            if (node) node.remove();
+        });
+
+        if (f.url) {
+            var css = '';
+
+            if (f.url.indexOf(
+                'googleapis.com'
+            ) >= 0) {
+                css = '@import url("' +
+                    f.url + '");';
+            } else {
+                css =
+                    '@font-face{' +
+                    'font-family:"Netflix Sans";' +
+                    'src:url("' + f.url + '") ' +
+                    'format("woff2");' +
+                    'font-weight:400;' +
+                    'font-style:normal}';
+            }
+
+            injectStyle(
+                'ip160-font-face',
+                css
+            );
+        }
+
+        injectStyle(
+            'ip160-font-style',
+            'body,.body,' +
+            '.activity,.settings,' +
+            '.ip160-hero{' +
+            'font-family:' +
+            f.family +
+            '!important}'
+        );
+    }
+
+    /* ========================================
+       INTERFACE SIZE
+    ======================================== */
+
+    function patchMaker(count) {
+        if (!Lampa.Maker ||
+            !Lampa.Maker.map) {
+            return;
+        }
+
+        ['Line', 'Category'].forEach(
+            function (type) {
+                var maker = Lampa.Maker.map(type);
+
+                if (!maker ||
+                    !maker.Items ||
+                    !maker.Items.onInit) {
+                    return;
+                }
+
+                var items = maker.Items;
+
+                if (items.__ip160Patched) {
+                    items.__ip160Count = count;
+                    return;
+                }
+
+                var original = items.onInit;
+
+                items.onInit = function () {
+                    original.apply(this, arguments);
+
+                    var n =
+                        items.__ip160Count || count;
+
+                    if (type === 'Line') {
+                        this.view = n;
+                    } else {
+                        this.limit_view = n;
+                    }
+                };
+
+                items.__ip160Patched = true;
+                items.__ip160Count = count;
+            }
+        );
+    }
+
+    function applySize() {
+        var value = parseFloat(
+            get(S.size, '10.6')
+        ) || 10.6;
+
+        try {
+            if (Lampa.Platform.screen('mobile')) {
+                value = 10.1;
+            }
+        } catch (e) {}
+
+        if (currentSize === String(value)) {
+            return;
+        }
+
+        currentSize = String(value);
+
+        document.body.style.fontSize =
+            value + 'px';
+
+        patchMaker(
+            value <= 9.6
+                ? 8
+                : value <= 11.1
+                    ? 7
+                    : 6
+        );
+    }
+
+    /* ========================================
+       REFRESH / CACHE
+    ======================================== */
+
+    function refresh(force) {
+        clearTimeout(refreshTimer);
+
+        refreshTimer = setTimeout(function () {
+            lastFocus = '';
+
+            var a = active();
+
+            if (hero) {
+                hero.key = '';
+            }
+
+            if (isFull(a)) {
+                stopCard(true);
+                startCard(a, null, !!force);
+            }
+
+            if (isHome(a)) {
+                attachHero(a);
+
+                if (hero && hero.key) {
+                    hero.key = '';
+                }
+            }
+        }, 100);
+    }
+
+    function clearCache() {
+        epoch++;
+
+        cache = {};
+        pending = {};
+        searches = {};
+
+        [
+            CACHE_KEY,
+            'interface_plus_tmdb_cache_v154',
+            'interface_plus_tmdb_only_cache_v153',
+            'interface_plus_logo_cache_v152',
+            'interface_plus_logo_cache_v151',
+            'interface_plus_logo_cache_v150'
+        ].forEach(function (key) {
+            set(key, {});
+        });
+
+        refresh(true);
+
+        try {
+            Lampa.Noty.show(
+                'Кеш логотипів очищено'
+            );
+        } catch (e) {}
+    }
+
+    /* ========================================
+       SETTINGS
+    ======================================== */
+
+    function registerSettings() {
+        if (!Lampa.SettingsApi) return;
+
+        var api = Lampa.SettingsApi;
+
+        api.addComponent({
+            component: 'interface_plus_settings',
+            name: 'Інтерфейс +',
+            icon:
+                '<svg viewBox="0 0 24 24" ' +
+                'width="24" height="24" ' +
+                'fill="currentColor">' +
+                '<path d="M19 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2zm0 16H5V5h14v14zM7 10h2v7H7zm4-3h2v10h-2zm4 5h2v5h-2z"/>' +
+                '</svg>'
+        });
+
+        function add(
+            key,
+            type,
+            def,
+            label,
+            description,
+            values,
+            callback
+        ) {
+            api.addParam({
+                component: 'interface_plus_settings',
+
+                param: {
+                    name: key,
+                    type: type,
+                    default: def,
+                    values: values
+                },
+
+                field: {
+                    name: label,
+                    description: description
+                },
+
+                onChange: callback
+            });
+        }
+
+        add(
+            S.hero,
+            'trigger',
+            true,
+            'Кінематографічні банери',
+            'Преміальний дизайн головної сторінки',
+            null,
+            applyHero
+        );
+
+        add(
+            S.card,
+            'trigger',
+            true,
+            'Логотип у картці',
+            'Український або англійський логотип TMDB',
+            null,
+            function () {
+                if (enabled(S.card)) {
+                    refresh(false);
+                } else {
+                    stopCard(true);
+                }
+            }
+        );
+
+        add(
+            S.quality,
+            'select',
+            'original',
+            'Якість логотипів',
+            'Роздільна здатність зображень',
+            {
+                w300: '300px',
+                w500: '500px',
+                original: 'Original'
+            },
+            function () {
+                refresh(false);
+            }
+        );
+
+        add(
+            S.scale,
+            'select',
+            '100',
+            'Розмір логотипів',
+            'Масштаб логотипів',
+            {
+                '70': '70%',
+                '80': '80%',
+                '90': '90%',
+                '100': '100%',
+                '110': '110%',
+                '120': '120%'
+            },
+            function () {
+                refresh(false);
+            }
+        );
+
+        add(
+            'interface_plus_clear_logo_cache',
+            'button',
+            '',
+            'Очистити кеш логотипів',
+            'Повторне завантаження з TMDB',
+            null,
+            clearCache
+        );
+
+        add(
+            S.size,
+            'select',
+            '10.6',
+            'Розмір інтерфейсу',
+            'Масштаб елементів Lampa',
+            {
+                '09.1': 'Міні',
+                '09.6': 'Дуже малий',
+                '10.1': 'Малий',
+                '10.6': 'Середній'
+            },
+            applySize
+        );
+
+        add(
+            S.font,
+            'select',
+            'default',
+            'Шрифт інтерфейсу',
+            'Стиль тексту',
+            {
+                default: 'Roboto',
+                netflix: 'Netflix Sans',
+                montserrat: 'Montserrat',
+                inter: 'Inter',
+                nunito: 'Nunito'
+            },
+            function () {
+                currentFont = '';
+                applyFont();
+            }
+        );
+    }
+
+    /* ========================================
+       EVENTS
+    ======================================== */
+
+    function registerListeners() {
+        document.addEventListener(
+            'hover:focus',
+            focusHandler,
+            true
+        );
+
+        if (Lampa.Listener) {
+            Lampa.Listener.follow(
+                'activity',
+                function (e) {
+                    if (!e || destroyed) return;
+
+                    if (e.type === 'start') {
+                        raf(function () {
+                            if (destroyed) return;
+
+                            attachHero(e.object);
+
+                            if (isFull(e.object)) {
+                                startCard(e.object);
+                            } else {
+                                stopCard(false);
+                            }
+                        });
+                    }
+
+                    if (
+                        e.type === 'destroy' &&
+                        isFull(e.object)
+                    ) {
+                        stopCard(false);
+                    }
+                }
+            );
+
+            Lampa.Listener.follow(
+                'full',
+                function (e) {
+                    if (!e || destroyed) return;
+
+                    if (!/^(complete|complite)$/.test(
+                        e.type
+                    )) {
+                        return;
+                    }
+
+                    raf(function () {
+                        if (destroyed) return;
+
+                        var a = active();
+
+                        if (isFull(a)) {
+                            startCard(
+                                a,
+                                e.data && e.data.movie,
+                                false
+                            );
+                        }
+                    });
+                }
+            );
+        }
+
+        try {
+            Lampa.Storage.listener.follow(
+                'change',
+                function (e) {
+                    if (!e ||
+                        !e.name ||
+                        destroyed) {
+                        return;
+                    }
+
+                    if (e.name === S.hero) {
+                        applyHero();
+                    }
+
+                    if (e.name === S.card) {
+                        if (enabled(S.card)) {
+                            refresh(false);
+                        } else {
+                            stopCard(true);
+                        }
+                    }
+
+                    if (e.name === S.font) {
+                        currentFont = '';
+                        applyFont();
+                    }
+
+                    if (e.name === S.size) {
+                        currentSize = '';
+                        applySize();
+                    }
+
+                    if (
+                        e.name === S.quality ||
+                        e.name === S.scale
+                    ) {
+                        refresh(false);
+                    }
+                }
+            );
+        } catch (e) {}
+    }
+
+    /* ========================================
+       DESTROY
+    ======================================== */
+
+    function destroy() {
+        destroyed = true;
+        epoch++;
+
+        clearTimeout(focusTimer);
+        clearTimeout(refreshTimer);
+
+        stopCard(true);
+
+        document.removeEventListener(
+            'hover:focus',
+            focusHandler,
+            true
+        );
+
+        document.querySelectorAll(
+            '.ip160-hero'
+        ).forEach(function (node) {
+            node.remove();
+        });
+
+        document.querySelectorAll(
+            '.ip160-host'
+        ).forEach(function (node) {
+            node.classList.remove(
+                'ip160-host',
+                'ip160-enabled'
+            );
+
+            delete node.__ip160Hero;
+        });
+
+        styles.forEach(function (id) {
+            var node = document.getElementById(id);
+
+            if (node) node.remove();
+        });
+
+        delete window[FLAG];
+    }
+
+    window.__interface_plus_runtime = {
+        version: VERSION,
+        destroy: destroy
+    };
+
+    /* ========================================
+       INITIALIZATION
+    ======================================== */
+
+    function init() {
+        if (
+            started ||
+            destroyed ||
+            !window.Lampa ||
+            !Lampa.Storage
+        ) {
+            return;
+        }
+
+        started = true;
+
+        injectStyle(
+            'ip160-main-style',
+            CSS
+        );
+
+        applyFont();
+        applySize();
+        registerSettings();
+        registerListeners();
+        applyHero();
+
+        raf(function () {
+            if (destroyed) return;
+
+            var a = active();
+
+            attachHero(a);
+
+            if (isFull(a)) {
+                startCard(a);
+            }
+        });
+
+        console.log(
+            '[INTERFACE+] ' +
+            VERSION +
+            ' Cinematic Premium'
+        );
+    }
+
+    if (window.appready) {
+        setTimeout(init, 400);
+    } else if (
+        window.Lampa &&
+        Lampa.Listener
+    ) {
+        Lampa.Listener.follow(
+            'app',
+            function (e) {
+                if (e.type === 'ready') {
+                    setTimeout(init, 400);
+                }
+            }
+        );
+    } else {
+        var attempts = 0;
+
+        var wait = setInterval(function () {
+            attempts++;
+
+            if (
+                window.Lampa &&
+                Lampa.Storage
+            ) {
+                clearInterval(wait);
+                setTimeout(init, 400);
+            }
+
+            if (attempts > 100) {
+                clearInterval(wait);
+            }
+        }, 200);
+    }
 
 })();
