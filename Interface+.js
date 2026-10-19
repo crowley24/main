@@ -2,13 +2,13 @@
 'use strict';
 
 /*
- * INTERFACE+ 1.5.4 — TMDB ONLY (FAST OPTIMIZED)
+ * INTERFACE+ 1.5.5 — TMDB ONLY (INSTANT HERO & CARDS)
  * Dynamic hero banners + TMDB logos
  * Ukrainian > English > Ukrainian text
  */
 
-var VERSION = '1.5.4';
-var READY_KEY = 'interface_plus_tmdb_only_154';
+var VERSION = '1.5.5';
+var READY_KEY = 'interface_plus_tmdb_only_155';
 
 if (window[READY_KEY]) return;
 window[READY_KEY] = true;
@@ -24,8 +24,8 @@ var S = {
     scale: P + 'logo_scale'
 };
 
-var CACHE_KEY = P + 'tmdb_only_cache_v154';
-var CACHE_LIMIT = 150;
+var CACHE_KEY = P + 'tmdb_only_cache_v155';
+var CACHE_LIMIT = 200;
 
 var TTL_LOGO = 24 * 60 * 60 * 1000;
 var TTL_EMPTY = 60 * 60 * 1000;
@@ -37,7 +37,6 @@ var searchPending = {};
 var generation = 0;
 
 var initialized = false;
-var focusTimer = null;
 var activeHero = null;
 var activeCard = null;
 var activeCardToken = 0;
@@ -378,7 +377,7 @@ function apiGet(path, params, callback) {
         url: apiURL(path, params),
         type: 'GET',
         dataType: 'json',
-        timeout: 8000, // Прискорено таймаут для швидшої реакції при збоях
+        timeout: 6000,
         success: function (data) { callback(data, false); },
         error: function () { callback(null, true); }
     });
@@ -654,25 +653,25 @@ function loadLogo(d, callback, force) {
 }
 
 /* =========================
-   CSS (Optimized Transitions)
+   CSS (Instant Transitions)
 ========================= */
 
 var CSS = [
 '.banner-host{position:relative}',
 '.banner-enabled .banner-host .activity__body{padding-top:42vh!important;box-sizing:border-box}',
 '.banner-hero{position:absolute;top:0;left:0;right:0;height:50vh;overflow:hidden;pointer-events:none;z-index:0;-webkit-mask-image:linear-gradient(180deg,#000 55%,transparent 100%);mask-image:linear-gradient(180deg,#000 55%,transparent 100%)}',
-'.banner-hero__bg{position:absolute;inset:0;background-position:center 20%;background-repeat:no-repeat;background-size:cover;opacity:0;transition:opacity .2s ease}', // Прискорено анімацію фону
+'.banner-hero__bg{position:absolute;inset:0;background-position:center 20%;background-repeat:no-repeat;background-size:cover;opacity:0;transition:opacity .15s ease}',
 '.banner-hero__bg.show{opacity:1}',
 '.banner-hero:after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,rgba(0,0,0,.85),rgba(0,0,0,.55) 40%,transparent 75%)}',
 '.banner-hero__info{position:absolute;left:3em;bottom:5.5em;width:46%;z-index:2}',
-'.banner-hero__logo{display:block;width:auto;height:auto;max-width:100%;max-height:7em;object-fit:contain;object-position:left center;opacity:0;transition:opacity .15s ease;filter:drop-shadow(0 4px 12px rgba(0,0,0,.6))}', // Прискорено показ лого
+'.banner-hero__logo{display:block;width:auto;height:auto;max-width:100%;max-height:7em;object-fit:contain;object-position:left center;opacity:0;transition:opacity .08s ease;filter:drop-shadow(0 4px 12px rgba(0,0,0,.6))}',
 '.banner-hero__logo.ready{opacity:1}',
 '.banner-hero__title{font-size:2.8em;font-weight:900;line-height:1.05;color:#f5f5f1;margin-bottom:.35em;text-shadow:0 3px 14px rgba(0,0,0,.7)}',
 '.banner-hero__meta{font-size:1.15em;color:#f5f5f1;margin-bottom:.6em;display:flex;gap:.8em;align-items:center;flex-wrap:wrap}',
 '.banner-hero__rate{padding:.1em .5em;border-radius:6px;font-weight:800;background:#1db954;color:#fff}',
 '.banner-hero__descr{font-size:1.1em;line-height:1.45;color:#f5f5f1;opacity:.85;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}',
 '.interface-plus-logo-title{position:relative}',
-'.interface-plus-card-logo{display:block;width:auto;height:auto;max-width:100%;max-height:105px;object-fit:contain;object-position:left center;opacity:0;transition:opacity .15s ease;filter:drop-shadow(0 3px 10px rgba(0,0,0,.45))}', // Прискорено появу лого в картці
+'.interface-plus-card-logo{display:block;width:auto;height:auto;max-width:100%;max-height:105px;object-fit:contain;object-position:left center;opacity:0;transition:opacity .08s ease;filter:drop-shadow(0 3px 10px rgba(0,0,0,.45))}',
 '.interface-plus-card-logo.ready{opacity:1}',
 '.interface-plus-logo-title.interface-plus-logo-active{font-size:0!important;line-height:0!important}',
 '.interface-plus-logo-title.interface-plus-logo-active>.interface-plus-original-title{display:none!important}',
@@ -691,7 +690,7 @@ function installStyle() {
 }
 
 /* =========================
-   HERO
+   HERO (МИТТЄВИЙ ПОКАЗ)
 ========================= */
 
 function createHero(root) {
@@ -739,11 +738,6 @@ function showHero(hero, d, force) {
     var p = hero.parts;
 
     p.logo.classList.remove('ready');
-    p.logo.removeAttribute('src');
-    p.logo.style.display = 'none';
-
-    p.title.style.display = '';
-    p.title.textContent = movieTitle(d);
     p.logo.style.transform = 'scale(' + logoScale() + ')';
     p.logo.style.transformOrigin = 'left center';
     p.meta.textContent = '';
@@ -778,17 +772,20 @@ function showHero(hero, d, force) {
         });
     }
 
-    // Миттєва перевірка кешу в пам'яті для героя
-    var fastCached = cached(identity(d));
+    // МИТТЄВА ПЕРЕВІРКА КЕШУ ДЛЯ БАНЕРА (без показу тексту, якщо логотип є в пам'яті)
+    var fastCached = cached(key);
     if (fastCached && fastCached.path) {
         var src = imageURL(fastCached.path);
-        p.title.textContent = fastCached.title || movieTitle(d);
         p.logo.src = src;
         p.logo.style.display = 'block';
         p.logo.classList.add('ready');
         p.title.style.display = 'none';
         return;
     }
+
+    // Якщо кешу немає, ставимо заголовок текстом
+    p.title.style.display = '';
+    p.title.textContent = movieTitle(d);
 
     loadLogo(d, function (result) {
         if (hero.token !== token) return;
@@ -799,17 +796,10 @@ function showHero(hero, d, force) {
             return;
         }
 
-        preload(result.src, function (ok) {
-            if (hero.token !== token || !ok) {
-                p.title.style.display = '';
-                return;
-            }
-
-            p.logo.src = result.src;
-            p.logo.style.display = 'block';
-            p.logo.classList.add('ready');
-            p.title.style.display = 'none';
-        });
+        p.logo.src = result.src;
+        p.logo.style.display = 'block';
+        p.logo.classList.add('ready');
+        p.title.style.display = 'none';
     }, !!force);
 }
 
@@ -838,16 +828,11 @@ function onFocus(e) {
     var key = identity(d);
 
     if (lastFocusKey === key) return;
+    lastFocusKey = key;
 
-    clearTimeout(focusTimer);
-
-    // Зменшено затримку спрацьовування фокуса для швидкодії
-    focusTimer = setTimeout(function () {
-        if (!heroEnabled()) return;
-        lastFocusKey = key;
-        activeHero = root.__interfacePlusHero;
-        showHero(activeHero, d);
-    }, 120);
+    // Миттєвий виклик безsetTimeout
+    activeHero = root.__interfacePlusHero;
+    showHero(activeHero, d);
 }
 
 function applyHero() {
@@ -855,7 +840,6 @@ function applyHero() {
     document.body.classList.toggle('banner-enabled', on);
 
     if (!on) {
-        clearTimeout(focusTimer);
         lastFocusKey = '';
         return;
     }
@@ -994,7 +978,6 @@ function startCard(o, override, force) {
         observer: null
     };
 
-    // Спроба миттєвого відображення логотипа з пам'яті (без очікування мережі та таймерів)
     if (!force && showCardLogoInstant(root, d)) {
         return;
     }
@@ -1027,22 +1010,18 @@ function startCard(o, override, force) {
         activeCard.title = result.title || movieTitle(d);
         if (!result.src) return;
 
-        preload(result.src, function (ok) {
-            if (!cardCurrent(token, key) || !ok) return;
+        activeCard.src = result.src;
+        var title = findTitle(root);
+        if (!title) return;
 
-            activeCard.src = result.src;
-            var title = findTitle(root);
-            if (!title) return;
+        var logo = prepareLogo(title);
+        if (!logo) return;
 
-            var logo = prepareLogo(title);
-            if (!logo) return;
-
-            logo.style.transform = 'scale(' + logoScale() + ')';
-            logo.style.transformOrigin = 'left center';
-            logo.src = result.src;
-            logo.classList.add('ready');
-            title.classList.add('interface-plus-logo-active');
-        });
+        logo.style.transform = 'scale(' + logoScale() + ')';
+        logo.style.transformOrigin = 'left center';
+        logo.src = result.src;
+        logo.classList.add('ready');
+        title.classList.add('interface-plus-logo-active');
     }, !!force);
 }
 
@@ -1067,7 +1046,7 @@ function refreshAll(force) {
 }
 
 /* =========================
-   FONTS & SIZE (Optimized)
+   FONTS & SIZE
 ========================= */
 
 var FONTS = {
@@ -1244,7 +1223,7 @@ function init() {
         if (isFull(a)) startCard(a);
     });
 
-    log('TMDB Only optimized initialized');
+    log('TMDB Only instant initialized');
 }
 
 /* =========================
@@ -1252,10 +1231,10 @@ function init() {
 ========================= */
 
 if (window.appready) {
-    setTimeout(init, 200);
+    setTimeout(init, 100);
 } else if (window.Lampa && Lampa.Listener) {
     Lampa.Listener.follow('app', function (e) {
-        if (e.type === 'ready') setTimeout(init, 200);
+        if (e.type === 'ready') setTimeout(init, 100);
     });
 }
 
