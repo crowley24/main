@@ -523,6 +523,12 @@
         STATE.epg = cache.data;
         STATE.epg.t = cache.t;
         STATE.epgStats = cache.stats || null;
+
+        if (STATE.epgStats) {
+            STATE.epgStats.cacheUsed = true;
+            STATE.epgStats.message = 'Використовується кеш EPG';
+        }
+
         return true;
     }
 
@@ -544,7 +550,12 @@
             if (xhr.status >= 200 && xhr.status < 300 && xhr.responseText) {
                 ok(xhr.responseText, parseInt(xhr.getResponseHeader('X-EPG-Found'), 10) || 0, parseInt(xhr.getResponseHeader('X-EPG-Missing'), 10) || 0);
             } else {
-                fail('HTTP ' + xhr.status);
+                var message = 'HTTP ' + xhr.status;
+                try {
+                    var body = JSON.parse(xhr.responseText);
+                    if (body.error) message += ': ' + body.error;
+                } catch (e) {}
+                fail(message);
             }
         };
         xhr.onerror = function () { fail('мережа або CORS'); };
@@ -575,6 +586,18 @@
 
         var ids = epgIds();
         if (!ids.length) {
+            STATE.epgStats = {
+                requested: 0,
+                found: 0,
+                missing: 0,
+                programChannels: 0,
+                noProgramChannels: 0,
+                failedBatches: 0,
+                batches: 0,
+                cacheUsed: false,
+                message: 'У M3U немає tvg-id'
+            };
+            if (force) noty('EPG: у плейлисті немає tvg-id');
             return epgDone();
         }
 
@@ -594,7 +617,17 @@
         }
 
         var result = { names: Object.create(null), progs: Object.create(null), t: Date.now(), signature: signature };
-        var stats = { requested: ids.length, found: 0, missing: 0, programChannels: 0, failedBatches: 0, batches: batches.length };
+        var stats = {
+            requested: ids.length,
+            found: 0,
+            missing: 0,
+            programChannels: 0,
+            noProgramChannels: 0,
+            failedBatches: 0,
+            batches: batches.length,
+            cacheUsed: false,
+            message: 'Завантаження завершено'
+        };
         var pos = 0;
 
         function next() {
@@ -603,13 +636,31 @@
                     result.progs[id].sort(function (a, b) { return a.start - b.start; });
                 });
 
+                var withPrograms = 0;
+                ids.forEach(function (id) {
+                    if (result.progs[id] && result.progs[id].length) {
+                        withPrograms++;
+                    }
+                });
+
+                stats.programChannels = withPrograms;
+                stats.noProgramChannels = Math.max(0, stats.requested - withPrograms);
                 STATE.epgStats = stats;
+
                 if (stats.found > 0) {
                     STATE.epg = result;
+                    stats.message = stats.failedBatches ? 'Часткове завантаження: є помилкові пакети' : 'EPG успішно оновлено';
                     saveEpgCache(ids, result, stats);
-                    noty('EPG оновлено');
-                } else if (STATE.epg) {
-                    noty('Залишено попередні дані EPG');
+                    noty('EPG: файлів ' + stats.found + ', із програмами ' + stats.programChannels + ' із ' + stats.requested);
+                } else {
+                    if (STATE.epg) {
+                        stats.cacheUsed = true;
+                        stats.message = 'Оновлення не вдалося; збережено попередні дані';
+                        noty('EPG: оновлення не вдалося. Залишено попередні дані');
+                    } else {
+                        stats.message = 'Не знайдено даних EPG; перевір tvg-id';
+                        noty('EPG: не знайдено програм. Перевір tvg-id');
+                    }
                 }
                 epgDone();
                 return;
@@ -623,10 +674,12 @@
                     stats.missing += missing;
                 } catch (e) {
                     stats.failedBatches++;
+                    stats.missing += batch.length;
                 }
                 next();
-            }, function () {
+            }, function (reason) {
                 stats.failedBatches++;
+                stats.missing += batch.length;
                 next();
             });
         }
@@ -843,7 +896,6 @@
             '.iptv-v33__ch{display:flex;align-items:center;gap:.85em;padding:.5em .85em;border-radius:.42em;margin:.12em 0;cursor:pointer}',
             '.iptv-v33__ch.focus,.iptv-v33__ch:hover{background:rgba(255,255,255,.08)}',
             '.iptv-v33__ch-num{width:2.1em;text-align:right;opacity:.4;font-size:.88em;flex-shrink:0}',
-            // Стилі для іконки/логотипа каналу
             '.iptv-v33__ch-logo{width:4.2em;height:3em;background:rgba(255,255,255,.06);border-radius:.35em;display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden}',
             '.iptv-v33__ch-logo img{max-width:90%;max-height:85%;object-fit:contain}',
             '.iptv-v33__ch-logo span{font-size:1.1em;opacity:.35}',
@@ -1207,6 +1259,33 @@
             noty('Кеш EPG очищено');
         });
 
+        button('iptv_s_epgdiag_33', 'Діагностика EPG', 'Статистика каналів, програм, пакетів і кешу', function () {
+            var st = STATE.epgStats;
+            var ids = epgIds();
+
+            if (!st) {
+                noty('EPG: немає статистики. Каналів із tvg-id: ' + ids.length);
+                return;
+            }
+
+            selectShow({
+                title: 'Діагностика EPG',
+                items: [
+                    { title: 'Каналів із tvg-id: ' + ids.length },
+                    { title: 'Запитано у Worker: ' + (st.requested || 0) },
+                    { title: 'Файлів знайдено: ' + (st.found || 0) },
+                    { title: 'Файлів відсутні: ' + (st.missing || 0) },
+                    { title: 'Каналів із програмами: ' + (st.programChannels || 0) },
+                    { title: 'Без розібраної програми: ' + (st.noProgramChannels || 0) },
+                    { title: 'Помилкових пакетів: ' + (st.failedBatches || 0) },
+                    { title: 'Усього пакетів: ' + (st.batches || 0) },
+                    { title: 'Використовується кеш: ' + (st.cacheUsed ? 'Так' : 'Ні') },
+                    { title: st.message || 'EPG Proxy 2.0.2' }
+                ],
+                onSelect: function () {}
+            });
+        });
+
         Lampa.SettingsApi.addParam({
             component: 'iptv_player_33',
             param: { name: 'iptv_sort_az', type: 'trigger', default: false },
@@ -1265,7 +1344,7 @@
         try { addSettings(); } catch (e) {}
         try { addMenuButton(); } catch (e) {}
 
-        console.log('[IPTV 3.3.1] Custom EPG Edition with Permanent Logos ready');
+        console.log('[IPTV 3.3.1] Custom EPG Edition with Permanent Logos & Diagnostics ready');
     }
 
     if (window.appready) {
