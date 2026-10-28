@@ -61,7 +61,6 @@
        UTILITIES
        ===================================================== */
 
-    fn
     function esc(s) {
         return String(s == null ? '' : s)
             .replace(/&/g, '&amp;')
