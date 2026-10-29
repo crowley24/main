@@ -1,6 +1,6 @@
 /**
  * IPTV for Lampa 3.3.2
- * Custom EPG Edition — Full Channel EPG List
+ * Custom EPG Edition — Optimized for Fast Switching & Full Features
  */
 (function () {
     'use strict';
@@ -2671,7 +2671,7 @@
         }
 
         console.log(
-            '[IPTV 3.3.2] Custom EPG Edition ready — Full EPG View'
+            '[IPTV 3.3.2] Custom EPG Edition ready — Optimized Fast Switching'
         );
     }
 
