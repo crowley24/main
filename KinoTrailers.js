@@ -2,7 +2,7 @@
     'use strict';
 
     /*
-     * КІНОТРЕЙЛЕРИ 2.1
+     * КІНОТРЕЙЛЕРИ 2.2
      *
      * Lampa / Android TV / Mobile
      *
@@ -19,13 +19,12 @@
      * - Automatic trailer switching
      * - Native Lampa Favorites
      *
-     * 2.1 CHANGES:
-     * - Netflix-style Add to Favorites button
-     * - Native Lampa.Favorite integration
-     * - Favorite state detection
-     * - Add / remove from Bookmarks
-     * - Favorite button does not open movie card
-     * - Remote control focus support
+     * 2.2 CHANGES:
+     * - Fixed initial Favorite state detection
+     * - Delayed Favorite state refresh
+     * - Refresh after Lampa Favorite updates
+     * - Safe fallback for Favorite data
+     * - Prevent stale favorite state between movies
      */
 
     if (!window.Lampa || !window.$) return;
@@ -109,10 +108,6 @@
         '.tfeed__descr{font-size:1.15em;opacity:.76;margin-top:.65em;max-width:70%;' +
             'display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}' +
 
-        /*
-         * NETFLIX STYLE FAVORITE BUTTON
-         */
-
         '.tfeed__actions{display:flex;align-items:center;gap:.8em;margin-top:1.25em;position:relative;z-index:15}' +
 
         '.tfeed__favorite{' +
@@ -140,6 +135,8 @@
         '}' +
 
         '.tfeed__favorite:active{transform:scale(.97)}' +
+
+        '.tfeed__favorite:disabled{opacity:.5;pointer-events:none}' +
 
         '.tfeed__hint{font-size:1em;opacity:.5;margin-top:1.2em}' +
 
@@ -321,7 +318,10 @@
         var prepTimer;
         var posterHideTimer;
 
+        var favoriteRefreshTimers = [];
+
         var self = this;
+        var destroyed = false;
 
         var touchStartY = 0;
         var touchStartX = 0;
@@ -346,6 +346,14 @@
             clearTimeout(prepTimer);
         }
 
+        function clearFavoriteRefreshTimers() {
+            favoriteRefreshTimers.forEach(function (timer) {
+                clearTimeout(timer);
+            });
+
+            favoriteRefreshTimers = [];
+        }
+
         // --------------------------------------------------
         // RESET
         // --------------------------------------------------
@@ -368,6 +376,8 @@
 
             feedGen++;
             seq++;
+
+            clearFavoriteRefreshTimers();
 
             stopAll();
 
@@ -613,11 +623,18 @@
         // --------------------------------------------------
 
         /*
-         * Для Lampa потрібна повноцінна картка з методом
-         * movie або tv та джерелом tmdb.
+         * ВАЖЛИВО:
          *
-         * Не змінюємо оригінальний об'єкт TMDB:
-         * створюємо окрему копію для Favorite.
+         * Lampa Favorite працює за ID картки.
+         * Перевірка Favorite.check() може бути викликана
+         * раніше, ніж Lampa завершить читання закладок.
+         *
+         * Тому:
+         * 1. Створюємо нормалізовану картку.
+         * 2. Перевіряємо штатний Favorite.check().
+         * 3. Якщо доступно, використовуємо Favorite.full()
+         *    як резервне джерело локального стану.
+         * 4. Після показу фільму повторюємо перевірку.
          */
 
         function favoriteCard(item) {
@@ -629,6 +646,7 @@
                 card[key] = item[key];
             });
 
+            card.id = item.id;
             card.method = type;
             card.source = 'tmdb';
 
@@ -646,15 +664,33 @@
         function isFavorite(item) {
             if (!item || !Lampa.Favorite) return false;
 
+            var card = favoriteCard(item);
+
+            // Основна перевірка Lampa.
             try {
-                var card = favoriteCard(item);
+                if (typeof Lampa.Favorite.check === 'function') {
+                    var state = Lampa.Favorite.check(card);
 
-                var state = Lampa.Favorite.check(card);
+                    if (state && typeof state.book !== 'undefined') {
+                        return !!state.book;
+                    }
+                }
+            } catch (e) {}
 
-                return !!(state && state.book);
-            } catch (e) {
-                return false;
-            }
+            // Резервна перевірка локального списку.
+            try {
+                if (typeof Lampa.Favorite.full === 'function') {
+                    var all = Lampa.Favorite.full();
+
+                    if (all && Array.isArray(all.book)) {
+                        return all.book.some(function (id) {
+                            return String(id) === String(item.id);
+                        });
+                    }
+                }
+            } catch (e) {}
+
+            return false;
         }
 
         function updateFavoriteButton(item) {
@@ -705,6 +741,34 @@
             button.html(icon + '<span>' + label + '</span>');
         }
 
+        /*
+         * Повторне оновлення кнопки після відкриття фільму.
+         *
+         * На першому відкритті Lampa може ще завершувати
+         * ініціалізацію локального або хмарного обраного.
+         *
+         * Перевіряємо кілька разів, але тільки якщо цей фільм
+         * досі є поточним.
+         */
+
+        function scheduleFavoriteRefresh(item, currentSeq) {
+            clearFavoriteRefreshTimers();
+
+            [100, 350, 800, 1500, 2500].forEach(function (delay) {
+                var timer = setTimeout(function () {
+                    if (destroyed) return;
+
+                    if (currentSeq !== seq) return;
+
+                    if (items[index] !== item) return;
+
+                    updateFavoriteButton(item);
+                }, delay);
+
+                favoriteRefreshTimers.push(timer);
+            });
+        }
+
         function toggleFavorite() {
             var item = items[index];
 
@@ -723,7 +787,17 @@
 
                 Lampa.Favorite.toggle('book', card);
 
+                // Одразу оновлюємо кнопку.
                 updateFavoriteButton(item);
+
+                // Повторна перевірка після оновлення стану Lampa.
+                var currentSeq = seq;
+
+                setTimeout(function () {
+                    if (!destroyed && currentSeq === seq && items[index] === item) {
+                        updateFavoriteButton(item);
+                    }
+                }, 250);
 
                 if (Lampa.Noty) {
                     Lampa.Noty.show(
@@ -735,6 +809,35 @@
             } catch (e) {
                 if (Lampa.Noty) {
                     Lampa.Noty.show('Не вдалося змінити обране');
+                }
+            }
+        }
+
+        // --------------------------------------------------
+        // FAVORITE STATE LISTENER
+        // --------------------------------------------------
+
+        /*
+         * Lampa повідомляє про читання та зміну закладок
+         * через state:changed.
+         *
+         * Це дозволяє оновити кнопку, коли обране
+         * завантажилося вже після показу поточного фільму.
+         */
+
+        function onFavoriteStateChanged(event) {
+            if (destroyed || !event) return;
+
+            var data = event.data || event;
+
+            if (
+                data.target === 'favorite' ||
+                data.targer === 'favorite'
+            ) {
+                var item = items[index];
+
+                if (item) {
+                    updateFavoriteButton(item);
                 }
             }
         }
@@ -1298,9 +1401,17 @@
                     : 'none'
             );
 
-            // Оновлюємо стан кнопки для поточного фільму.
+            /*
+             * Спочатку показуємо поточний відомий стан.
+             * Потім кілька разів перевіряємо його повторно,
+             * оскільки Lampa може ще завантажувати закладки.
+             */
 
             updateFavoriteButton(item);
+
+            var favoriteSeq = seq;
+
+            scheduleFavoriteRefresh(item, favoriteSeq);
 
             logoEl.hide().removeAttr('src');
             titleEl.text('').hide();
@@ -1371,6 +1482,9 @@
             var item = items[i];
 
             var my = ++seq;
+
+            // Скасовуємо відкладені перевірки попереднього фільму.
+            clearFavoriteRefreshTimers();
 
             if (cur && cur.item !== item) {
                 killPlayer(cur);
@@ -1515,7 +1629,14 @@
         // --------------------------------------------------
 
         this.create = function () {
+            destroyed = false;
+
             window.addEventListener('message', onMessage);
+
+            // Слухаємо штатні повідомлення Lampa про обране.
+            if (Lampa.Listener && Lampa.Listener.follow) {
+                Lampa.Listener.follow('state:changed', onFavoriteStateChanged);
+            }
 
             html.find('.tfeed__chip').on('click', function (e) {
                 e.stopPropagation();
@@ -1675,7 +1796,11 @@
 
         this.pause = function () {
             seq++;
+
+            clearFavoriteRefreshTimers();
+
             stopAll();
+
             fullscreen(false);
         };
 
@@ -1685,7 +1810,11 @@
 
         this.stop = function () {
             seq++;
+
+            clearFavoriteRefreshTimers();
+
             stopAll();
+
             fullscreen(false);
         };
 
@@ -1702,8 +1831,12 @@
         // --------------------------------------------------
 
         this.destroy = function () {
+            destroyed = true;
+
             seq++;
             feedGen++;
+
+            clearFavoriteRefreshTimers();
 
             stopAll();
 
