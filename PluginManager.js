@@ -105,6 +105,12 @@ var CATEGORIES = [
                 url: 'https://crowley24.github.io/main/ButtonsManager+.js'
             },
             {
+                id: 'KinoriumOST',
+                name: 'KinoriumOST',
+                description: 'Відтворення саундтреку в повній картці фільму',
+                url: 'https://crowley24.github.io/main/KinoriumOST.js'
+            },
+            {
                 id: 'InterfaceSize',
                 name: 'Interface Size',
                 description: 'Зміна розміру інтерфейсу',
