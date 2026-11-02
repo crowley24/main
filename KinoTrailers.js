@@ -2,7 +2,7 @@
     'use strict';
 
     /*
-     * КІНОТРЕЙЛЕРИ 2.2
+     * КІНОТРЕЙЛЕРИ 2.3
      *
      * Lampa / Android TV / Mobile
      *
@@ -19,12 +19,10 @@
      * - Automatic trailer switching
      * - Native Lampa Favorites
      *
-     * 2.2 CHANGES:
-     * - Fixed initial Favorite state detection
-     * - Delayed Favorite state refresh
-     * - Refresh after Lampa Favorite updates
-     * - Safe fallback for Favorite data
-     * - Prevent stale favorite state between movies
+     * 2.3 CHANGES:
+     * - Increased mobile bottom spacing
+     * - Favorite button no longer hidden behind Lampa navigation
+     * - TV layout unchanged
      */
 
     if (!window.Lampa || !window.$) return;
@@ -108,6 +106,8 @@
         '.tfeed__descr{font-size:1.15em;opacity:.76;margin-top:.65em;max-width:70%;' +
             'display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}' +
 
+        // FAVORITE BUTTON
+
         '.tfeed__actions{display:flex;align-items:center;gap:.8em;margin-top:1.25em;position:relative;z-index:15}' +
 
         '.tfeed__favorite{' +
@@ -147,8 +147,10 @@
 
         '.tfeed__status:empty{display:none}' +
 
+        // MOBILE
+
         '@media screen and (max-width:768px){' +
-            '.tfeed__info{padding:4em 8em 5em 1.5em;right:0}' +
+            '.tfeed__info{padding:4em 8em 12.5em 1.5em;right:0}' +
             '.tfeed__title{font-size:1.8em}' +
             '.tfeed__logo{max-width:80%;max-height:5em}' +
             '.tfeed__chip{left:1.5em;top:1.5em;font-size:.9em}' +
@@ -622,21 +624,6 @@
         // FAVORITES
         // --------------------------------------------------
 
-        /*
-         * ВАЖЛИВО:
-         *
-         * Lampa Favorite працює за ID картки.
-         * Перевірка Favorite.check() може бути викликана
-         * раніше, ніж Lampa завершить читання закладок.
-         *
-         * Тому:
-         * 1. Створюємо нормалізовану картку.
-         * 2. Перевіряємо штатний Favorite.check().
-         * 3. Якщо доступно, використовуємо Favorite.full()
-         *    як резервне джерело локального стану.
-         * 4. Після показу фільму повторюємо перевірку.
-         */
-
         function favoriteCard(item) {
             if (!item) return null;
 
@@ -666,7 +653,6 @@
 
             var card = favoriteCard(item);
 
-            // Основна перевірка Lampa.
             try {
                 if (typeof Lampa.Favorite.check === 'function') {
                     var state = Lampa.Favorite.check(card);
@@ -677,7 +663,6 @@
                 }
             } catch (e) {}
 
-            // Резервна перевірка локального списку.
             try {
                 if (typeof Lampa.Favorite.full === 'function') {
                     var all = Lampa.Favorite.full();
@@ -741,16 +726,6 @@
             button.html(icon + '<span>' + label + '</span>');
         }
 
-        /*
-         * Повторне оновлення кнопки після відкриття фільму.
-         *
-         * На першому відкритті Lampa може ще завершувати
-         * ініціалізацію локального або хмарного обраного.
-         *
-         * Перевіряємо кілька разів, але тільки якщо цей фільм
-         * досі є поточним.
-         */
-
         function scheduleFavoriteRefresh(item, currentSeq) {
             clearFavoriteRefreshTimers();
 
@@ -787,10 +762,8 @@
 
                 Lampa.Favorite.toggle('book', card);
 
-                // Одразу оновлюємо кнопку.
                 updateFavoriteButton(item);
 
-                // Повторна перевірка після оновлення стану Lampa.
                 var currentSeq = seq;
 
                 setTimeout(function () {
@@ -816,14 +789,6 @@
         // --------------------------------------------------
         // FAVORITE STATE LISTENER
         // --------------------------------------------------
-
-        /*
-         * Lampa повідомляє про читання та зміну закладок
-         * через state:changed.
-         *
-         * Це дозволяє оновити кнопку, коли обране
-         * завантажилося вже після показу поточного фільму.
-         */
 
         function onFavoriteStateChanged(event) {
             if (destroyed || !event) return;
@@ -1401,12 +1366,6 @@
                     : 'none'
             );
 
-            /*
-             * Спочатку показуємо поточний відомий стан.
-             * Потім кілька разів перевіряємо його повторно,
-             * оскільки Lampa може ще завантажувати закладки.
-             */
-
             updateFavoriteButton(item);
 
             var favoriteSeq = seq;
@@ -1483,7 +1442,6 @@
 
             var my = ++seq;
 
-            // Скасовуємо відкладені перевірки попереднього фільму.
             clearFavoriteRefreshTimers();
 
             if (cur && cur.item !== item) {
@@ -1633,7 +1591,6 @@
 
             window.addEventListener('message', onMessage);
 
-            // Слухаємо штатні повідомлення Lampa про обране.
             if (Lampa.Listener && Lampa.Listener.follow) {
                 Lampa.Listener.follow('state:changed', onFavoriteStateChanged);
             }
@@ -1642,13 +1599,6 @@
                 e.stopPropagation();
                 openPanel();
             });
-
-            /*
-             * Кнопка обраного:
-             * - зупиняє спливання кліку;
-             * - не відкриває повну картку;
-             * - перемикає штатну закладку Lampa.
-             */
 
             html.find('.tfeed__favorite')
                 .on('click', function (e) {
