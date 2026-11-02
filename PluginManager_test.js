@@ -3,16 +3,15 @@
 'use strict';
 
 /*
- * CROWLEY PLUGIN MANAGER 3.6.4 PREMIUM
+ * CROWLEY PLUGIN MANAGER 3.6.3 PREMIUM
  * Lampa / Android TV / Mobile
- * Mobile portrait viewport fix
  */
 
-var VERSION = '3.6.4';
-var READY = 'crowley_plugin_manager_v364';
+var VERSION = '3.6.3';
+var READY = 'crowley_plugin_manager_v363';
 var ROOT = 'plugin_manager_page';
 var STORAGE = 'plugins';
-var STYLE_ID = 'crowley-pm364-style';
+var STYLE_ID = 'crowley-pm363-style';
 
 if (window[READY]) return;
 window[READY] = true;
@@ -36,7 +35,7 @@ function svgIcon(type, size) {
     var paths = {
         play: '<circle cx="12" cy="12" r="9"/><path d="m10 8 6 4-6 4z"/>',
         layout: '<rect x="3" y="3" width="18" height="18" rx="3"/><path d="M3 9h18M9 9v12"/>',
-        movies: '<rect x="3" y="7" width="18" height="14" rx="2"/><path d="M3 7 6 3h15l-3 4M8 3 5 7M15 3l-3 4m-5 7 5 3-5 3z"/>',
+        movies: '<rect x="3" y="7" width="18" height="14" rx="2"/><path d="M3 7 6 3h15l-3 4M8 3 5 7M15 3l-3 4m-5 4 5 3-5 3z"/>',
         tools: '<path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="2"/><circle cx="15" cy="17" r="2"/>',
         grid: '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>'
     };
@@ -217,9 +216,7 @@ function getCount(category) {
 }
 
 function notify(message) {
-    if (Lampa.Noty && Lampa.Noty.show) {
-        Lampa.Noty.show(message);
-    }
+    if (Lampa.Noty && Lampa.Noty.show) Lampa.Noty.show(message);
 }
 
 /* ===== HTTP TO HTTPS MIGRATION ===== */
@@ -263,7 +260,6 @@ function markPending() {
 
 function restartLampa() {
     if (!pending) return;
-
     notify('Застосування змін...');
     window.location.reload();
 }
@@ -373,8 +369,6 @@ function injectStyles() {
         .crowley-pm-select-row {
             position: relative;
             transition: background-color .16s ease;
-            box-sizing: border-box;
-            max-width: 100%;
         }
 
         .crowley-pm-select-row.focus,
@@ -382,7 +376,10 @@ function injectStyles() {
             border-radius: 10px;
         }
 
-        /* Status dot aligned with title */
+        /*
+         * Status dot aligned with title.
+         * Extra left padding prevents clipping.
+         */
 
         .crowley-pm-select-row .crowley-pm-plugin-title {
             display: inline-flex !important;
@@ -392,7 +389,6 @@ function injectStyles() {
             vertical-align: middle;
             position: relative;
             box-sizing: border-box;
-            max-width: 100%;
         }
 
         .crowley-pm-plugin-title::before {
@@ -433,7 +429,6 @@ function injectStyles() {
             opacity: .68;
             line-height: 1.4;
             letter-spacing: .1px;
-            overflow-wrap: anywhere;
         }
 
         /* Remove action */
@@ -448,92 +443,7 @@ function injectStyles() {
             color: #e8b86b;
         }
 
-        /*
-         * Mobile portrait fix.
-         * Only applies to the Plugin Manager select window.
-         * TV landscape design remains unchanged.
-         */
-
-        @media screen and (max-width: 600px) and (orientation: portrait) {
-            .crowley-pm-mobile-select {
-                box-sizing: border-box !important;
-                max-width: 100vw !important;
-            }
-
-            .crowley-pm-mobile-select .selectbox__body,
-            .crowley-pm-mobile-select .select__body,
-            .crowley-pm-mobile-select .select-modal__body {
-                box-sizing: border-box !important;
-                max-height: calc(100vh - 32px) !important;
-                max-height: calc(100dvh - 32px) !important;
-                overflow-y: auto !important;
-                overscroll-behavior: contain;
-            }
-
-            .crowley-pm-mobile-select .selectbox__content,
-            .crowley-pm-mobile-select .select__content,
-            .crowley-pm-mobile-select .select-modal__content {
-                box-sizing: border-box !important;
-                max-height: calc(100vh - 48px) !important;
-                max-height: calc(100dvh - 48px) !important;
-                overflow-y: auto !important;
-                overscroll-behavior: contain;
-            }
-
-            .crowley-pm-mobile-select .selectbox__items,
-            .crowley-pm-mobile-select .select__items,
-            .crowley-pm-mobile-select .select-modal__items {
-                box-sizing: border-box !important;
-                max-height: calc(100vh - 110px) !important;
-                max-height: calc(100dvh - 110px) !important;
-                overflow-y: auto !important;
-                overscroll-behavior: contain;
-            }
-
-            .crowley-pm-mobile-select .selectbox-item,
-            .crowley-pm-mobile-select .select__item,
-            .crowley-pm-mobile-select .selector-item {
-                box-sizing: border-box !important;
-                max-width: 100% !important;
-                overflow-wrap: anywhere;
-            }
-
-            .crowley-pm-mobile-select .selectbox-item__title,
-            .crowley-pm-mobile-select .selectbox-item__name,
-            .crowley-pm-mobile-select .select__title,
-            .crowley-pm-mobile-select .selector-item__title {
-                max-width: 100%;
-                overflow-wrap: anywhere;
-            }
-
-            .crowley-pm-mobile-select .selectbox-item__subtitle,
-            .crowley-pm-mobile-select .select__subtitle,
-            .crowley-pm-mobile-select .selector-item__subtitle {
-                max-width: 100%;
-                white-space: normal !important;
-                overflow-wrap: anywhere;
-            }
-
-            .crowley-pm-select-row .crowley-pm-plugin-title {
-                gap: 8px !important;
-            }
-
-            .crowley-pm-select-row .selectbox-item__subtitle,
-            .crowley-pm-select-row .select__subtitle,
-            .crowley-pm-select-row .selector-item__subtitle {
-                font-size: .8em;
-            }
-        }
-
-        @media screen and (max-width: 600px) and (orientation: landscape) {
-            .crowley-pm-mobile-select .selectbox__body,
-            .crowley-pm-mobile-select .select__body,
-            .crowley-pm-mobile-select .select-modal__body {
-                max-height: calc(100vh - 20px);
-                max-height: calc(100dvh - 20px);
-                overflow-y: auto;
-            }
-        }
+        /* Mobile */
 
         @media (max-width: 600px) {
             .crowley-pm-folder .settings-param__name {
@@ -552,6 +462,16 @@ function injectStyles() {
 
             .crowley-pm-folder .settings-param__descr {
                 padding-left: 28px;
+            }
+
+            .crowley-pm-select-row .crowley-pm-plugin-title {
+                gap: 8px !important;
+            }
+
+            .crowley-pm-select-row .selectbox-item__subtitle,
+            .crowley-pm-select-row .select__subtitle,
+            .crowley-pm-select-row .selector-item__subtitle {
+                font-size: .8em;
             }
         }
 
@@ -645,13 +565,6 @@ function decorateSelect(items) {
             retry();
             return;
         }
-
-        /*
-         * Add a dedicated class only to the active select window.
-         * This lets the portrait CSS avoid changing other Lampa menus.
-         */
-
-        root.classList.add('crowley-pm-mobile-select');
 
         var oldRows = root.querySelectorAll('.crowley-pm-select-row');
 
@@ -947,7 +860,7 @@ function registerFolders() {
             component: ROOT,
 
             param: {
-                name: 'crowley_pm364_folder_' + category.id,
+                name: 'crowley_pm363_folder_' + category.id,
                 type: 'button'
             },
 
@@ -976,7 +889,7 @@ function registerRestart() {
         component: ROOT,
 
         param: {
-            name: 'crowley_pm364_restart',
+            name: 'crowley_pm363_restart',
             type: 'button'
         },
 
