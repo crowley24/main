@@ -56,10 +56,10 @@ var CATEGORIES = [
         icon: 'play',
         plugins: [
             {
-                id: 'interface+',
-                name: 'Interface+',
-                description: 'Кастомізація головної сторінки в стилі Netflix',
-                url: 'https://crowley24.github.io/main/Interface+.js'
+                id: 'Iptv+',
+                name: 'Iptv+',
+                description: 'IPTV канали з телепрограмою та архівом',
+                url: 'https://crowley24.github.io/main/Iptv+.js'
             },
             {
                 id: 'Uakino',
