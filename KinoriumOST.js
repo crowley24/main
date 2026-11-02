@@ -1,49 +1,27 @@
-
 (function () {
     'use strict';
 
     /*
-     * KINORIUM OST 1.5.4
+     * KINORIUM OST 1.5.5
      *
      * Lampa / Android TV / Mobile
      * Cloudflare Worker 1.6.2+
      *
-     * Sources:
-     * - Kinorium
-     * - Custom catalog: OSTMusic and YouTube
-     * - Direct audio files
-     *
-     * VERSION 1.5.4:
-     * - Global initialization protection
-     * - Improved YouTube API timeout handling
-     * - Unified playback failure handling
-     * - Retry after startup timeout
-     * - Improved Worker network error detection
+     * VERSION 1.5.5:
+     * - Fixed live plugin enable/disable
+     * - Deferred restoration while Settings is active
+     * - Automatic restoration when returning to movie card
+     * - Preserved last movie during temporary navigation
      * - Improved activity monitoring
-     * - Playback restoration after enabling
-     * - Improved live volume and fade control
-     * - Native HTML5 audio repeat
-     * - Extended YouTube URL support
-     * - Smaller premium notifications
-     * - Improved timer and player cleanup
-     * - Removed unused code
+     * - Safe playback cleanup
+     * - Compact premium notifications
      */
 
-    var VERSION = '1.5.4';
-
-    var WORKER =
-        'https://kinorium-ost.unclezhenya24.workers.dev/';
-
+    var VERSION = '1.5.5';
+    var WORKER = 'https://kinorium-ost.unclezhenya24.workers.dev/';
     var PREFIX = 'kinorium_ost_';
 
-    /*
-     * GLOBAL INITIALIZATION PROTECTION
-     */
-
-    if (
-        window.kinorium_ost_ready ||
-        window.kinorium_ost_init_pending
-    ) return;
+    if (window.kinorium_ost_ready || window.kinorium_ost_init_pending) return;
 
     window.kinorium_ost_init_pending = true;
 
@@ -130,7 +108,6 @@
 
         try {
             var raw = localStorage.getItem(name);
-
             return raw === null ? fallback : JSON.parse(raw);
         } catch (e) {
             return fallback;
@@ -180,7 +157,6 @@
         if (!setting('debug')) return;
 
         var args = Array.prototype.slice.call(arguments);
-
         args.unshift('[Kinorium OST ' + VERSION + ']');
 
         console.log.apply(console, args);
@@ -222,10 +198,7 @@
     }
 
     function extractYear(value) {
-        var match = String(value || '').match(
-            /\b(?:18|19|20)\d{2}\b/
-        );
-
+        var match = String(value || '').match(/\b(?:18|19|20)\d{2}\b/);
         return match ? Number(match[0]) : 0;
     }
 
@@ -245,7 +218,6 @@
 
         try {
             var parsed = new URL(url);
-
             var host = parsed.hostname.toLowerCase();
 
             if (
@@ -308,17 +280,6 @@
         }
     }
 
-    /*
-     * COMPACT PREMIUM NOTIFICATION 1.5.4
-     *
-     * - Compact dimensions
-     * - Minimal icon
-     * - Smaller typography
-     * - Translucent dark glass
-     * - Soft accent
-     * - Smooth entrance and exit
-     */
-
     function showNotice(title, message, type, duration) {
         if (!setting('debug')) {
             removeNotice();
@@ -346,7 +307,6 @@
         };
 
         var accent = colors[type] || colors.info;
-
         var panel = document.createElement('div');
 
         panel.setAttribute('data-kinorium-ost-notice', 'true');
@@ -400,9 +360,7 @@
         iconBox.style.lineHeight = '1';
 
         var icon = document.createElement('span');
-
         icon.textContent = icons[type] || icons.info;
-
         iconBox.appendChild(icon);
 
         var textBox = document.createElement('div');
@@ -438,7 +396,6 @@
 
         content.appendChild(iconBox);
         content.appendChild(textBox);
-
         panel.appendChild(content);
 
         var bottomLine = document.createElement('div');
@@ -450,7 +407,6 @@
             'linear-gradient(90deg, ' + accent + '90, transparent)';
 
         panel.appendChild(bottomLine);
-
         document.body.appendChild(panel);
 
         state.notice = panel;
@@ -538,7 +494,6 @@
 
         var trackTitle = getTrackTitle(result);
         var artist = getTrackArtist(result);
-
         var heading = '';
 
         if (trackTitle && artist) {
@@ -851,7 +806,6 @@
 
     function abortRequest() {
         var xhr = state.request;
-
         state.request = null;
 
         if (!xhr) return;
@@ -1237,12 +1191,7 @@
         }, token, generation);
     }
 
-    function handleYouTubeFailure(
-        token,
-        generation,
-        reason,
-        code
-    ) {
+    function handleYouTubeFailure(token, generation, reason, code) {
         if (
             token !== state.token ||
             generation !== state.youtubeGeneration ||
@@ -1305,7 +1254,6 @@
         clearPlayTimeout();
 
         var player = state.audio;
-
         state.audio = null;
 
         if (!player) return;
@@ -1437,12 +1385,7 @@
         return player;
     }
 
-    function handleAudioFailure(
-        token,
-        player,
-        reason,
-        code
-    ) {
+    function handleAudioFailure(token, player, reason, code) {
         if (
             token !== state.token ||
             state.audio !== player ||
@@ -1477,10 +1420,7 @@
                     !state.readyResult
                 ) return;
 
-                startAudioAttempt(
-                    state.readyResult,
-                    token
-                );
+                startAudioAttempt(state.readyResult, token);
             }, RETRY_DELAY);
 
             return;
@@ -1565,9 +1505,7 @@
                         )
                     ) {
                         setPlaybackState('blocked');
-
                         destroyAudioOnly();
-
                         diagnosticFailure('blocked', 0);
                         return;
                     }
@@ -1700,6 +1638,12 @@
             state.playTimeoutTimer
         );
 
+        /*
+         * Важливо:
+         * lastMovie зберігаємо при вимкненні плагіна.
+         * Для інших причин зупинки очищаємо.
+         */
+
         if (
             reason !== 'disabled' &&
             reason !== 'new_movie'
@@ -1803,7 +1747,6 @@
             if (!isCurrentRequest()) return false;
 
             state.request = null;
-
             return true;
         }
 
@@ -1823,12 +1766,7 @@
                 finishRequest();
 
                 setPlaybackState('error', 'worker_http');
-
-                diagnosticFailure(
-                    'worker_http',
-                    xhr.status
-                );
-
+                diagnosticFailure('worker_http', xhr.status);
                 return;
             }
 
@@ -1896,7 +1834,6 @@
 
         xhr.onabort = function () {
             if (!isCurrentRequest()) return;
-
             state.request = null;
         };
 
@@ -1995,23 +1932,28 @@
         if (Date.now() < state.navigationGraceUntil) return;
 
         if (isNonFullActivity(activity)) {
-            stopPlayback(
-                'activity_changed_to_' + activity
-            );
+            stopPlayback('activity_changed_to_' + activity);
         }
     }
 
     function handleActivityEvent(event) {
-        if (!state.cardActive) return;
+        /*
+         * НОВЕ:
+         * Якщо плагін увімкнений, але відтворення ще не активне,
+         * перевіряємо можливість відновлення після виходу з Settings.
+         */
+
+        if (!state.cardActive) {
+            restorePlayback();
+            return;
+        }
 
         if (Date.now() < state.navigationGraceUntil) return;
 
         var activity = getActiveActivity();
 
         if (isNonFullActivity(activity)) {
-            stopPlayback(
-                'activity_event_' + activity
-            );
+            stopPlayback('activity_event_' + activity);
         }
     }
 
@@ -2145,6 +2087,14 @@
 
     /*
      * RESTORE PLAYBACK
+     *
+     * ГОЛОВНЕ ВИПРАВЛЕННЯ 1.5.5:
+     *
+     * Якщо користувач увімкнув плагін у Settings,
+     * але Settings ще відкрите, lastMovie НЕ видаляється.
+     *
+     * Відновлення відбудеться автоматично після повернення
+     * до картки фільму.
      */
 
     function restorePlayback() {
@@ -2158,14 +2108,49 @@
 
         var activity = getActiveActivity();
 
+        /*
+         * Не очищаємо lastMovie!
+         * Просто чекаємо, поки користувач вийде з налаштувань.
+         */
+
         if (isNonFullActivity(activity)) {
-            state.lastMovie = null;
             return;
         }
 
         log('Restoring playback:', movie.title);
 
         schedulePlayback(movie);
+    }
+
+    /*
+     * PLUGIN ENABLE / DISABLE
+     */
+
+    function setPluginEnabled(enabled) {
+        storageSet('enabled', !!enabled);
+
+        if (!enabled) {
+            log('Plugin disabled');
+
+            /*
+             * stopPlayback зберігає lastMovie,
+             * оскільки причина — disabled.
+             */
+
+            stopPlayback('disabled');
+
+            return;
+        }
+
+        log('Plugin enabled');
+
+        /*
+         * Спробуємо відновити негайно.
+         * Якщо зараз Settings, restorePlayback нічого
+         * не видалить — таймер повторить спробу.
+         */
+
+        restorePlayback();
     }
 
     /*
@@ -2203,10 +2188,7 @@
             if (
                 value &&
                 typeof value === 'object' &&
-                Object.prototype.hasOwnProperty.call(
-                    value,
-                    'value'
-                )
+                Object.prototype.hasOwnProperty.call(value, 'value')
             ) {
                 return value.value;
             }
@@ -2214,12 +2196,7 @@
             return value;
         }
 
-        function addTrigger(
-            key,
-            title,
-            description,
-            callback
-        ) {
+        function addTrigger(key, title, description, callback) {
             addParam({
                 param: {
                     name: PREFIX + key,
@@ -2247,13 +2224,7 @@
             });
         }
 
-        function addSelect(
-            key,
-            title,
-            description,
-            values,
-            callback
-        ) {
+        function addSelect(key, title, description, values, callback) {
             addParam({
                 param: {
                     name: PREFIX + key,
@@ -2281,13 +2252,7 @@
             'enabled',
             'Увімкнути Kinorium OST',
             'Автоматично відтворювати саундтреки фільмів і серіалів',
-            function (enabled) {
-                if (!enabled) {
-                    stopPlayback('disabled');
-                } else {
-                    restorePlayback();
-                }
-            }
+            setPluginEnabled
         );
 
         addTrigger(
@@ -2400,34 +2365,32 @@
 
         registerSettings();
 
-        Lampa.Listener.follow(
-            'full',
-            handleFullEvent
-        );
+        Lampa.Listener.follow('full', handleFullEvent);
+        Lampa.Listener.follow('activity', handleActivityEvent);
 
-        Lampa.Listener.follow(
-            'activity',
-            handleActivityEvent
-        );
+        /*
+         * Єдиний цикл моніторингу:
+         * 1. Контролює вихід із картки.
+         * 2. Перевіряє відновлення після ввімкнення.
+         *
+         * Саме це дозволяє не перезавантажувати Lampa.
+         */
 
-        state.navigationTimer = setInterval(
-            monitorNavigation,
-            250
-        );
-
-        window.addEventListener(
-            'pagehide',
-            function () {
-                stopPlayback('pagehide');
+        state.navigationTimer = setInterval(function () {
+            if (state.cardActive) {
+                monitorNavigation();
+            } else if (setting('enabled') && state.lastMovie) {
+                restorePlayback();
             }
-        );
+        }, 250);
 
-        window.addEventListener(
-            'beforeunload',
-            function () {
-                stopPlayback('beforeunload');
-            }
-        );
+        window.addEventListener('pagehide', function () {
+            stopPlayback('pagehide');
+        });
+
+        window.addEventListener('beforeunload', function () {
+            stopPlayback('beforeunload');
+        });
 
         console.log(
             '[Kinorium OST] ' + VERSION + ' initialized'
