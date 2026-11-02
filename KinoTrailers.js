@@ -2,7 +2,7 @@
     'use strict';
 
     /*
-     * КІНОТРЕЙЛЕРИ 2.0
+     * КІНОТРЕЙЛЕРИ 2.1
      *
      * Lampa / Android TV / Mobile
      *
@@ -17,14 +17,15 @@
      * - Metadata prefetch
      * - Mobile swipe
      * - Automatic trailer switching
+     * - Native Lampa Favorites
      *
-     * OPTIMIZED:
-     * - Fixed pagination
-     * - Fixed player lifecycle
-     * - Stale callback protection
-     * - Message source validation
-     * - Safe cache callbacks
-     * - Timer cleanup
+     * 2.1 CHANGES:
+     * - Netflix-style Add to Favorites button
+     * - Native Lampa.Favorite integration
+     * - Favorite state detection
+     * - Add / remove from Bookmarks
+     * - Favorite button does not open movie card
+     * - Remote control focus support
      */
 
     if (!window.Lampa || !window.$) return;
@@ -61,6 +62,10 @@
     try {
         bridgeOrigin = new URL(BASE, location.href).origin;
     } catch (e) {}
+
+    // --------------------------------------------------
+    // CSS
+    // --------------------------------------------------
 
     var css = '' +
         '.tfeed{position:fixed;left:0;top:0;width:100%;height:100%;background:#000;overflow:hidden;z-index:9999}' +
@@ -104,6 +109,38 @@
         '.tfeed__descr{font-size:1.15em;opacity:.76;margin-top:.65em;max-width:70%;' +
             'display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}' +
 
+        /*
+         * NETFLIX STYLE FAVORITE BUTTON
+         */
+
+        '.tfeed__actions{display:flex;align-items:center;gap:.8em;margin-top:1.25em;position:relative;z-index:15}' +
+
+        '.tfeed__favorite{' +
+            'display:inline-flex;align-items:center;justify-content:center;gap:.65em;' +
+            'min-height:2.8em;padding:.65em 1.35em;' +
+            'border:0;border-radius:.35em;' +
+            'background:#fff;color:#111;' +
+            'font-size:1.08em;font-weight:700;' +
+            'font-family:inherit;line-height:1;' +
+            'cursor:pointer;outline:none;' +
+            'transition:background .2s,transform .2s,box-shadow .2s' +
+        '}' +
+
+        '.tfeed__favorite svg{width:1.35em;height:1.35em;flex-shrink:0;display:block}' +
+
+        '.tfeed__favorite--added{' +
+            'background:rgba(255,255,255,.16);' +
+            'color:#fff;' +
+            'border:1px solid rgba(255,255,255,.5)' +
+        '}' +
+
+        '.tfeed__favorite.focus,.tfeed__favorite:focus{' +
+            'transform:scale(1.04);' +
+            'box-shadow:0 0 0 .18em rgba(255,255,255,.85)' +
+        '}' +
+
+        '.tfeed__favorite:active{transform:scale(.97)}' +
+
         '.tfeed__hint{font-size:1em;opacity:.5;margin-top:1.2em}' +
 
         '.tfeed__status{position:absolute;left:50%;top:45%;transform:translate(-50%,-50%);' +
@@ -122,6 +159,8 @@
             '.tfeed__poster{width:3.8em;height:5.7em;margin:.35em 0}' +
             '.tfeed__descr{font-size:.95em;max-width:95%;-webkit-line-clamp:3}' +
             '.tfeed__hint{display:none}' +
+            '.tfeed__actions{margin-top:1em}' +
+            '.tfeed__favorite{font-size:.95em;min-height:2.7em;padding:.65em 1.1em}' +
         '}';
 
     // --------------------------------------------------
@@ -241,6 +280,16 @@
                     '<div class="tfeed__title"></div>' +
                     '<div class="tfeed__meta"></div>' +
                     '<div class="tfeed__descr"></div>' +
+
+                    '<div class="tfeed__actions">' +
+                        '<button type="button" class="tfeed__favorite selector">' +
+                            '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+                                '<path d="M12 5v14M5 12h14"/>' +
+                            '</svg>' +
+                            '<span>До обраного</span>' +
+                        '</button>' +
+                    '</div>' +
+
                     '<div class="tfeed__hint">' + hintText + '</div>' +
                 '</div>' +
             '</div>'
@@ -327,6 +376,8 @@
             html.find('.tfeed__chip').text(
                 TYPES[type] + ' · ' + genreTitle(type, genre)
             );
+
+            updateFavoriteButton(null);
         }
 
         // --------------------------------------------------
@@ -396,9 +447,6 @@
 
                         var pages = Math.max(1, json.total_pages || 1);
 
-                        // Якщо випадкова сторінка перевищує реальну
-                        // кількість сторінок — завантажуємо останню.
-
                         if (target > pages && !retry) {
                             request(pages, true);
                             return;
@@ -414,8 +462,6 @@
                         });
 
                         shuffleArray(newItems);
-
-                        // Захист від дублювання карток.
 
                         var existing = {};
 
@@ -560,6 +606,137 @@
                     }
                 );
             }, cb);
+        }
+
+        // --------------------------------------------------
+        // FAVORITES
+        // --------------------------------------------------
+
+        /*
+         * Для Lampa потрібна повноцінна картка з методом
+         * movie або tv та джерелом tmdb.
+         *
+         * Не змінюємо оригінальний об'єкт TMDB:
+         * створюємо окрему копію для Favorite.
+         */
+
+        function favoriteCard(item) {
+            if (!item) return null;
+
+            var card = {};
+
+            Object.keys(item).forEach(function (key) {
+                card[key] = item[key];
+            });
+
+            card.method = type;
+            card.source = 'tmdb';
+
+            if (!card.title && card.name) {
+                card.title = card.name;
+            }
+
+            if (!card.name && card.title) {
+                card.name = card.title;
+            }
+
+            return card;
+        }
+
+        function isFavorite(item) {
+            if (!item || !Lampa.Favorite) return false;
+
+            try {
+                var card = favoriteCard(item);
+
+                var state = Lampa.Favorite.check(card);
+
+                return !!(state && state.book);
+            } catch (e) {
+                return false;
+            }
+        }
+
+        function updateFavoriteButton(item) {
+            var button = html.find('.tfeed__favorite');
+
+            if (!button.length) return;
+
+            var icon;
+            var label;
+
+            if (!item) {
+                button.prop('disabled', true);
+                button.removeClass('tfeed__favorite--added');
+                button.attr('aria-label', 'До обраного');
+
+                icon =
+                    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+                        '<path d="M12 5v14M5 12h14"/>' +
+                    '</svg>';
+
+                label = 'До обраного';
+            } else {
+                button.prop('disabled', false);
+
+                if (isFavorite(item)) {
+                    button.addClass('tfeed__favorite--added');
+
+                    icon =
+                        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">' +
+                            '<path d="m5 12 4 4L19 6"/>' +
+                        '</svg>';
+
+                    label = 'В обраному';
+                } else {
+                    button.removeClass('tfeed__favorite--added');
+
+                    icon =
+                        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+                            '<path d="M12 5v14M5 12h14"/>' +
+                        '</svg>';
+
+                    label = 'До обраного';
+                }
+
+                button.attr('aria-label', label);
+            }
+
+            button.html(icon + '<span>' + label + '</span>');
+        }
+
+        function toggleFavorite() {
+            var item = items[index];
+
+            if (!item) return;
+
+            if (!Lampa.Favorite || typeof Lampa.Favorite.toggle !== 'function') {
+                if (Lampa.Noty) {
+                    Lampa.Noty.show('Функція обраного недоступна');
+                }
+
+                return;
+            }
+
+            try {
+                var card = favoriteCard(item);
+
+                Lampa.Favorite.toggle('book', card);
+
+                updateFavoriteButton(item);
+
+                if (Lampa.Noty) {
+                    Lampa.Noty.show(
+                        isFavorite(item)
+                            ? 'Додано до обраного'
+                            : 'Видалено з обраного'
+                    );
+                }
+            } catch (e) {
+                if (Lampa.Noty) {
+                    Lampa.Noty.show('Не вдалося змінити обране');
+                }
+            }
         }
 
         // --------------------------------------------------
@@ -729,8 +906,6 @@
 
             var keep = [items[index]];
 
-            // Готуємо лише один наступний трейлер.
-
             for (
                 var i = index + 1;
                 i < items.length;
@@ -813,8 +988,6 @@
 
                 var p = findPlayer(item);
 
-                // Зупиняємо попередній активний плеєр.
-
                 if (cur && cur !== p) {
                     try {
                         if (cur.yt && cur.ready) {
@@ -852,8 +1025,6 @@
             var active = p === cur;
 
             if (kind === 'error') {
-                // YouTube error 153 — переходимо на iframe bridge.
-
                 if (value === 153 && active) {
                     var item = p.item;
                     var my = seq;
@@ -878,9 +1049,6 @@
                     return;
                 }
             }
-
-            // Події від підготовленого плеєра не керують
-            // поточним відтворенням.
 
             if (!active || p.playSeq !== seq) {
                 return;
@@ -967,8 +1135,6 @@
 
         function onMessage(event) {
             if (!bridgeFrame || !frameId) return;
-
-            // Перевірка джерела повідомлення.
 
             if (event.source !== bridgeFrame.contentWindow) {
                 return;
@@ -1132,6 +1298,10 @@
                     : 'none'
             );
 
+            // Оновлюємо стан кнопки для поточного фільму.
+
+            updateFavoriteButton(item);
+
             logoEl.hide().removeAttr('src');
             titleEl.text('').hide();
 
@@ -1191,8 +1361,6 @@
                     }
                 });
             }
-
-            // Завчасне завантаження наступної сторінки.
 
             if (i >= items.length - META_AHEAD && page < totalPages) {
                 loadPage();
@@ -1331,6 +1499,18 @@
         }
 
         // --------------------------------------------------
+        // FAVORITE BUTTON FOCUS
+        // --------------------------------------------------
+
+        function isFavoriteButtonFocused() {
+            var button = html.find('.tfeed__favorite');
+
+            return button.hasClass('focus') ||
+                button.hasClass('focused') ||
+                button.is(':focus');
+        }
+
+        // --------------------------------------------------
         // CREATE
         // --------------------------------------------------
 
@@ -1342,7 +1522,31 @@
                 openPanel();
             });
 
+            /*
+             * Кнопка обраного:
+             * - зупиняє спливання кліку;
+             * - не відкриває повну картку;
+             * - перемикає штатну закладку Lampa.
+             */
+
+            html.find('.tfeed__favorite')
+                .on('click', function (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+
+                    toggleFavorite();
+                })
+                .on('hover:enter', function (e) {
+                    if (e && e.preventDefault) e.preventDefault();
+
+                    toggleFavorite();
+                });
+
             html.on('click', function (e) {
+                if ($(e.target).closest('.tfeed__favorite').length) {
+                    return;
+                }
+
                 if ($(e.target).closest('.tfeed__info').length) {
                     openCurrentCard();
                 } else {
@@ -1439,7 +1643,13 @@
 
                 right: openPanel,
 
-                enter: openCurrentCard,
+                enter: function () {
+                    if (isFavoriteButtonFocused()) {
+                        toggleFavorite();
+                    } else {
+                        openCurrentCard();
+                    }
+                },
 
                 back: function () {
                     Lampa.Activity.backward();
@@ -1502,6 +1712,8 @@
             window.removeEventListener('message', onMessage);
 
             html.off();
+
+            html.find('.tfeed__favorite').off();
 
             html.remove();
         };
