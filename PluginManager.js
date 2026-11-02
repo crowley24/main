@@ -56,6 +56,12 @@ var CATEGORIES = [
         icon: 'play',
         plugins: [
             {
+                id: 'interface+',
+                name: 'Interface+',
+                description: 'Кастомізація головної сторінки в стилі Netflix',
+                url: 'https://crowley24.github.io/main/Interface+.js'
+            },
+            {
                 id: 'Uakino',
                 name: 'UaKino',
                 description: 'Автоматичне програвання фільмів та серіалів з uakino.ax',
