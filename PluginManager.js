@@ -142,6 +142,12 @@ var CATEGORIES = [
                 url: 'https://crowley24.github.io/main/Channels_sort.js'
             },
             {
+                id: 'KinoTrailers',
+                name: 'KinoTrailers',
+                description: 'Перегляд трейлерів гортанням/свайпом вверх/вниз',
+                url: 'https://crowley24.github.io/main/KinoTrailers.js'
+            },
+            {
                 id: 'Bookmarks',
                 name: 'Personal Bookmarks',
                 description: 'Персональні папки в меню "Вибране"',
