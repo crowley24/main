@@ -1,8 +1,9 @@
+
 (function () {
     'use strict';
 
     /*
-     * KINORIUM OST 1.5.3
+     * KINORIUM OST 1.5.4
      *
      * Lampa / Android TV / Mobile
      * Cloudflare Worker 1.6.2+
@@ -12,26 +13,39 @@
      * - Custom catalog: OSTMusic and YouTube
      * - Direct audio files
      *
-     * FEATURES:
-     * - Custom catalog support
-     * - Automatic movie and series soundtrack search
-     * - YouTube and HTML5 Audio playback
-     * - Volume control and smooth fade-in
-     * - Adjustable startup delay
-     * - Automatic repeat
-     * - Playback retry
-     * - Startup timeout
-     * - Track title diagnostics
-     * - Navigation and stale-request protection
-     * - Minimal premium notifications
+     * VERSION 1.5.4:
+     * - Global initialization protection
+     * - Improved YouTube API timeout handling
+     * - Unified playback failure handling
+     * - Retry after startup timeout
+     * - Improved Worker network error detection
+     * - Improved activity monitoring
+     * - Playback restoration after enabling
+     * - Improved live volume and fade control
+     * - Native HTML5 audio repeat
+     * - Extended YouTube URL support
+     * - Smaller premium notifications
+     * - Improved timer and player cleanup
+     * - Removed unused code
      */
 
-    var VERSION = '1.5.3';
+    var VERSION = '1.5.4';
 
     var WORKER =
         'https://kinorium-ost.unclezhenya24.workers.dev/';
 
     var PREFIX = 'kinorium_ost_';
+
+    /*
+     * GLOBAL INITIALIZATION PROTECTION
+     */
+
+    if (
+        window.kinorium_ost_ready ||
+        window.kinorium_ost_init_pending
+    ) return;
+
+    window.kinorium_ost_init_pending = true;
 
     var DEFAULTS = {
         enabled: true,
@@ -44,7 +58,7 @@
     };
 
     var MAX_PLAY_RETRIES = 1;
-    var RETRY_DELAY = 1000;
+    var RETRY_DELAY = 1200;
     var PLAY_START_TIMEOUT = 20000;
     var NOTICE_DURATION = 3500;
 
@@ -71,6 +85,7 @@
 
         movie: null,
         movieKey: '',
+        lastMovie: null,
         track: null,
 
         token: 0,
@@ -85,11 +100,6 @@
         playbackStarted: false,
         playbackState: 'idle',
         playAttempt: 0,
-
-        fadeStartedAt: 0,
-        fadeStartVolume: 0,
-        fadeTargetVolume: 0,
-        fadeDurationMs: 0,
 
         notice: null,
         noticeTimer: null,
@@ -228,7 +238,7 @@
         var match;
 
         match = url.match(
-            /(?:youtube\.com\/watch\?(?:[^#]*&)?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/)([a-zA-Z0-9_-]{11})/
+            /(?:youtube\.com\/watch\?(?:[^#]*&)?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/|youtube\.com\/live\/|youtube-nocookie\.com\/embed\/)([a-zA-Z0-9_-]{11})/
         );
 
         if (match) return match[1];
@@ -242,7 +252,9 @@
                 host === 'youtube.com' ||
                 host === 'www.youtube.com' ||
                 host === 'm.youtube.com' ||
-                host === 'music.youtube.com'
+                host === 'music.youtube.com' ||
+                host === 'youtube-nocookie.com' ||
+                host === 'www.youtube-nocookie.com'
             ) {
                 var id = parsed.searchParams.get('v');
 
@@ -264,11 +276,11 @@
             result.track && result.track.source || ''
         ).toLowerCase();
 
-        if (source === 'youtube' || trackSource === 'youtube') {
-            return true;
-        }
-
-        return !!getYouTubeVideoId(result.audioUrl || '');
+        return (
+            source === 'youtube' ||
+            trackSource === 'youtube' ||
+            !!getYouTubeVideoId(result.audioUrl || '')
+        );
     }
 
     /*
@@ -297,14 +309,13 @@
     }
 
     /*
-     * PREMIUM NOTICE DESIGN 1.5.3
+     * COMPACT PREMIUM NOTIFICATION 1.5.4
      *
-     * - No technical branding
-     * - No movie title or year in playback notifications
-     * - Track / artist information
-     * - Dark translucent background
-     * - Soft accent colors
-     * - Compact icon and two-line layout
+     * - Compact dimensions
+     * - Minimal icon
+     * - Smaller typography
+     * - Translucent dark glass
+     * - Soft accent
      * - Smooth entrance and exit
      */
 
@@ -321,10 +332,10 @@
         var noticeToken = state.noticeToken;
 
         var colors = {
-            info: '#8db9e8',
-            success: '#77d5b3',
-            warning: '#e5bd73',
-            error: '#e58b83'
+            info: '#91bce8',
+            success: '#83d8b6',
+            warning: '#e6c17e',
+            error: '#e9958d'
         };
 
         var icons = {
@@ -335,31 +346,32 @@
         };
 
         var accent = colors[type] || colors.info;
+
         var panel = document.createElement('div');
 
         panel.setAttribute('data-kinorium-ost-notice', 'true');
 
         var styles = {
             position: 'fixed',
-            top: 'max(22px, env(safe-area-inset-top))',
-            right: 'max(22px, env(safe-area-inset-right))',
+            top: 'max(16px, env(safe-area-inset-top))',
+            right: 'max(16px, env(safe-area-inset-right))',
             zIndex: '2147483000',
-            width: 'min(370px, calc(100vw - 32px))',
+            width: 'min(290px, calc(100vw - 32px))',
             boxSizing: 'border-box',
-            padding: '15px 16px 13px',
-            borderRadius: '16px',
+            padding: '10px 12px 9px',
+            borderRadius: '12px',
             background: 'linear-gradient(135deg, rgba(29,35,45,0.96), rgba(17,21,29,0.97))',
-            border: '1px solid rgba(255,255,255,0.10)',
+            border: '1px solid rgba(255,255,255,0.09)',
             color: '#f5f7fa',
             fontFamily: 'Arial, sans-serif',
-            boxShadow: '0 14px 42px rgba(0,0,0,0.42)',
+            boxShadow: '0 8px 28px rgba(0,0,0,0.35)',
             opacity: '0',
-            transform: 'translateY(-10px) scale(0.985)',
-            transition: 'opacity 240ms ease, transform 240ms cubic-bezier(0.2,0.75,0.25,1)',
+            transform: 'translateY(-7px) scale(0.985)',
+            transition: 'opacity 220ms ease, transform 220ms cubic-bezier(0.2,0.75,0.25,1)',
             pointerEvents: 'none',
             overflow: 'hidden',
-            backdropFilter: 'blur(16px)',
-            WebkitBackdropFilter: 'blur(16px)'
+            backdropFilter: 'blur(14px)',
+            WebkitBackdropFilter: 'blur(14px)'
         };
 
         Object.keys(styles).forEach(function (key) {
@@ -370,22 +382,21 @@
 
         content.style.display = 'flex';
         content.style.alignItems = 'center';
-        content.style.gap = '12px';
+        content.style.gap = '9px';
 
         var iconBox = document.createElement('div');
 
-        iconBox.style.width = '46px';
-        iconBox.style.height = '46px';
-        iconBox.style.minWidth = '46px';
-        iconBox.style.boxSizing = 'border-box';
+        iconBox.style.width = '34px';
+        iconBox.style.height = '34px';
+        iconBox.style.minWidth = '34px';
         iconBox.style.display = 'flex';
         iconBox.style.alignItems = 'center';
         iconBox.style.justifyContent = 'center';
-        iconBox.style.borderRadius = '12px';
-        iconBox.style.background = 'rgba(119,213,179,0.10)';
-        iconBox.style.border = '1px solid ' + accent + '33';
+        iconBox.style.borderRadius = '9px';
+        iconBox.style.background = accent + '15';
+        iconBox.style.border = '1px solid ' + accent + '30';
         iconBox.style.color = accent;
-        iconBox.style.fontSize = '25px';
+        iconBox.style.fontSize = '19px';
         iconBox.style.lineHeight = '1';
 
         var icon = document.createElement('span');
@@ -404,7 +415,7 @@
 
             heading.textContent = String(title);
             heading.style.color = '#f5f7fa';
-            heading.style.fontSize = '14px';
+            heading.style.fontSize = '12px';
             heading.style.fontWeight = '600';
             heading.style.lineHeight = '1.4';
             heading.style.overflowWrap = 'anywhere';
@@ -416,10 +427,10 @@
             var description = document.createElement('div');
 
             description.textContent = String(message);
-            description.style.color = '#a6afbd';
-            description.style.fontSize = '12px';
-            description.style.lineHeight = '1.5';
-            description.style.marginTop = title ? '3px' : '0';
+            description.style.color = '#aab3c0';
+            description.style.fontSize = '10px';
+            description.style.lineHeight = '1.45';
+            description.style.marginTop = title ? '2px' : '0';
             description.style.overflowWrap = 'anywhere';
 
             textBox.appendChild(description);
@@ -433,14 +444,15 @@
         var bottomLine = document.createElement('div');
 
         bottomLine.style.height = '2px';
-        bottomLine.style.marginTop = '12px';
+        bottomLine.style.marginTop = '8px';
         bottomLine.style.borderRadius = '2px';
         bottomLine.style.background =
-            'linear-gradient(90deg, ' + accent + ', transparent)';
+            'linear-gradient(90deg, ' + accent + '90, transparent)';
 
         panel.appendChild(bottomLine);
 
         document.body.appendChild(panel);
+
         state.notice = panel;
 
         var reveal = function () {
@@ -466,7 +478,7 @@
             ) return;
 
             panel.style.opacity = '0';
-            panel.style.transform = 'translateY(-8px) scale(0.985)';
+            panel.style.transform = 'translateY(-5px) scale(0.985)';
 
             state.noticeTimer = setTimeout(function () {
                 if (
@@ -475,7 +487,7 @@
                 ) {
                     removeNotice();
                 }
-            }, 260);
+            }, 240);
         }, Math.max(500, duration || NOTICE_DURATION));
     }
 
@@ -521,14 +533,6 @@
         ).trim();
     }
 
-    /*
-     * SUCCESS NOTIFICATION
-     *
-     * Shows the track and artist when available.
-     * Movie title and release year are deliberately omitted.
-     * Successful-playback notification remains enabled in debug mode.
-     */
-
     function diagnosticPlaying(result) {
         if (!setting('debug') || !state.cardActive) return;
 
@@ -547,12 +551,7 @@
             heading = 'Саундтрек';
         }
 
-        showNotice(
-            heading,
-            '',
-            'success',
-            4000
-        );
+        showNotice(heading, '', 'success', 4000);
     }
 
     function diagnosticNotFound(result) {
@@ -676,7 +675,9 @@
             break;
         }
 
-        var type = String(movie.media_type || movie.type || '').toLowerCase();
+        var type = String(
+            movie.media_type || movie.type || ''
+        ).toLowerCase();
 
         var series = (
             type === 'tv' ||
@@ -752,7 +753,9 @@
 
             if (!active) return '';
 
-            if (typeof active === 'string') return active.toLowerCase();
+            if (typeof active === 'string') {
+                return active.toLowerCase();
+            }
 
             var fields = [
                 active.component,
@@ -762,7 +765,10 @@
             ];
 
             for (var i = 0; i < fields.length; i++) {
-                if (typeof fields[i] === 'string' && fields[i]) {
+                if (
+                    typeof fields[i] === 'string' &&
+                    fields[i]
+                ) {
                     return fields[i].toLowerCase();
                 }
             }
@@ -845,6 +851,7 @@
 
     function abortRequest() {
         var xhr = state.request;
+
         state.request = null;
 
         if (!xhr) return;
@@ -862,14 +869,10 @@
      * YOUTUBE API LOADER
      */
 
-    function loadYouTubeAPI(callback) {
+    function loadYouTubeAPI(callback, token, generation) {
         if (window.YT && window.YT.Player) {
             callback();
             return;
-        }
-
-        if (typeof state.youtubeApiTimer === 'function') {
-            // No-op: the API loader uses a timer ID below.
         }
 
         if (!document.querySelector(
@@ -885,7 +888,7 @@
             if (first && first.parentNode) {
                 first.parentNode.insertBefore(script, first);
             } else {
-                document.head.appendChild(script);
+                (document.head || document.body).appendChild(script);
             }
         }
 
@@ -896,9 +899,20 @@
         }
 
         state.youtubeApiTimer = setInterval(function () {
+            if (
+                token !== state.token ||
+                generation !== state.youtubeGeneration ||
+                !state.cardActive
+            ) {
+                clearInterval(state.youtubeApiTimer);
+                state.youtubeApiTimer = null;
+                return;
+            }
+
             if (window.YT && window.YT.Player) {
                 clearInterval(state.youtubeApiTimer);
                 state.youtubeApiTimer = null;
+
                 callback();
                 return;
             }
@@ -907,10 +921,12 @@
                 clearInterval(state.youtubeApiTimer);
                 state.youtubeApiTimer = null;
 
-                if (state.cardActive) {
-                    setPlaybackState('error', 'youtube_api_timeout');
-                    diagnosticFailure('youtube_api_timeout', 0);
-                }
+                handleYouTubeFailure(
+                    token,
+                    generation,
+                    'api_timeout',
+                    0
+                );
             }
         }, 200);
     }
@@ -969,7 +985,7 @@
         } catch (e) {}
     }
 
-    function startYouTubeFade(token, generation) {
+    function startYouTubeFade(token, generation, startVolume) {
         if (state.youtubeVolumeTimer !== null) {
             clearInterval(state.youtubeVolumeTimer);
             state.youtubeVolumeTimer = null;
@@ -983,9 +999,15 @@
             return;
         }
 
+        var initial = typeof startVolume === 'number'
+            ? startVolume
+            : 0;
+
+        initial = clamp(initial, 0, 100);
+
         var startedAt = Date.now();
 
-        setYouTubeVolume(0);
+        setYouTubeVolume(initial);
 
         state.youtubeVolumeTimer = setInterval(function () {
             if (
@@ -1007,7 +1029,9 @@
 
             var eased = progress * progress * (3 - 2 * progress);
 
-            setYouTubeVolume(target * eased);
+            setYouTubeVolume(
+                initial + (target - initial) * eased
+            );
 
             if (progress >= 1) {
                 setYouTubeVolume(target);
@@ -1029,7 +1053,6 @@
 
         clearPlaybackTimers();
         destroyAudioOnly();
-
         removeYouTubePlayer();
 
         state.playbackStarted = false;
@@ -1042,7 +1065,10 @@
 
         var container = document.createElement('div');
 
-        container.setAttribute('data-kinorium-ost-youtube', 'true');
+        container.setAttribute(
+            'data-kinorium-ost-youtube',
+            'true'
+        );
 
         container.style.position = 'fixed';
         container.style.left = '0';
@@ -1056,7 +1082,8 @@
 
         var playerElement = document.createElement('div');
 
-        playerElement.id = 'kinorium-ost-youtube-' + token + '-' + generation;
+        playerElement.id =
+            'kinorium-ost-youtube-' + token + '-' + generation;
 
         container.appendChild(playerElement);
         document.body.appendChild(container);
@@ -1073,10 +1100,12 @@
                 state.playbackStarted
             ) return;
 
-            setPlaybackState('error', 'startup_timeout');
-            diagnosticFailure('startup_timeout', 0);
-
-            removeYouTubePlayer();
+            handleYouTubeFailure(
+                token,
+                generation,
+                'startup_timeout',
+                0
+            );
         }, PLAY_START_TIMEOUT);
 
         loadYouTubeAPI(function () {
@@ -1115,7 +1144,9 @@
 
                                 try {
                                     event.target.setVolume(
-                                        setting('fade') ? 0 : targetVolume()
+                                        setting('fade')
+                                            ? 0
+                                            : targetVolume()
                                     );
 
                                     event.target.playVideo();
@@ -1131,18 +1162,19 @@
                                     !state.cardActive
                                 ) return;
 
-                                // YT.PlayerState.PLAYING === 1
                                 if (event.data === 1) {
                                     clearPlayTimeout();
 
                                     if (!state.playbackStarted) {
                                         state.playbackStarted = true;
+
                                         setPlaybackState('playing');
 
                                         if (setting('fade')) {
                                             startYouTubeFade(
                                                 token,
-                                                generation
+                                                generation,
+                                                0
                                             );
                                         } else {
                                             setYouTubeVolume(targetVolume());
@@ -1152,7 +1184,6 @@
                                     }
                                 }
 
-                                // YT.PlayerState.ENDED === 0
                                 if (
                                     event.data === 0 &&
                                     setting('repeat') &&
@@ -1166,7 +1197,6 @@
                                     }
                                 }
 
-                                // YT.PlayerState.PAUSED === 2
                                 if (
                                     event.data === 2 &&
                                     state.playbackStarted
@@ -1182,13 +1212,12 @@
                                     !state.cardActive
                                 ) return;
 
-                                clearPlayTimeout();
-
                                 log('YouTube error:', event.data);
 
                                 handleYouTubeFailure(
                                     token,
                                     generation,
+                                    'youtube_error',
                                     event.data
                                 );
                             }
@@ -1198,26 +1227,36 @@
             } catch (e) {
                 log('YouTube Player construction error:', e);
 
-                clearPlayTimeout();
-
-                setPlaybackState('error', 'youtube_error');
-                diagnosticFailure('youtube_error', 0);
-
-                removeYouTubePlayer();
+                handleYouTubeFailure(
+                    token,
+                    generation,
+                    'youtube_error',
+                    0
+                );
             }
-        });
+        }, token, generation);
     }
 
-    function handleYouTubeFailure(token, generation, code) {
+    function handleYouTubeFailure(
+        token,
+        generation,
+        reason,
+        code
+    ) {
         if (
             token !== state.token ||
             generation !== state.youtubeGeneration ||
             !state.cardActive
         ) return;
 
-        state.playbackStarted = false;
-
         clearPlayTimeout();
+
+        if (state.youtubeApiTimer !== null) {
+            clearInterval(state.youtubeApiTimer);
+            state.youtubeApiTimer = null;
+        }
+
+        state.playbackStarted = false;
 
         if (
             state.playAttempt < MAX_PLAY_RETRIES &&
@@ -1244,9 +1283,15 @@
             return;
         }
 
-        setPlaybackState('error', 'youtube_error');
+        setPlaybackState('error', reason);
 
-        diagnosticFailure('youtube_error', code);
+        if (reason === 'startup_timeout') {
+            diagnosticFailure('startup_timeout', 0);
+        } else if (reason === 'api_timeout') {
+            diagnosticFailure('youtube_api_timeout', 0);
+        } else {
+            diagnosticFailure('youtube_error', code);
+        }
 
         removeYouTubePlayer();
     }
@@ -1260,6 +1305,7 @@
         clearPlayTimeout();
 
         var player = state.audio;
+
         state.audio = null;
 
         if (!player) return;
@@ -1339,7 +1385,9 @@
 
         player.preload = 'auto';
         player.loop = setting('repeat');
-        player.volume = setting('fade') ? 0 : targetAudioVolume();
+        player.volume = setting('fade')
+            ? 0
+            : targetAudioVolume();
 
         state.audio = player;
 
@@ -1354,6 +1402,7 @@
 
             if (!state.playbackStarted) {
                 state.playbackStarted = true;
+
                 setPlaybackState('playing');
 
                 if (setting('fade')) {
@@ -1373,36 +1422,27 @@
                 !state.cardActive
             ) return;
 
-            clearPlayTimeout();
-
             var code = player.error ? player.error.code : 0;
 
             log('Audio error:', code);
 
-            handleAudioFailure(token, player, 'media_error', code);
-        });
-
-        player.addEventListener('ended', function () {
-            if (
-                token !== state.token ||
-                state.audio !== player ||
-                !state.cardActive
-            ) return;
-
-            if (setting('repeat')) {
-                try {
-                    player.currentTime = 0;
-                    player.play();
-                } catch (e) {
-                    log('Audio repeat error:', e);
-                }
-            }
+            handleAudioFailure(
+                token,
+                player,
+                'media_error',
+                code
+            );
         });
 
         return player;
     }
 
-    function handleAudioFailure(token, player, reason, code) {
+    function handleAudioFailure(
+        token,
+        player,
+        reason,
+        code
+    ) {
         if (
             token !== state.token ||
             state.audio !== player ||
@@ -1415,7 +1455,10 @@
         clearPlayTimeout();
 
         if (
-            reason === 'media_error' &&
+            (
+                reason === 'media_error' ||
+                reason === 'startup_timeout'
+            ) &&
             state.playAttempt < MAX_PLAY_RETRIES &&
             state.readyResult
         ) {
@@ -1434,7 +1477,10 @@
                     !state.readyResult
                 ) return;
 
-                startAudioAttempt(state.readyResult, token);
+                startAudioAttempt(
+                    state.readyResult,
+                    token
+                );
             }, RETRY_DELAY);
 
             return;
@@ -1492,7 +1538,10 @@
 
             var promise = player.play();
 
-            if (promise && typeof promise.catch === 'function') {
+            if (
+                promise &&
+                typeof promise.catch === 'function'
+            ) {
                 promise.catch(function (error) {
                     if (
                         token !== state.token ||
@@ -1516,7 +1565,9 @@
                         )
                     ) {
                         setPlaybackState('blocked');
+
                         destroyAudioOnly();
+
                         diagnosticFailure('blocked', 0);
                         return;
                     }
@@ -1642,11 +1693,19 @@
             state.cardActive ||
             state.audio ||
             state.youtubePlayer ||
+            state.youtubeContainer ||
             state.request ||
             state.startTimer ||
             state.retryTimer ||
             state.playTimeoutTimer
         );
+
+        if (
+            reason !== 'disabled' &&
+            reason !== 'new_movie'
+        ) {
+            state.lastMovie = null;
+        }
 
         state.token++;
 
@@ -1669,6 +1728,7 @@
         state.cardActive = false;
         state.openedAt = 0;
         state.navigationGraceUntil = 0;
+        state.lastActivity = '';
 
         state.readyResult = null;
 
@@ -1676,7 +1736,9 @@
         state.playbackState = 'idle';
         state.playAttempt = 0;
 
-        if (wasActive) log('Stopped:', reason || 'unknown');
+        if (wasActive) {
+            log('Stopped:', reason || 'unknown');
+        }
     }
 
     /*
@@ -1737,17 +1799,40 @@
             );
         }
 
+        function finishRequest() {
+            if (!isCurrentRequest()) return false;
+
+            state.request = null;
+
+            return true;
+        }
+
         xhr.onreadystatechange = function () {
             if (xhr.readyState !== 4) return;
             if (!isCurrentRequest()) return;
 
-            state.request = null;
+            if (xhr.status === 0) {
+                finishRequest();
 
-            if (xhr.status < 200 || xhr.status >= 300) {
-                setPlaybackState('error', 'worker_http');
-                diagnosticFailure('worker_http', xhr.status);
+                setPlaybackState('error', 'network');
+                diagnosticFailure('network', 0);
                 return;
             }
+
+            if (xhr.status < 200 || xhr.status >= 300) {
+                finishRequest();
+
+                setPlaybackState('error', 'worker_http');
+
+                diagnosticFailure(
+                    'worker_http',
+                    xhr.status
+                );
+
+                return;
+            }
+
+            finishRequest();
 
             var result;
 
@@ -1796,27 +1881,32 @@
         };
 
         xhr.onerror = function () {
-            if (!isCurrentRequest()) return;
+            if (!finishRequest()) return;
 
-            state.request = null;
             setPlaybackState('error', 'network');
             diagnosticFailure('network', 0);
         };
 
         xhr.ontimeout = function () {
+            if (!finishRequest()) return;
+
+            setPlaybackState('error', 'worker_timeout');
+            diagnosticFailure('worker_timeout', 0);
+        };
+
+        xhr.onabort = function () {
             if (!isCurrentRequest()) return;
 
             state.request = null;
-            setPlaybackState('error', 'worker_timeout');
-            diagnosticFailure('worker_timeout', 0);
         };
 
         try {
             xhr.send();
         } catch (e) {
-            if (!isCurrentRequest()) return;
+            if (!finishRequest()) return;
 
-            state.request = null;
+            log('Worker send error:', e);
+
             setPlaybackState('error', 'network');
             diagnosticFailure('network', 0);
         }
@@ -1837,20 +1927,30 @@
     function schedulePlayback(movie) {
         if (!movie || !movie.title) return;
 
-        if (!setting('enabled')) return;
+        if (!setting('enabled')) {
+            state.lastMovie = movie;
+            return;
+        }
 
         var key = getMovieKey(movie);
 
-        if (state.cardActive && state.movieKey === key) return;
+        if (
+            state.cardActive &&
+            state.movieKey === key
+        ) return;
 
         stopPlayback('new_movie');
 
         state.movie = movie;
+        state.lastMovie = movie;
         state.movieKey = key;
+
         state.cardActive = true;
 
         state.openedAt = Date.now();
-        state.navigationGraceUntil = state.openedAt + 1200;
+        state.navigationGraceUntil =
+            state.openedAt + 1200;
+
         state.lastActivity = getActiveActivity();
 
         state.readyResult = null;
@@ -1882,14 +1982,22 @@
         if (!activity) return;
 
         if (activity !== state.lastActivity) {
-            log('Activity:', state.lastActivity, '->', activity);
+            log(
+                'Activity:',
+                state.lastActivity,
+                '->',
+                activity
+            );
+
             state.lastActivity = activity;
         }
 
         if (Date.now() < state.navigationGraceUntil) return;
 
         if (isNonFullActivity(activity)) {
-            stopPlayback('activity_changed_to_' + activity);
+            stopPlayback(
+                'activity_changed_to_' + activity
+            );
         }
     }
 
@@ -1901,7 +2009,9 @@
         var activity = getActiveActivity();
 
         if (isNonFullActivity(activity)) {
-            stopPlayback('activity_event_' + activity);
+            stopPlayback(
+                'activity_event_' + activity
+            );
         }
     }
 
@@ -1949,26 +2059,43 @@
 
     function applyVolume() {
         if (state.audio && state.playbackStarted) {
-            if (setting('fade') && state.fadeTimer) {
+            if (setting('fade')) {
                 startAudioFade(
                     state.audio,
                     state.token,
                     state.audio.volume
                 );
             } else {
+                clearFadeTimer();
                 state.audio.volume = targetAudioVolume();
             }
         }
 
         if (state.youtubePlayer && state.youtubeReady) {
-            if (setting('fade') && state.playbackStarted) {
+            if (
+                setting('fade') &&
+                state.playbackStarted
+            ) {
                 startYouTubeFade(
                     state.token,
-                    state.youtubeGeneration
+                    state.youtubeGeneration,
+                    getCurrentYouTubeVolume()
                 );
             } else {
                 setYouTubeVolume(targetVolume());
             }
+        }
+    }
+
+    function getCurrentYouTubeVolume() {
+        if (!state.youtubePlayer || !state.youtubeReady) {
+            return 0;
+        }
+
+        try {
+            return state.youtubePlayer.getVolume();
+        } catch (e) {
+            return 0;
         }
     }
 
@@ -1991,7 +2118,9 @@
 
         if (state.youtubePlayer && state.youtubeReady) {
             if (!state.playbackStarted) {
-                setYouTubeVolume(setting('fade') ? 0 : targetVolume());
+                setYouTubeVolume(
+                    setting('fade') ? 0 : targetVolume()
+                );
             } else {
                 applyVolume();
             }
@@ -2012,6 +2141,31 @@
             clearStartTimer();
             tryStart(state.token);
         }
+    }
+
+    /*
+     * RESTORE PLAYBACK
+     */
+
+    function restorePlayback() {
+        if (!setting('enabled')) return;
+
+        if (state.cardActive) return;
+
+        var movie = state.lastMovie;
+
+        if (!movie) return;
+
+        var activity = getActiveActivity();
+
+        if (isNonFullActivity(activity)) {
+            state.lastMovie = null;
+            return;
+        }
+
+        log('Restoring playback:', movie.title);
+
+        schedulePlayback(movie);
     }
 
     /*
@@ -2049,7 +2203,10 @@
             if (
                 value &&
                 typeof value === 'object' &&
-                Object.prototype.hasOwnProperty.call(value, 'value')
+                Object.prototype.hasOwnProperty.call(
+                    value,
+                    'value'
+                )
             ) {
                 return value.value;
             }
@@ -2057,7 +2214,12 @@
             return value;
         }
 
-        function addTrigger(key, title, description, callback) {
+        function addTrigger(
+            key,
+            title,
+            description,
+            callback
+        ) {
             addParam({
                 param: {
                     name: PREFIX + key,
@@ -2085,7 +2247,13 @@
             });
         }
 
-        function addSelect(key, title, description, values, callback) {
+        function addSelect(
+            key,
+            title,
+            description,
+            values,
+            callback
+        ) {
             addParam({
                 param: {
                     name: PREFIX + key,
@@ -2114,7 +2282,11 @@
             'Увімкнути Kinorium OST',
             'Автоматично відтворювати саундтреки фільмів і серіалів',
             function (enabled) {
-                if (!enabled) stopPlayback('disabled');
+                if (!enabled) {
+                    stopPlayback('disabled');
+                } else {
+                    restorePlayback();
+                }
             }
         );
 
@@ -2130,6 +2302,7 @@
             'Гучність',
             'Максимальна гучність фонового аудіо',
             {
+                '0': '0%',
                 '10': '10%',
                 '20': '20%',
                 '30': '30%',
@@ -2222,25 +2395,43 @@
 
         state.initialized = true;
 
+        window.kinorium_ost_init_pending = false;
+        window.kinorium_ost_ready = true;
+
         registerSettings();
 
-        Lampa.Listener.follow('full', handleFullEvent);
-        Lampa.Listener.follow('activity', handleActivityEvent);
+        Lampa.Listener.follow(
+            'full',
+            handleFullEvent
+        );
+
+        Lampa.Listener.follow(
+            'activity',
+            handleActivityEvent
+        );
 
         state.navigationTimer = setInterval(
             monitorNavigation,
             250
         );
 
-        window.addEventListener('pagehide', function () {
-            stopPlayback('pagehide');
-        });
+        window.addEventListener(
+            'pagehide',
+            function () {
+                stopPlayback('pagehide');
+            }
+        );
 
-        window.addEventListener('beforeunload', function () {
-            stopPlayback('beforeunload');
-        });
+        window.addEventListener(
+            'beforeunload',
+            function () {
+                stopPlayback('beforeunload');
+            }
+        );
 
-        console.log('[Kinorium OST] ' + VERSION + ' initialized');
+        console.log(
+            '[Kinorium OST] ' + VERSION + ' initialized'
+        );
     }
 
     init();
