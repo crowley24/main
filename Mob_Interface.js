@@ -1,49 +1,40 @@
+
 (function () {
     'use strict';
 
     /*
      * @name MOB_INTERFACE
-     * @version 3.1.2
+     * @version 3.1.4
      * @author Crowley24
      * @description Minimal Cinematic Premium Mobile Interface
      * @platforms Lampa | Mobile
      *
-     * 3.1.2 CHANGES:
-     * - Removed duplicate year/country above movie logo
-     * - Preserved year/country in metadata row
-     * - Minimal transparent metadata design
-     * - Removed metadata glass panel, background and border
-     * - Thin elegant metadata separators
-     * - Minimal transparent buttons
-     * - Removed button backgrounds, borders and heavy shadows
-     * - Subtle button press animation
-     * - Improved logo shadows and glow
-     * - Refined tagline typography
-     * - Improved poster gradients
-     * - Improved animations
-     * - Age rating completely hidden
-     * - No custom badges or custom ratings
-     * - Native Lampa ratings preserved
-     * - TMDB cache and async request protection
-     * - Safe slideshow timer management
-     *
-     * LOGO SYSTEM:
-     * - Same TMDB logo loading logic as Кінотрейлери
-     * - tmdb_lang > en > null > first available
-     * - Separate TMDB images endpoint
-     * - w500 image quality
-     * - Logo cache and request deduplication
-     * - 20-second request timeout
-     * - Smooth logo appearance
+     * 3.1.4 CHANGES:
+     * - Rebuilt TMDB logo display system
+     * - Logo title hidden immediately while loading
+     * - Exact Кінотрейлери language selection priority
+     * - TMDB images endpoint
+     * - Fixed w500 logo quality
+     * - 20-second API request timeout
+     * - Logo image preload before display
+     * - Shared image preload cache
+     * - Request deduplication
+     * - No custom logo fade or transform animation
+     * - No visible text title while logo is loading
+     * - Native title fallback when no logo is available
+     * - Safe render token protection
+     * - All other interface features preserved
      */
 
-    if (window.MOB_INTERFACE_V312_READY) return;
-    window.MOB_INTERFACE_V312_READY = true;
+    if (window.MOB_INTERFACE_V314_READY) return;
+    window.MOB_INTERFACE_V314_READY = true;
 
     var slideshowTimer = null;
     var detailsCache = {};
     var logoCache = {};
     var logoRequests = {};
+    var logoImageCache = {};
+    var logoImageRequests = {};
     var currentActiveId = null;
     var activeRenderToken = 0;
     var started = false;
@@ -76,35 +67,113 @@
         }
     }
 
-    /*
-     * TMDB LOGO LANGUAGE SELECTION
-     *
-     * Same priority as Кінотрейлери:
-     * 1. User TMDB language
-     * 2. English
-     * 3. No language
-     * 4. First available logo
-     */
+    // --------------------------------------------------
+    // TMDB LOGO LANGUAGE SELECTION
+    // Same priority as Кінотрейлери 2.3
+    // --------------------------------------------------
 
     function pickMovieLogo(logos, lang) {
         if (!logos || !logos.length) return null;
 
-        return logos.find(function (logo) {
-            return logo.iso_639_1 === lang;
-        }) || logos.find(function (logo) {
-            return logo.iso_639_1 === 'en';
-        }) || logos.find(function (logo) {
-            return logo.iso_639_1 === null;
-        }) || logos[0] || null;
+        var order = [
+            lang,
+            'en',
+            null
+        ];
+
+        for (var i = 0; i < order.length; i++) {
+            var found = logos.filter(function (logo) {
+                return logo.iso_639_1 === order[i];
+            })[0];
+
+            if (found) return found;
+        }
+
+        return logos[0] || null;
     }
 
-    /*
-     * TMDB LOGO REQUEST
-     *
-     * Separate images endpoint.
-     * Request deduplication.
-     * Cache by media type, ID and language.
-     */
+    // --------------------------------------------------
+    // LOGO IMAGE PRELOAD
+    // Shared image cache and request deduplication
+    // --------------------------------------------------
+
+    function preloadMovieLogo(url, callback) {
+        if (!url) {
+            callback(null);
+            return;
+        }
+
+        if (
+            Object.prototype.hasOwnProperty.call(
+                logoImageCache,
+                url
+            )
+        ) {
+            callback(logoImageCache[url]);
+            return;
+        }
+
+        if (logoImageRequests[url]) {
+            logoImageRequests[url].push(callback);
+            return;
+        }
+
+        logoImageRequests[url] = [callback];
+
+        var image = new Image();
+        var completed = false;
+
+        var timer = setTimeout(function () {
+            finish(null, false);
+        }, 20000);
+
+        function finish(result, shouldCache) {
+            if (completed) return;
+
+            completed = true;
+
+            clearTimeout(timer);
+
+            var waiters = logoImageRequests[url] || [];
+
+            delete logoImageRequests[url];
+
+            if (shouldCache) {
+                logoImageCache[url] = result;
+
+                var keys = Object.keys(logoImageCache);
+
+                if (keys.length > 100) {
+                    delete logoImageCache[keys[0]];
+                }
+            }
+
+            waiters.forEach(function (waiter) {
+                try {
+                    waiter(result);
+                } catch (e) {}
+            });
+        }
+
+        image.onload = function () {
+            finish(image, true);
+        };
+
+        image.onerror = function () {
+            finish(null, false);
+        };
+
+        image.src = url;
+
+        if (image.complete && image.naturalWidth > 0) {
+            finish(image, true);
+        }
+    }
+
+    // --------------------------------------------------
+    // TMDB LOGO REQUEST
+    // Same request logic as Кінотрейлери 2.3
+    // --------------------------------------------------
 
     function ensureMovieLogo(movie, type, callback) {
         if (!movie || !movie.id) {
@@ -126,18 +195,19 @@
 
         var cacheKey = type + ':' + movie.id + ':' + lang;
 
-        /*
-         * CACHE
-         */
+        // URL CACHE
 
-        if (Object.prototype.hasOwnProperty.call(logoCache, cacheKey)) {
+        if (
+            Object.prototype.hasOwnProperty.call(
+                logoCache,
+                cacheKey
+            )
+        ) {
             callback(logoCache[cacheKey]);
             return;
         }
 
-        /*
-         * WAIT FOR EXISTING REQUEST
-         */
+        // REQUEST DEDUPLICATION
 
         if (logoRequests[cacheKey]) {
             logoRequests[cacheKey].waiters.push(callback);
@@ -152,9 +222,7 @@
 
         logoRequests[cacheKey] = request;
 
-        /*
-         * FINISH REQUEST
-         */
+        // FINISH REQUEST
 
         function finish(url, shouldCache) {
             if (request.finished) return;
@@ -169,10 +237,10 @@
             if (shouldCache) {
                 logoCache[cacheKey] = url || null;
 
-                var cacheKeys = Object.keys(logoCache);
+                var keys = Object.keys(logoCache);
 
-                if (cacheKeys.length > 250) {
-                    delete logoCache[cacheKeys[0]];
+                if (keys.length > 250) {
+                    delete logoCache[keys[0]];
                 }
             }
 
@@ -189,20 +257,13 @@
             });
         }
 
-        /*
-         * REQUEST TIMEOUT
-         *
-         * Timeout result is not cached,
-         * allowing a future retry.
-         */
+        // REQUEST TIMEOUT
 
         request.timer = setTimeout(function () {
             finish(null, false);
         }, 20000);
 
-        /*
-         * TMDB IMAGES REQUEST
-         */
+        // TMDB IMAGES ENDPOINT
 
         try {
             tmdb.get(
@@ -240,6 +301,9 @@
                     );
 
                     finish(logoUrl, true);
+                },
+                function () {
+                    finish(null, false);
                 }
             );
         } catch (e) {
@@ -247,12 +311,30 @@
         }
     }
 
-    /*
-     * MOVIE LOGO DISPLAY
-     *
-     * Keeps native title as fallback.
-     * Logo is displayed only after successful image loading.
-     */
+    // --------------------------------------------------
+    // MOVIE TYPE
+    // --------------------------------------------------
+
+    function getMovieType(movie) {
+        return (
+            movie &&
+            (
+                movie.name ||
+                movie.first_air_date
+            )
+        ) ? 'tv' : 'movie';
+    }
+
+    // --------------------------------------------------
+    // MOVIE LOGO DISPLAY
+    //
+    // Important:
+    // 1. Hide native title immediately.
+    // 2. Wait for TMDB logo.
+    // 3. Preload the actual image.
+    // 4. Display the ready image without animation.
+    // 5. Restore native title only when no logo is available.
+    // --------------------------------------------------
 
     function displayMovieLogo(movie, $render, renderToken) {
         if (
@@ -270,106 +352,105 @@
 
         if (!$title.length) return;
 
-        /*
-         * Remove only our previous logo.
-         * Preserve native title content.
-         */
+        var nativeTitle = $title.contents().detach();
 
-        $title.find('.mi312-movie-logo').remove();
+        // HIDE TITLE IMMEDIATELY
 
-        var type = (
-            movie.name ||
-            movie.first_air_date
-        ) ? 'tv' : 'movie';
+        $title
+            .empty()
+            .removeClass('mi314-logo-ready')
+            .addClass('mi314-logo-pending');
+
+        var type = getMovieType(movie);
+
+        function isCurrent() {
+            return (
+                renderToken === activeRenderToken &&
+                $render[0] &&
+                document.body.contains($render[0])
+            );
+        }
+
+        function restoreNativeTitle() {
+            if (!isCurrent()) return;
+
+            var $finalTitle = $render.find(
+                '.full-start-new__title'
+            ).first();
+
+            if (!$finalTitle.length) return;
+
+            $finalTitle
+                .removeClass('mi314-logo-pending')
+                .removeClass('mi314-logo-ready')
+                .empty()
+                .append(nativeTitle);
+        }
 
         ensureMovieLogo(
             movie,
             type,
             function (logoUrl) {
 
-                /*
-                 * PREVENT OLD CARD UPDATE
-                 */
+                if (!isCurrent()) return;
 
-                if (
-                    renderToken !== activeRenderToken ||
-                    !$render[0] ||
-                    !document.body.contains($render[0])
-                ) {
+                // NO LOGO: RESTORE NATIVE TITLE
+
+                if (!logoUrl) {
+                    restoreNativeTitle();
                     return;
                 }
 
-                if (!logoUrl) return;
+                // PRELOAD ACTUAL IMAGE
 
-                var $currentTitle = $render.find(
-                    '.full-start-new__title'
-                ).first();
+                preloadMovieLogo(
+                    logoUrl,
+                    function (image) {
 
-                if (!$currentTitle.length) return;
+                        if (!isCurrent()) return;
 
-                /*
-                 * PRELOAD LOGO
-                 */
-
-                var image = new Image();
-
-                image.onload = function () {
-
-                    if (
-                        renderToken !== activeRenderToken ||
-                        !$render[0] ||
-                        !document.body.contains($render[0])
-                    ) {
-                        return;
-                    }
-
-                    var $finalTitle = $render.find(
-                        '.full-start-new__title'
-                    ).first();
-
-                    if (!$finalTitle.length) return;
-
-                    var $logo = $(image);
-
-                    $logo
-                        .addClass('mi312-movie-logo')
-                        .attr(
-                            'alt',
-                            movie.title ||
-                            movie.name ||
-                            movie.original_title ||
-                            movie.original_name ||
-                            ''
-                        );
-
-                    /*
-                     * Replace native title only
-                     * after successful image loading.
-                     */
-
-                    $finalTitle.empty().append($logo);
-
-                    requestAnimationFrame(function () {
-                        if (
-                            renderToken !== activeRenderToken ||
-                            !$render[0] ||
-                            !document.body.contains($render[0])
-                        ) {
+                        if (!image) {
+                            restoreNativeTitle();
                             return;
                         }
 
-                        $logo.addClass('is-visible');
-                    });
-                };
+                        var $finalTitle = $render.find(
+                            '.full-start-new__title'
+                        ).first();
 
-                image.onerror = function () {
-                    // Native title remains available if image fails.
-                };
+                        if (!$finalTitle.length) return;
 
-                image.src = logoUrl;
+                        // CREATE DISPLAY IMAGE
+
+                        var $logo = $(image.cloneNode(false));
+
+                        $logo
+                            .addClass('mi314-movie-logo')
+                            .attr(
+                                'alt',
+                                movie.title ||
+                                movie.name ||
+                                movie.original_title ||
+                                movie.original_name ||
+                                ''
+                            );
+
+                        // SHOW READY LOGO
+
+                        $finalTitle
+                            .empty()
+                            .removeClass('mi314-logo-pending')
+                            .addClass('mi314-logo-ready')
+                            .append($logo);
+                    }
+                );
             }
         );
     }
+
+    // --------------------------------------------------
+    // IMAGE DARKNESS DETECTION
+    // --------------------------------------------------
 
     function isImageDark(imgSrc, callback) {
         var img = new Image();
@@ -434,9 +515,9 @@
         img.src = imgSrc;
     }
 
-    /*
-     * DUPLICATE HEADER METADATA CLEANUP
-     */
+    // --------------------------------------------------
+    // DUPLICATE HEADER METADATA CLEANUP
+    // --------------------------------------------------
 
     function hideDuplicateHeaderMetadata($render) {
         if (!$render || !$render.length) return;
@@ -564,9 +645,9 @@
         });
     }
 
-    /*
-     * STYLES
-     */
+    // --------------------------------------------------
+    // STYLES
+    // --------------------------------------------------
 
     function applyStyles() {
         var style = document.getElementById('mobile-interface-styles');
@@ -632,9 +713,7 @@
 
         var css = '';
 
-        /*
-         * ANIMATIONS
-         */
+        // ANIMATIONS
 
         css += '@keyframes kenBurnsEffect{';
         css += '0%{transform:scale(1)}';
@@ -680,9 +759,7 @@
 
         css += '@media screen and (max-width:480px){';
 
-        /*
-         * MAIN CARD
-         */
+        // MAIN CARD
 
         css += '.full-start-new{';
         css += 'position:relative!important;';
@@ -695,9 +772,7 @@
         css += 'display:none!important;';
         css += '}';
 
-        /*
-         * DUPLICATE METADATA
-         */
+        // DUPLICATE METADATA
 
         css += '.full-start-new .mi312-header-meta-hidden{';
         css += 'display:none!important;';
@@ -709,9 +784,7 @@
         css += 'overflow:hidden!important;';
         css += '}';
 
-        /*
-         * AGE RATING
-         */
+        // AGE RATING
 
         css += '.full-start-new .full-start__age,';
         css += '.full-start-new .full-start-new__age,';
@@ -731,9 +804,7 @@
         css += 'display:none!important;';
         css += '}';
 
-        /*
-         * CINEMATIC POSTER
-         */
+        // CINEMATIC POSTER
 
         css += '.full-start-new .full-start-new__poster{';
         css += 'position:relative!important;';
@@ -783,9 +854,7 @@
         css += '-webkit-mask-image:linear-gradient(to bottom,#000 0%,#000 64%,transparent 100%)!important;';
         css += '}';
 
-        /*
-         * MAIN CONTENT
-         */
+        // MAIN CONTENT
 
         css += '.full-start-new .full-start-new__right{';
         css += 'position:relative!important;';
@@ -799,9 +868,7 @@
         css += 'background:none!important;';
         css += '}';
 
-        /*
-         * STUDIO LOGO
-         */
+        // STUDIO LOGO
 
         css += '.full-start-new .studio-header-brand{';
         css += enter;
@@ -829,13 +896,11 @@
         css += 'filter:brightness(0) invert(1) drop-shadow(0 2px 6px rgba(0,0,0,.8))!important;';
         css += '}';
 
-        /*
-         * MOVIE LOGO
-         */
+        // MOVIE LOGO
 
         css += '.full-start-new .full-start-new__title{';
-        css += enter;
-        css += 'animation-delay:.1s;';
+        css += 'animation:none!important;';
+        css += 'animation-delay:0s!important;';
         css += 'order:2;';
         css += 'width:100%!important;';
         css += 'min-height:60px;';
@@ -844,10 +909,21 @@
         css += 'align-items:center!important;';
         css += 'margin:0!important;';
         css += 'overflow:visible!important;';
+        css += 'opacity:1!important;';
+        css += 'transform:none!important;';
         css += '}';
 
-        css += '.full-start-new .full-start-new__title img{';
-        css += 'display:block;';
+        css += '.full-start-new .full-start-new__title.mi314-logo-pending{';
+        css += 'display:none!important;';
+        css += '}';
+
+        css += '.full-start-new .full-start-new__title.mi314-logo-ready{';
+        css += 'display:flex!important;';
+        css += 'visibility:visible!important;';
+        css += '}';
+
+        css += '.full-start-new .full-start-new__title img.mi314-movie-logo{';
+        css += 'display:block!important;';
         css += 'height:auto!important;';
         css += 'max-height:' + lHeight + 'px!important;';
         css += 'width:auto!important;';
@@ -855,27 +931,13 @@
         css += 'object-fit:contain!important;';
         css += 'filter:drop-shadow(0 5px 18px rgba(0,0,0,.95)) drop-shadow(0 0 12px rgba(255,255,255,.08));';
         css += 'margin:0!important;';
-        css += 'transition:filter .4s ease,transform .4s ease;';
+        css += 'opacity:1!important;';
+        css += 'transform:none!important;';
+        css += 'transition:none!important;';
+        css += 'animation:none!important;';
         css += '}';
 
-        /*
-         * SMOOTH TMDB LOGO APPEARANCE
-         */
-
-        css += '.full-start-new .full-start-new__title img.mi312-movie-logo{';
-        css += 'opacity:0;';
-        css += 'transform:translateY(5px) scale(.985);';
-        css += 'transition:opacity .45s ease,transform .45s cubic-bezier(.16,1,.3,1),filter .4s ease;';
-        css += '}';
-
-        css += '.full-start-new .full-start-new__title img.mi312-movie-logo.is-visible{';
-        css += 'opacity:1;';
-        css += 'transform:translateY(0) scale(1);';
-        css += '}';
-
-        /*
-         * TAGLINE
-         */
+        // TAGLINE
 
         css += '.full-start-new .full-start-new__tagline{';
         css += enter;
@@ -895,9 +957,7 @@
         css += 'text-shadow:0 2px 12px rgba(0,0,0,.95);';
         css += '}';
 
-        /*
-         * MINIMAL TRANSPARENT METADATA
-         */
+        // MINIMAL TRANSPARENT METADATA
 
         css += '.full-start-new .plugin-meta-row{';
         css += enter;
@@ -935,9 +995,7 @@
         css += 'opacity:.94;';
         css += '}';
 
-        /*
-         * THIN METADATA SEPARATORS
-         */
+        // THIN METADATA SEPARATORS
 
         css += '.full-start-new .plugin-meta-row .info-separator{';
         css += 'display:inline-block;';
@@ -953,9 +1011,7 @@
         css += 'vertical-align:middle;';
         css += '}';
 
-        /*
-         * NATIVE LAMPA RATINGS
-         */
+        // NATIVE LAMPA RATINGS
 
         css += '.full-start-new .plugin-meta-row .full-start__rates{';
         css += 'display:inline-flex!important;';
@@ -979,9 +1035,7 @@
         css += 'white-space:nowrap!important;';
         css += '}';
 
-        /*
-         * MINIMAL BUTTON CONTAINER
-         */
+        // MINIMAL BUTTON CONTAINER
 
         css += '.full-start-new .full-start-new__buttons{';
         css += enter;
@@ -1001,9 +1055,7 @@
         css += 'box-shadow:none!important;';
         css += '}';
 
-        /*
-         * TRANSPARENT BUTTONS
-         */
+        // TRANSPARENT BUTTONS
 
         css += '.full-start-new .full-start__button{';
         css += 'position:relative;';
@@ -1024,18 +1076,14 @@
         css += 'opacity:.9;';
         css += '}';
 
-        /*
-         * REMOVE BUTTON DECORATIVE GLASS
-         */
+        // REMOVE BUTTON DECORATIVE GLASS
 
         css += '.full-start-new .full-start__button:before{';
         css += 'display:none!important;';
         css += 'content:none!important;';
         css += '}';
 
-        /*
-         * SUBTLE PRESS EFFECT
-         */
+        // SUBTLE PRESS EFFECT
 
         css += '.full-start-new .full-start__button:active{';
         css += 'transform:scale(.94);';
@@ -1045,9 +1093,7 @@
         css += 'opacity:1;';
         css += '}';
 
-        /*
-         * BUTTON ICONS
-         */
+        // BUTTON ICONS
 
         css += '.full-start-new .full-start__button svg,';
         css += '.full-start-new .full-start__button img{';
@@ -1061,9 +1107,7 @@
         css += 'transition:transform .22s ease,filter .22s ease;';
         css += '}';
 
-        /*
-         * BUTTON LABELS
-         */
+        // BUTTON LABELS
 
         css += '.full-start-new .full-start__button span{';
         css += 'position:relative;';
@@ -1089,9 +1133,7 @@
 
         css += '}';
 
-        /*
-         * REDUCED MOTION
-         */
+        // REDUCED MOTION
 
         css += '@media (prefers-reduced-motion:reduce){';
         css += '.full-start-new *{';
@@ -1104,9 +1146,9 @@
         style.textContent = css;
     }
 
-    /*
-     * TIME FORMAT
-     */
+    // --------------------------------------------------
+    // TIME FORMAT
+    // --------------------------------------------------
 
     function formatTime(mins) {
         if (!mins) return '';
@@ -1117,9 +1159,9 @@
         return (h > 0 ? h + 'г ' : '') + m + 'хв';
     }
 
-    /*
-     * METADATA ROW
-     */
+    // --------------------------------------------------
+    // METADATA ROW
+    // --------------------------------------------------
 
     function renderMeta(container, e) {
         container.find('.plugin-meta-row').remove();
@@ -1147,9 +1189,7 @@
                 .appendTo($metaRow);
         }
 
-        /*
-         * YEAR
-         */
+        // YEAR
 
         var date = movie.release_date ||
             movie.first_air_date ||
@@ -1157,9 +1197,7 @@
 
         addText(date ? date.substring(0, 4) : '');
 
-        /*
-         * COUNTRY
-         */
+        // COUNTRY
 
         var country = '';
 
@@ -1180,9 +1218,7 @@
 
         addText(country);
 
-        /*
-         * RUNTIME
-         */
+        // RUNTIME
 
         var runtime = movie.runtime || (
             movie.episode_run_time &&
@@ -1195,9 +1231,7 @@
             addText(formatTime(runtime));
         }
 
-        /*
-         * GENRES
-         */
+        // GENRES
 
         if (movie.genres && movie.genres.length) {
             addText(
@@ -1211,9 +1245,7 @@
             );
         }
 
-        /*
-         * NATIVE LAMPA RATINGS
-         */
+        // NATIVE LAMPA RATINGS
 
         var $card = container.closest('.full-start-new');
         var $nativeRates = $card.find('.full-start__rates').first();
@@ -1247,9 +1279,9 @@
         container.append($metaRow);
     }
 
-    /*
-     * TMDB DETAILS
-     */
+    // --------------------------------------------------
+    // TMDB DETAILS
+    // --------------------------------------------------
 
     function applyMovieDetailsData(
         data,
@@ -1265,9 +1297,7 @@
             return;
         }
 
-        /*
-         * STUDIO LOGO
-         */
+        // STUDIO LOGO
 
         if (Lampa.Storage.get('mobile_interface_studios')) {
             $render.find('.studio-header-brand').remove();
@@ -1330,9 +1360,7 @@
             }
         }
 
-        /*
-         * BACKDROPS
-         */
+        // BACKDROPS
 
         if (data.images && data.images.backdrops) {
             var backdrops = data.images.backdrops.filter(
@@ -1370,25 +1398,18 @@
             }
         }
 
-        /*
-         * RECHECK DUPLICATE METADATA
-         */
+        // RECHECK DUPLICATE METADATA
 
         hideDuplicateHeaderMetadata($render);
     }
 
-    /*
-     * LOAD TMDB DETAILS
-     */
+    // --------------------------------------------------
+    // LOAD TMDB DETAILS
+    // --------------------------------------------------
 
     function loadMovieDetails(movie, $render, renderToken) {
         var movieId = movie.id;
-
-        var type = (
-            movie.name ||
-            movie.first_air_date
-        ) ? 'tv' : 'movie';
-
+        var type = getMovieType(movie);
         var cacheKey = type + ':' + movieId;
 
         currentActiveId = cacheKey;
@@ -1445,14 +1466,14 @@
             },
 
             error: function () {
-                // Помилка TMDB не повинна порушувати роботу картки.
+                // TMDB error must not interrupt card rendering.
             }
         });
     }
 
-    /*
-     * POSTER SLIDESHOW
-     */
+    // --------------------------------------------------
+    // POSTER SLIDESHOW
+    // --------------------------------------------------
 
     function startPosterSlideshow($poster, items, renderToken) {
         if (
@@ -1547,9 +1568,9 @@
         }, intervalTime);
     }
 
-    /*
-     * INITIALIZATION
-     */
+    // --------------------------------------------------
+    // INITIALIZATION
+    // --------------------------------------------------
 
     function init() {
         Lampa.Listener.follow('full', function (e) {
@@ -1597,26 +1618,18 @@
                 window.lampa_settings.blur_poster = false;
             }
 
-            /*
-             * METADATA
-             */
+            // METADATA
 
             renderMeta(
                 $render.find('.full-start-new__right'),
                 e
             );
 
-            /*
-             * HIDE DUPLICATE YEAR/COUNTRY
-             */
+            // HIDE DUPLICATE YEAR/COUNTRY
 
             hideDuplicateHeaderMetadata($render);
 
-            /*
-             * MOVIE LOGO
-             *
-             * Separate loader — same logic as Кінотрейлери.
-             */
+            // TMDB LOGO
 
             displayMovieLogo(
                 movie,
@@ -1624,9 +1637,7 @@
                 renderToken
             );
 
-            /*
-             * TMDB DETAILS
-             */
+            // TMDB DETAILS
 
             loadMovieDetails(
                 movie,
@@ -1636,9 +1647,9 @@
         });
     }
 
-    /*
-     * SETTINGS
-     */
+    // --------------------------------------------------
+    // SETTINGS
+    // --------------------------------------------------
 
     function setupSettings() {
         Lampa.SettingsApi.addComponent({
@@ -1812,9 +1823,9 @@
         });
     }
 
-    /*
-     * START
-     */
+    // --------------------------------------------------
+    // START
+    // --------------------------------------------------
 
     function startPlugin() {
         if (started) return;
@@ -1826,7 +1837,7 @@
         init();
 
         console.log(
-            '[MOB_INTERFACE] 3.1.2 Minimal Cinematic Premium initialized'
+            '[MOB_INTERFACE] 3.1.4 Minimal Cinematic Premium initialized'
         );
     }
 
