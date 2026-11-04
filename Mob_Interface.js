@@ -4,48 +4,36 @@
 
     /*
      * @name MOB_INTERFACE
-     * @version 3.1.4
+     * @version 3.2.1
      * @author Crowley24
-     * @description Minimal Cinematic Premium Mobile Interface
+     * @description Premium Mobile Interface — Logo Animation Only
      * @platforms Lampa | Mobile
      *
-     * 3.1.4 CHANGES:
-     * - Rebuilt TMDB logo display system
-     * - Logo title hidden immediately while loading
-     * - Exact Кінотрейлери language selection priority
-     * - TMDB images endpoint
-     * - Fixed w500 logo quality
-     * - 20-second API request timeout
-     * - Logo image preload before display
-     * - Shared image preload cache
-     * - Request deduplication
-     * - No custom logo fade or transform animation
-     * - No visible text title while logo is loading
-     * - Native title fallback when no logo is available
-     * - Safe render token protection
-     * - All other interface features preserved
+     * 3.2.1 CHANGES:
+     * - Background fade mask moved lower (130%)
+     * - More clear background around studio and movie logos
+     * - Preserved native Lampa background image
+     * - All other features preserved from 3.2.0
      */
 
-    if (window.MOB_INTERFACE_V314_READY) return;
-    window.MOB_INTERFACE_V314_READY = true;
+    if (window.MOB_INTERFACE_V321_READY) return;
+    window.MOB_INTERFACE_V321_READY = true;
 
-    var slideshowTimer = null;
     var detailsCache = {};
     var logoCache = {};
     var logoRequests = {};
     var logoImageCache = {};
     var logoImageRequests = {};
+
     var currentActiveId = null;
     var activeRenderToken = 0;
     var started = false;
 
+    // --------------------------------------------------
+    // SETTINGS
+    // --------------------------------------------------
+
     var settings_list = [
-        { id: 'mobile_interface_animation', default: true },
-        { id: 'mobile_interface_ui_anim', default: true },
-        { id: 'mobile_interface_ui_anim_effect', default: 'cinematic' },
-        { id: 'mobile_interface_slideshow', default: true },
-        { id: 'mobile_interface_slideshow_time', default: '10000' },
-        { id: 'mobile_interface_slideshow_quality', default: 'w780' },
         { id: 'mobile_interface_logo_size_v2', default: '125' },
         { id: 'mobile_interface_logo_quality', default: 'w500' },
         { id: 'mobile_interface_show_tagline', default: true },
@@ -60,26 +48,14 @@
         }
     });
 
-    function stopSlideshow() {
-        if (slideshowTimer) {
-            clearInterval(slideshowTimer);
-            slideshowTimer = null;
-        }
-    }
-
     // --------------------------------------------------
     // TMDB LOGO LANGUAGE SELECTION
-    // Same priority as Кінотрейлери 2.3
     // --------------------------------------------------
 
     function pickMovieLogo(logos, lang) {
         if (!logos || !logos.length) return null;
 
-        var order = [
-            lang,
-            'en',
-            null
-        ];
+        var order = [lang, 'en', null];
 
         for (var i = 0; i < order.length; i++) {
             var found = logos.filter(function (logo) {
@@ -94,7 +70,6 @@
 
     // --------------------------------------------------
     // LOGO IMAGE PRELOAD
-    // Shared image cache and request deduplication
     // --------------------------------------------------
 
     function preloadMovieLogo(url, callback) {
@@ -131,7 +106,6 @@
             if (completed) return;
 
             completed = true;
-
             clearTimeout(timer);
 
             var waiters = logoImageRequests[url] || [];
@@ -172,7 +146,6 @@
 
     // --------------------------------------------------
     // TMDB LOGO REQUEST
-    // Same request logic as Кінотрейлери 2.3
     // --------------------------------------------------
 
     function ensureMovieLogo(movie, type, callback) {
@@ -195,8 +168,6 @@
 
         var cacheKey = type + ':' + movie.id + ':' + lang;
 
-        // URL CACHE
-
         if (
             Object.prototype.hasOwnProperty.call(
                 logoCache,
@@ -206,8 +177,6 @@
             callback(logoCache[cacheKey]);
             return;
         }
-
-        // REQUEST DEDUPLICATION
 
         if (logoRequests[cacheKey]) {
             logoRequests[cacheKey].waiters.push(callback);
@@ -221,8 +190,6 @@
         };
 
         logoRequests[cacheKey] = request;
-
-        // FINISH REQUEST
 
         function finish(url, shouldCache) {
             if (request.finished) return;
@@ -257,13 +224,9 @@
             });
         }
 
-        // REQUEST TIMEOUT
-
         request.timer = setTimeout(function () {
             finish(null, false);
         }, 20000);
-
-        // TMDB IMAGES ENDPOINT
 
         try {
             tmdb.get(
@@ -295,9 +258,24 @@
                         return;
                     }
 
+                    var quality = Lampa.Storage.get(
+                        'mobile_interface_logo_quality',
+                        'w500'
+                    );
+
+                    var allowedQuality = [
+                        'w300',
+                        'w500',
+                        'original'
+                    ];
+
+                    if (allowedQuality.indexOf(quality) === -1) {
+                        quality = 'w500';
+                    }
+
                     var logoUrl = Lampa.Api.img(
                         logo.file_path,
-                        'w500'
+                        quality
                     );
 
                     finish(logoUrl, true);
@@ -327,13 +305,6 @@
 
     // --------------------------------------------------
     // MOVIE LOGO DISPLAY
-    //
-    // Important:
-    // 1. Hide native title immediately.
-    // 2. Wait for TMDB logo.
-    // 3. Preload the actual image.
-    // 4. Display the ready image without animation.
-    // 5. Restore native title only when no logo is available.
     // --------------------------------------------------
 
     function displayMovieLogo(movie, $render, renderToken) {
@@ -354,12 +325,10 @@
 
         var nativeTitle = $title.contents().detach();
 
-        // HIDE TITLE IMMEDIATELY
-
         $title
             .empty()
-            .removeClass('mi314-logo-ready')
-            .addClass('mi314-logo-pending');
+            .removeClass('mi320-logo-ready')
+            .addClass('mi320-logo-pending');
 
         var type = getMovieType(movie);
 
@@ -381,8 +350,8 @@
             if (!$finalTitle.length) return;
 
             $finalTitle
-                .removeClass('mi314-logo-pending')
-                .removeClass('mi314-logo-ready')
+                .removeClass('mi320-logo-pending')
+                .removeClass('mi320-logo-ready')
                 .empty()
                 .append(nativeTitle);
         }
@@ -391,22 +360,16 @@
             movie,
             type,
             function (logoUrl) {
-
                 if (!isCurrent()) return;
-
-                // NO LOGO: RESTORE NATIVE TITLE
 
                 if (!logoUrl) {
                     restoreNativeTitle();
                     return;
                 }
 
-                // PRELOAD ACTUAL IMAGE
-
                 preloadMovieLogo(
                     logoUrl,
                     function (image) {
-
                         if (!isCurrent()) return;
 
                         if (!image) {
@@ -420,12 +383,10 @@
 
                         if (!$finalTitle.length) return;
 
-                        // CREATE DISPLAY IMAGE
-
                         var $logo = $(image.cloneNode(false));
 
                         $logo
-                            .addClass('mi314-movie-logo')
+                            .addClass('mi320-movie-logo')
                             .attr(
                                 'alt',
                                 movie.title ||
@@ -435,12 +396,10 @@
                                 ''
                             );
 
-                        // SHOW READY LOGO
-
                         $finalTitle
                             .empty()
-                            .removeClass('mi314-logo-pending')
-                            .addClass('mi314-logo-ready')
+                            .removeClass('mi320-logo-pending')
+                            .addClass('mi320-logo-ready')
                             .append($logo);
                     }
                 );
@@ -522,13 +481,17 @@
     function hideDuplicateHeaderMetadata($render) {
         if (!$render || !$render.length) return;
 
-        var $right = $render.find('.full-start-new__right').first();
+        var $right = $render.find(
+            '.full-start-new__right'
+        ).first();
 
         if (!$right.length) return;
 
         var root = $right[0];
 
-        var title = $right.find('.full-start-new__title').first()[0];
+        var title = $right.find(
+            '.full-start-new__title'
+        ).first()[0];
 
         if (!title) return;
 
@@ -551,11 +514,17 @@
         function isProtected(element) {
             if (!element || element === root) return true;
 
-            if (element.matches && element.matches(protectedSelector)) {
+            if (
+                element.matches &&
+                element.matches(protectedSelector)
+            ) {
                 return true;
             }
 
-            if (element.querySelector && element.querySelector(protectedSelector)) {
+            if (
+                element.querySelector &&
+                element.querySelector(protectedSelector)
+            ) {
                 return true;
             }
 
@@ -591,7 +560,9 @@
             var element = elements[i];
 
             if (
-                element.classList.contains('mi312-header-meta-hidden') ||
+                element.classList.contains(
+                    'mi312-header-meta-hidden'
+                ) ||
                 isProtected(element)
             ) {
                 continue;
@@ -600,7 +571,6 @@
             if (!isYearCountryLine(element)) continue;
 
             var position = element.compareDocumentPosition(title);
-
             var beforeTitle = !!(position & 4);
 
             if (!beforeTitle) continue;
@@ -618,7 +588,6 @@
                 var parent = current.parentElement;
 
                 if (!parent || parent === root) break;
-
                 if (isProtected(parent)) break;
 
                 var parentText = String(parent.textContent || '')
@@ -640,7 +609,9 @@
                 target !== root &&
                 !isProtected(target)
             ) {
-                target.classList.add('mi312-header-meta-hidden');
+                target.classList.add(
+                    'mi312-header-meta-hidden'
+                );
             }
         });
     }
@@ -650,26 +621,15 @@
     // --------------------------------------------------
 
     function applyStyles() {
-        var style = document.getElementById('mobile-interface-styles');
+        var style = document.getElementById(
+            'mobile-interface-styles'
+        );
 
         if (!style) {
             style = document.createElement('style');
             style.id = 'mobile-interface-styles';
             document.head.appendChild(style);
         }
-
-        var isPosterAnim = Lampa.Storage.get(
-            'mobile_interface_animation'
-        );
-
-        var isUIAnim = Lampa.Storage.get(
-            'mobile_interface_ui_anim'
-        );
-
-        var animEffect = Lampa.Storage.get(
-            'mobile_interface_ui_anim_effect',
-            'cinematic'
-        );
 
         var lHeight = Lampa.Storage.get(
             'mobile_interface_logo_size_v2',
@@ -690,71 +650,30 @@
             '0.45em'
         );
 
-        var animNames = [
-            'fluid',
-            'cyber',
-            'cinematic',
-            'elastic',
-            'minimal'
-        ];
-
-        if (animNames.indexOf(animEffect) === -1) {
-            animEffect = 'cinematic';
-        }
-
-        var animTiming = animEffect === 'elastic'
-            ? 'cubic-bezier(0.34,1.56,0.64,1)'
-            : 'cubic-bezier(0.16,1,0.3,1)';
-
-        var enter = isUIAnim
-            ? 'animation:anim_' + animEffect +
-              ' .8s ' + animTiming + ' both;'
-            : '';
-
         var css = '';
 
-        // ANIMATIONS
+        // --------------------------------------------------
+        // PREMIUM LOGO ANIMATION
+        // Only animated element in the interface
+        // --------------------------------------------------
 
-        css += '@keyframes kenBurnsEffect{';
-        css += '0%{transform:scale(1)}';
-        css += '50%{transform:scale(1.075)}';
-        css += '100%{transform:scale(1)}';
+        css += '@keyframes mi320LogoReveal{';
+
+        css += '0%{';
+        css += 'opacity:0;';
+        css += 'transform:translate3d(0,10px,0) scale(.975);';
         css += '}';
 
-        css += '@keyframes anim_fluid{';
-        css += '0%{opacity:0;transform:translate3d(0,22px,0) scale(.97);filter:blur(7px)}';
-        css += '100%{opacity:1;transform:translate3d(0,0,0) scale(1);filter:blur(0)}';
+        css += '65%{';
+        css += 'opacity:1;';
+        css += 'transform:translate3d(0,-1px,0) scale(1.005);';
         css += '}';
 
-        css += '@keyframes anim_cyber{';
-        css += '0%{opacity:0;transform:translate3d(-24px,0,0);filter:brightness(1.4)}';
-        css += '100%{opacity:1;transform:translate3d(0,0,0);filter:brightness(1)}';
+        css += '100%{';
+        css += 'opacity:1;';
+        css += 'transform:translate3d(0,0,0) scale(1);';
         css += '}';
 
-        css += '@keyframes anim_cinematic{';
-        css += '0%{opacity:0;transform:translate3d(0,18px,0) scale(1.025);filter:blur(6px)}';
-        css += '100%{opacity:1;transform:translate3d(0,0,0) scale(1);filter:blur(0)}';
-        css += '}';
-
-        css += '@keyframes anim_elastic{';
-        css += '0%{opacity:0;transform:scale(.88)}';
-        css += '75%{opacity:1;transform:scale(1.025)}';
-        css += '100%{opacity:1;transform:scale(1)}';
-        css += '}';
-
-        css += '@keyframes anim_minimal{';
-        css += '0%{opacity:0;transform:translateY(9px)}';
-        css += '100%{opacity:1;transform:translateY(0)}';
-        css += '}';
-
-        css += '@keyframes poster_fade_in{';
-        css += '0%{opacity:0;transform:scale(1.025)}';
-        css += '100%{opacity:1;transform:scale(1)}';
-        css += '}';
-
-        css += '@keyframes premium_glow{';
-        css += '0%,100%{filter:drop-shadow(0 4px 16px rgba(0,0,0,.85))}';
-        css += '50%{filter:drop-shadow(0 5px 23px rgba(255,255,255,.13))}';
         css += '}';
 
         css += '@media screen and (max-width:480px){';
@@ -794,64 +713,33 @@
         css += 'visibility:hidden!important;';
         css += '}';
 
-        css += '.full-start-new .full-start__status,';
-        css += '.full-start-new .full-start-new__status{';
-        css += 'display:none!important;';
-        css += '}';
+        // STATUS AND DETAILS
 
+        css += '.full-start-new .full-start__status,';
+        css += '.full-start-new .full-start-new__status,';
         css += '.full-start-new .full-start-new__details,';
         css += '.full-start-new .full-start__info{';
         css += 'display:none!important;';
         css += '}';
 
-        // CINEMATIC POSTER
+        /*
+         * NATIVE LAMPA BACKGROUND
+         *
+         * Не змінюємо:
+         * - poster
+         * - background image
+         * - poster dimensions
+         * - gradients
+         * - blur settings
+         */
 
-        css += '.full-start-new .full-start-new__poster{';
-        css += 'position:relative!important;';
-        css += 'overflow:hidden!important;';
-        css += 'background:#050608;';
-        css += 'z-index:1;';
-        css += 'height:62vh!important;';
-        css += 'min-height:390px;';
+        // BACKGROUND FADE — MOVED LOWER
 
-        if (isUIAnim) {
-            css += 'animation:poster_fade_in .9s cubic-bezier(.16,1,.3,1) both;';
-        }
-
-        css += '}';
-
-        css += '.full-start-new .full-start-new__poster:after{';
-        css += 'content:"";';
-        css += 'position:absolute;';
-        css += 'inset:15% 0 0;';
-        css += 'pointer-events:none;';
-        css += 'z-index:2;';
-        css += 'background:linear-gradient(';
-        css += '180deg,';
-        css += 'rgba(5,7,11,0) 0%,';
-        css += 'rgba(5,7,11,.12) 22%,';
-        css += 'rgba(5,7,11,.38) 48%,';
-        css += 'rgba(5,7,11,.82) 78%,';
-        css += '#050608 100%';
-        css += ');';
-        css += '}';
-
-        css += '.full-start-new .full-start-new__poster img{';
-        css += 'position:absolute;';
-        css += 'inset:0;';
-        css += 'width:100%;';
-        css += 'height:100%;';
-        css += 'object-fit:cover;';
-        css += 'filter:saturate(1.06) contrast(1.045)!important;';
-        css += 'transform-origin:center center!important;';
-        css += 'transition:opacity 1.35s ease-in-out!important;';
-
-        if (isPosterAnim) {
-            css += 'animation:kenBurnsEffect 28s ease-in-out infinite!important;';
-        }
-
-        css += 'mask-image:linear-gradient(to bottom,#000 0%,#000 64%,transparent 100%)!important;';
-        css += '-webkit-mask-image:linear-gradient(to bottom,#000 0%,#000 64%,transparent 100%)!important;';
+        css += '.full-start__background{';
+        css += 'mask-size:100% 130%!important;';
+        css += '-webkit-mask-size:100% 130%!important;';
+        css += 'mask-position:100% 0!important;';
+        css += '-webkit-mask-position:100% 0!important;';
         css += '}';
 
         // MAIN CONTENT
@@ -864,15 +752,12 @@
         css += 'align-items:center!important;';
         css += 'gap:' + blocksGap + '!important;';
         css += 'padding:0 14px!important;';
-        css += 'margin-top:-168px!important;';
         css += 'background:none!important;';
         css += '}';
 
-        // STUDIO LOGO
+        // STUDIO LOGO — NO ENTRANCE ANIMATION
 
         css += '.full-start-new .studio-header-brand{';
-        css += enter;
-        css += 'animation-delay:.04s;';
         css += 'order:1;';
         css += 'width:100%;';
         css += 'display:flex;';
@@ -888,19 +773,17 @@
         css += 'max-width:120px;';
         css += 'object-fit:contain;';
         css += 'opacity:.94;';
-        css += 'filter:drop-shadow(0 2px 8px rgba(0,0,0,.95));';
-        css += 'transition:opacity .3s ease,filter .3s ease;';
+        css += 'filter:drop-shadow(0 2px 6px rgba(0,0,0,.8));';
         css += '}';
 
         css += '.full-start-new .studio-header-brand img.is-dark-logo{';
         css += 'filter:brightness(0) invert(1) drop-shadow(0 2px 6px rgba(0,0,0,.8))!important;';
         css += '}';
 
-        // MOVIE LOGO
+        // MOVIE LOGO CONTAINER
 
         css += '.full-start-new .full-start-new__title{';
         css += 'animation:none!important;';
-        css += 'animation-delay:0s!important;';
         css += 'order:2;';
         css += 'width:100%!important;';
         css += 'min-height:60px;';
@@ -913,35 +796,38 @@
         css += 'transform:none!important;';
         css += '}';
 
-        css += '.full-start-new .full-start-new__title.mi314-logo-pending{';
+        // HIDE TITLE WHILE LOGO IS LOADING
+
+        css += '.full-start-new .full-start-new__title.mi320-logo-pending{';
         css += 'display:none!important;';
         css += '}';
 
-        css += '.full-start-new .full-start-new__title.mi314-logo-ready{';
+        css += '.full-start-new .full-start-new__title.mi320-logo-ready{';
         css += 'display:flex!important;';
         css += 'visibility:visible!important;';
         css += '}';
 
-        css += '.full-start-new .full-start-new__title img.mi314-movie-logo{';
+        // PREMIUM LOGO IMAGE
+
+        css += '.full-start-new .full-start-new__title img.mi320-movie-logo{';
         css += 'display:block!important;';
         css += 'height:auto!important;';
         css += 'max-height:' + lHeight + 'px!important;';
         css += 'width:auto!important;';
         css += 'max-width:90vw!important;';
         css += 'object-fit:contain!important;';
-        css += 'filter:drop-shadow(0 5px 18px rgba(0,0,0,.95)) drop-shadow(0 0 12px rgba(255,255,255,.08));';
+        css += 'filter:drop-shadow(0 4px 14px rgba(0,0,0,.82));';
         css += 'margin:0!important;';
-        css += 'opacity:1!important;';
-        css += 'transform:none!important;';
-        css += 'transition:none!important;';
-        css += 'animation:none!important;';
+        css += 'opacity:1;';
+        css += 'transform:translate3d(0,0,0) scale(1);';
+        css += 'animation:mi320LogoReveal .72s cubic-bezier(.16,1,.3,1) both;';
+        css += 'backface-visibility:hidden;';
         css += '}';
 
-        // TAGLINE
+        // TAGLINE — STATIC
 
         css += '.full-start-new .full-start-new__tagline{';
-        css += enter;
-        css += 'animation-delay:.17s;';
+        css += 'animation:none!important;';
         css += 'order:3;';
         css += 'display:' + (showTagline ? 'block' : 'none') + '!important;';
         css += 'max-width:90%;';
@@ -954,14 +840,13 @@
         css += 'font-weight:400!important;';
         css += 'letter-spacing:.025em;';
         css += 'color:rgba(255,255,255,.82)!important;';
-        css += 'text-shadow:0 2px 12px rgba(0,0,0,.95);';
+        css += 'text-shadow:0 2px 10px rgba(0,0,0,.9);';
         css += '}';
 
-        // MINIMAL TRANSPARENT METADATA
+        // METADATA — NO ANIMATION
 
         css += '.full-start-new .plugin-meta-row{';
-        css += enter;
-        css += 'animation-delay:.23s;';
+        css += 'animation:none!important;';
         css += 'order:4;';
         css += 'width:100%;';
         css += 'max-width:100%;';
@@ -995,7 +880,7 @@
         css += 'opacity:.94;';
         css += '}';
 
-        // THIN METADATA SEPARATORS
+        // METADATA SEPARATORS
 
         css += '.full-start-new .plugin-meta-row .info-separator{';
         css += 'display:inline-block;';
@@ -1035,11 +920,10 @@
         css += 'white-space:nowrap!important;';
         css += '}';
 
-        // MINIMAL BUTTON CONTAINER
+        // BUTTON CONTAINER — STATIC
 
         css += '.full-start-new .full-start-new__buttons{';
-        css += enter;
-        css += 'animation-delay:.31s;';
+        css += 'animation:none!important;';
         css += 'order:6;';
         css += 'display:flex!important;';
         css += 'justify-content:space-around!important;';
@@ -1055,7 +939,7 @@
         css += 'box-shadow:none!important;';
         css += '}';
 
-        // TRANSPARENT BUTTONS
+        // BUTTONS
 
         css += '.full-start-new .full-start__button{';
         css += 'position:relative;';
@@ -1072,21 +956,18 @@
         css += 'min-width:0!important;';
         css += 'min-height:54px;';
         css += 'padding:8px 2px!important;';
-        css += 'transition:transform .22s cubic-bezier(.16,1,.3,1),background .22s ease,color .22s ease,opacity .22s ease;';
         css += 'opacity:.9;';
         css += '}';
-
-        // REMOVE BUTTON DECORATIVE GLASS
 
         css += '.full-start-new .full-start__button:before{';
         css += 'display:none!important;';
         css += 'content:none!important;';
         css += '}';
 
-        // SUBTLE PRESS EFFECT
+        // SIMPLE PRESS FEEDBACK
 
         css += '.full-start-new .full-start__button:active{';
-        css += 'transform:scale(.94);';
+        css += 'transform:scale(.97);';
         css += 'background:rgba(255,255,255,.075)!important;';
         css += 'border-color:transparent!important;';
         css += 'box-shadow:none!important;';
@@ -1103,8 +984,7 @@
         css += 'height:22px!important;';
         css += 'margin:0 0 5px!important;';
         css += 'fill:#fff!important;';
-        css += 'filter:drop-shadow(0 2px 5px rgba(0,0,0,.65));';
-        css += 'transition:transform .22s ease,filter .22s ease;';
+        css += 'filter:drop-shadow(0 2px 4px rgba(0,0,0,.6));';
         css += '}';
 
         // BUTTON LABELS
@@ -1119,12 +999,6 @@
         css += 'font-weight:650;';
         css += 'letter-spacing:.065em;';
         css += 'text-shadow:0 1px 5px rgba(0,0,0,.8);';
-        css += 'transition:opacity .22s ease;';
-        css += '}';
-
-        css += '.full-start-new .full-start__button:active svg,';
-        css += '.full-start-new .full-start__button:active img{';
-        css += 'transform:scale(.92);';
         css += '}';
 
         css += '.full-start-new .full-start__button:active span{';
@@ -1136,11 +1010,13 @@
         // REDUCED MOTION
 
         css += '@media (prefers-reduced-motion:reduce){';
-        css += '.full-start-new *{';
-        css += 'animation-duration:.01ms!important;';
-        css += 'animation-iteration-count:1!important;';
-        css += 'transition-duration:.01ms!important;';
+
+        css += '.full-start-new .full-start-new__title img.mi320-movie-logo{';
+        css += 'animation:none!important;';
+        css += 'opacity:1!important;';
+        css += 'transform:none!important;';
         css += '}';
+
         css += '}';
 
         style.textContent = css;
@@ -1167,7 +1043,10 @@
         container.find('.plugin-meta-row').remove();
 
         var movie = e.data.movie || {};
-        var $metaRow = $('<div class="plugin-meta-row"></div>');
+
+        var $metaRow = $(
+            '<div class="plugin-meta-row"></div>'
+        );
 
         function addText(value) {
             if (
@@ -1248,7 +1127,10 @@
         // NATIVE LAMPA RATINGS
 
         var $card = container.closest('.full-start-new');
-        var $nativeRates = $card.find('.full-start__rates').first();
+
+        var $nativeRates = $card.find(
+            '.full-start__rates'
+        ).first();
 
         if (!$nativeRates.length) {
             var $rates = $card.find(
@@ -1281,6 +1163,7 @@
 
     // --------------------------------------------------
     // TMDB DETAILS
+    // Studio logos only — no backdrop handling
     // --------------------------------------------------
 
     function applyMovieDetailsData(
@@ -1328,14 +1211,15 @@
                 );
 
                 var $brand = $(
-                    '<div class="studio-header-brand">' +
-                    '<img src="' + studioLogoUrl +
-                    '" alt="' + (studio.name || '') +
-                    '">' +
-                    '</div>'
+                    '<div class="studio-header-brand"></div>'
                 );
 
-                var $img = $brand.find('img');
+                var $img = $('<img>').attr({
+                    src: studioLogoUrl,
+                    alt: studio.name || ''
+                });
+
+                $brand.append($img);
 
                 $img.on('error', function () {
                     $brand.remove();
@@ -1359,46 +1243,6 @@
                     .before($brand);
             }
         }
-
-        // BACKDROPS
-
-        if (data.images && data.images.backdrops) {
-            var backdrops = data.images.backdrops.filter(
-                function (elem) {
-                    return elem.aspect_ratio > 1.5 &&
-                        (
-                            !elem.iso_639_1 ||
-                            elem.iso_639_1 === 'xx'
-                        );
-                }
-            );
-
-            if (backdrops.length === 0) {
-                backdrops = data.images.backdrops.filter(
-                    function (elem) {
-                        return elem.aspect_ratio > 1.5;
-                    }
-                );
-            }
-
-            if (backdrops.length > 0) {
-                backdrops.sort(function (a, b) {
-                    return (
-                        b.vote_average || 0
-                    ) - (
-                        a.vote_average || 0
-                    );
-                });
-
-                startPosterSlideshow(
-                    $render.find('.full-start-new__poster'),
-                    backdrops.slice(0, 15),
-                    renderToken
-                );
-            }
-        }
-
-        // RECHECK DUPLICATE METADATA
 
         hideDuplicateHeaderMetadata($render);
     }
@@ -1430,9 +1274,7 @@
         var url =
             'https://api.themoviedb.org/3/' +
             type + '/' + movieId +
-            '?api_key=' + Lampa.TMDB.key() +
-            '&append_to_response=images' +
-            '&include_image_language=uk,en,null';
+            '?api_key=' + Lampa.TMDB.key();
 
         $.ajax({
             url: url,
@@ -1472,103 +1314,6 @@
     }
 
     // --------------------------------------------------
-    // POSTER SLIDESHOW
-    // --------------------------------------------------
-
-    function startPosterSlideshow($poster, items, renderToken) {
-        if (
-            !Lampa.Storage.get('mobile_interface_slideshow') ||
-            !items ||
-            !items.length ||
-            !$poster ||
-            !$poster.length
-        ) {
-            return;
-        }
-
-        var index = 0;
-
-        stopSlideshow();
-
-        var intervalTime = parseInt(
-            Lampa.Storage.get(
-                'mobile_interface_slideshow_time',
-                '10000'
-            ),
-            10
-        );
-
-        if (!intervalTime || intervalTime < 1000) {
-            intervalTime = 10000;
-        }
-
-        slideshowTimer = setInterval(function () {
-            if (
-                renderToken !== activeRenderToken ||
-                !$poster[0] ||
-                !document.body.contains($poster[0])
-            ) {
-                stopSlideshow();
-                return;
-            }
-
-            index = (index + 1) % items.length;
-
-            var imgUrl = Lampa.TMDB.image(
-                '/t/p/' +
-                Lampa.Storage.get(
-                    'mobile_interface_slideshow_quality',
-                    'w780'
-                ) +
-                items[index].file_path
-            );
-
-            var nextImg = new Image();
-
-            nextImg.onload = function () {
-                if (
-                    renderToken !== activeRenderToken ||
-                    !$poster[0] ||
-                    !document.body.contains($poster[0])
-                ) {
-                    return;
-                }
-
-                var $current = $poster.find('img').first();
-
-                var $next = $('<img>')
-                    .attr('src', imgUrl)
-                    .css({
-                        opacity: 0,
-                        transition: 'opacity 1.35s ease-in-out'
-                    });
-
-                $poster.append($next);
-
-                requestAnimationFrame(function () {
-                    if (renderToken !== activeRenderToken) {
-                        return;
-                    }
-
-                    $next.css('opacity', 1);
-                    $current.css('opacity', 0);
-                });
-
-                setTimeout(function () {
-                    if ($current && $current.length) {
-                        $current.remove();
-                    }
-                }, 1450);
-            };
-
-            nextImg.onerror = function () {};
-
-            nextImg.src = imgUrl;
-
-        }, intervalTime);
-    }
-
-    // --------------------------------------------------
     // INITIALIZATION
     // --------------------------------------------------
 
@@ -1580,7 +1325,6 @@
                 e.type === 'onBeforeDestroy'
             ) {
                 activeRenderToken++;
-                stopSlideshow();
                 currentActiveId = null;
                 return;
             }
@@ -1604,18 +1348,12 @@
                 return;
             }
 
-            stopSlideshow();
-
             var renderToken = ++activeRenderToken;
             var movie = e.data.movie;
             var $render = e.object.activity.render();
 
             if (!$render || !$render.length) {
                 return;
-            }
-
-            if (window.lampa_settings) {
-                window.lampa_settings.blur_poster = false;
             }
 
             // METADATA
@@ -1625,7 +1363,7 @@
                 e
             );
 
-            // HIDE DUPLICATE YEAR/COUNTRY
+            // HIDE DUPLICATE YEAR / COUNTRY
 
             hideDuplicateHeaderMetadata($render);
 
@@ -1637,7 +1375,7 @@
                 renderToken
             );
 
-            // TMDB DETAILS
+            // TMDB DETAILS / STUDIO LOGO
 
             loadMovieDetails(
                 movie,
@@ -1661,87 +1399,6 @@
         Lampa.SettingsApi.addParam({
             component: 'mobile_interface',
             param: {
-                name: 'mobile_interface_animation',
-                type: 'trigger',
-                default: true
-            },
-            field: {
-                name: 'Зум-ефект постера (Ken Burns)'
-            },
-            onChange: applyStyles
-        });
-
-        Lampa.SettingsApi.addParam({
-            component: 'mobile_interface',
-            param: {
-                name: 'mobile_interface_ui_anim',
-                type: 'trigger',
-                default: true
-            },
-            field: {
-                name: 'Плавна анімація появи елементів'
-            },
-            onChange: applyStyles
-        });
-
-        Lampa.SettingsApi.addParam({
-            component: 'mobile_interface',
-            param: {
-                name: 'mobile_interface_ui_anim_effect',
-                type: 'select',
-                values: {
-                    fluid: 'Apple Fluid',
-                    cyber: 'Cyber Neon',
-                    cinematic: 'Cinematic Depth',
-                    elastic: 'Elastic Spring',
-                    minimal: 'Minimal Fade'
-                },
-                default: 'cinematic'
-            },
-            field: {
-                name: 'Стиль анімації появи'
-            },
-            onChange: applyStyles
-        });
-
-        Lampa.SettingsApi.addParam({
-            component: 'mobile_interface',
-            param: {
-                name: 'mobile_interface_slideshow',
-                type: 'trigger',
-                default: true
-            },
-            field: {
-                name: 'Автозміна фонових кадрів'
-            },
-            onChange: function () {
-                stopSlideshow();
-            }
-        });
-
-        Lampa.SettingsApi.addParam({
-            component: 'mobile_interface',
-            param: {
-                name: 'mobile_interface_slideshow_time',
-                type: 'select',
-                values: {
-                    '10000': '10 сек',
-                    '15000': '15 сек',
-                    '20000': '20 сек'
-                },
-                default: '10000'
-            },
-            field: {
-                name: 'Інтервал зміни фону'
-            },
-            onChange: function () {
-                stopSlideshow();
-            }
-        });
-
-        Lampa.SettingsApi.addParam({
-            component: 'mobile_interface',
-            param: {
                 name: 'mobile_interface_logo_size_v2',
                 type: 'select',
                 values: {
@@ -1756,6 +1413,23 @@
                 name: 'Висота логотипу тайтлу'
             },
             onChange: applyStyles
+        });
+
+        Lampa.SettingsApi.addParam({
+            component: 'mobile_interface',
+            param: {
+                name: 'mobile_interface_logo_quality',
+                type: 'select',
+                values: {
+                    w300: 'Оптимізована',
+                    w500: 'Висока',
+                    original: 'Оригінальна'
+                },
+                default: 'w500'
+            },
+            field: {
+                name: 'Якість логотипу'
+            }
         });
 
         Lampa.SettingsApi.addParam({
@@ -1837,7 +1511,7 @@
         init();
 
         console.log(
-            '[MOB_INTERFACE] 3.1.4 Minimal Cinematic Premium initialized'
+            '[MOB_INTERFACE] 3.2.1 Premium Logo Animation initialized'
         );
     }
 
