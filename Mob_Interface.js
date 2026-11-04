@@ -3,22 +3,23 @@
 
     /*
      * @name MOB_INTERFACE
-     * @version 3.2.2
+     * @version 3.2.3
      * @author Crowley24
      * @description Premium Mobile Interface — Logo Animation Only
      * @platforms Lampa | Mobile
      *
-     * 3.2.2 CHANGES:
-     * - Fixed background fade selector for the NEW Lampa card
-     * - Poster fade now starts lower (68%)
-     * - Smooth transition to transparency at the bottom
-     * - Studio and movie logos remain visually clear
-     * - Preserved native Lampa background image
-     * - All other features preserved from 3.2.1
+     * 3.2.3 CHANGES:
+     * - Added independent gradual blur overlay for native Lampa background
+     * - Top background area remains sharp behind studio and movie logos
+     * - Blur gradually increases toward the lower part of the screen
+     * - Preserved native Lampa background image and canvas
+     * - Preserved native background darkness and brightness
+     * - Preserved poster opacity and fade mask
+     * - All other features preserved from 3.2.2
      */
 
-    if (window.MOB_INTERFACE_V322_READY) return;
-    window.MOB_INTERFACE_V322_READY = true;
+    if (window.MOB_INTERFACE_V323_READY) return;
+    window.MOB_INTERFACE_V323_READY = true;
 
     var detailsCache = {};
     var logoCache = {};
@@ -29,6 +30,9 @@
     var currentActiveId = null;
     var activeRenderToken = 0;
     var started = false;
+
+    var backgroundObserver = null;
+    var backgroundBlurElement = null;
 
     // --------------------------------------------------
     // SETTINGS
@@ -618,6 +622,105 @@
     }
 
     // --------------------------------------------------
+    // NATIVE LAMPA BACKGROUND — GRADUAL BLUR
+    // --------------------------------------------------
+
+    /*
+     * Створюється окремий прозорий шар поверх Canvas-фону Lampa.
+     *
+     * Важливо:
+     * - не змінює URL фонового зображення;
+     * - не змінює Canvas Lampa;
+     * - не змінює затемнення або яскравість;
+     * - не змінює маску прозорості постера;
+     * - не перехоплює натискання;
+     * - верх залишається чітким;
+     * - розмиття поступово посилюється донизу.
+     */
+
+    function ensureBackgroundBlur() {
+        if (window.innerWidth > 480) {
+            removeBackgroundBlur();
+            return;
+        }
+
+        var background = document.querySelector('.background');
+
+        if (!background) return;
+
+        if (
+            backgroundBlurElement &&
+            backgroundBlurElement.parentNode !== background
+        ) {
+            backgroundBlurElement = null;
+        }
+
+        if (!backgroundBlurElement) {
+            backgroundBlurElement = document.createElement('div');
+
+            backgroundBlurElement.className =
+                'mi320-background-gradual-blur';
+
+            backgroundBlurElement.setAttribute(
+                'aria-hidden',
+                'true'
+            );
+        }
+
+        /*
+         * Шар має бути останнім дочірнім елементом
+         * контейнера background, щоб розташовуватися
+         * над його Canvas-шарами.
+         */
+
+        if (
+            backgroundBlurElement.parentNode !== background ||
+            background.lastElementChild !== backgroundBlurElement
+        ) {
+            background.appendChild(backgroundBlurElement);
+        }
+    }
+
+    function removeBackgroundBlur() {
+        if (
+            backgroundBlurElement &&
+            backgroundBlurElement.parentNode
+        ) {
+            backgroundBlurElement.parentNode.removeChild(
+                backgroundBlurElement
+            );
+        }
+
+        backgroundBlurElement = null;
+    }
+
+    function startBackgroundBlurObserver() {
+        ensureBackgroundBlur();
+
+        if (backgroundObserver) {
+            backgroundObserver.disconnect();
+            backgroundObserver = null;
+        }
+
+        if (!document.body || !window.MutationObserver) return;
+
+        backgroundObserver = new MutationObserver(function () {
+            ensureBackgroundBlur();
+        });
+
+        backgroundObserver.observe(document.body, {
+            childList: true,
+            subtree: true
+        });
+
+        window.addEventListener(
+            'resize',
+            ensureBackgroundBlur,
+            false
+        );
+    }
+
+    // --------------------------------------------------
     // STYLES
     // --------------------------------------------------
 
@@ -724,15 +827,68 @@
         css += '}';
 
         /*
+         * GRADUAL BACKGROUND BLUR
+         *
+         * Верхня частина:
+         * 0–34% — без розмиття.
+         *
+         * Перехід:
+         * 34–76% — поступове посилення blur.
+         *
+         * Нижня частина:
+         * від 76% — повне розмиття 8px.
+         *
+         * Маска застосовується тільки до шару blur.
+         * Вихідне фонове зображення не змінюється.
+         */
+
+        css += '.background .mi320-background-gradual-blur{';
+        css += 'position:absolute!important;';
+        css += 'inset:0!important;';
+        css += 'width:100%!important;';
+        css += 'height:100%!important;';
+        css += 'z-index:999!important;';
+        css += 'pointer-events:none!important;';
+        css += 'background:transparent!important;';
+        css += 'backdrop-filter:blur(8px)!important;';
+        css += '-webkit-backdrop-filter:blur(8px)!important;';
+        css += 'mask-image:linear-gradient(to bottom,';
+        css += 'rgba(0,0,0,0) 0%,';
+        css += 'rgba(0,0,0,0) 34%,';
+        css += 'rgba(0,0,0,.08) 43%,';
+        css += 'rgba(0,0,0,.24) 53%,';
+        css += 'rgba(0,0,0,.48) 64%,';
+        css += 'rgba(0,0,0,.78) 76%,';
+        css += 'rgba(0,0,0,1) 88%,';
+        css += 'rgba(0,0,0,1) 100%)!important;';
+        css += '-webkit-mask-image:linear-gradient(to bottom,';
+        css += 'rgba(0,0,0,0) 0%,';
+        css += 'rgba(0,0,0,0) 34%,';
+        css += 'rgba(0,0,0,.08) 43%,';
+        css += 'rgba(0,0,0,.24) 53%,';
+        css += 'rgba(0,0,0,.48) 64%,';
+        css += 'rgba(0,0,0,.78) 76%,';
+        css += 'rgba(0,0,0,1) 88%,';
+        css += 'rgba(0,0,0,1) 100%)!important;';
+        css += 'mask-size:100% 100%!important;';
+        css += '-webkit-mask-size:100% 100%!important;';
+        css += 'mask-repeat:no-repeat!important;';
+        css += '-webkit-mask-repeat:no-repeat!important;';
+        css += 'transform:translateZ(0);';
+        css += '}';
+
+        /*
          * NATIVE LAMPA BACKGROUND
          *
          * Не змінюємо:
-         * - оригінальне фонове зображення
-         * - глобальний Canvas background
-         * - налаштування blur
+         * - оригінальне фонове зображення;
+         * - глобальний Canvas background;
+         * - налаштування blur;
+         * - затемнення;
+         * - яскравість.
          *
-         * Змінюємо лише нижню маску постера
-         * нової картки full-start-new.
+         * Змінюється тільки окремий шар
+         * поступового розмиття нижньої області.
          */
 
         // POSTER FADE — START LOWER
@@ -1524,8 +1680,12 @@
         setupSettings();
         init();
 
+        // GRADUAL BACKGROUND BLUR
+
+        startBackgroundBlurObserver();
+
         console.log(
-            '[MOB_INTERFACE] 3.2.2 Premium Logo Animation initialized'
+            '[MOB_INTERFACE] 3.2.3 Premium Logo Animation initialized'
         );
     }
 
