@@ -3,23 +3,25 @@
 
     /*
      * @name MOB_INTERFACE
-     * @version 3.2.3
+     * @version 3.2.4
      * @author Crowley24
      * @description Premium Mobile Interface — Logo Animation Only
      * @platforms Lampa | Mobile
      *
-     * 3.2.3 CHANGES:
-     * - Added independent gradual blur overlay for native Lampa background
-     * - Top background area remains sharp behind studio and movie logos
-     * - Blur gradually increases toward the lower part of the screen
+     * 3.2.4 CHANGES:
+     * - Improved independent gradual blur overlay
+     * - Fixed viewport-based blur positioning
+     * - Improved backdrop-filter compositing
+     * - Top background area remains sharp
+     * - Blur gradually increases toward screen bottom
      * - Preserved native Lampa background image and canvas
      * - Preserved native background darkness and brightness
      * - Preserved poster opacity and fade mask
-     * - All other features preserved from 3.2.2
+     * - All other features preserved from 3.2.3
      */
 
-    if (window.MOB_INTERFACE_V323_READY) return;
-    window.MOB_INTERFACE_V323_READY = true;
+    if (window.MOB_INTERFACE_V324_READY) return;
+    window.MOB_INTERFACE_V324_READY = true;
 
     var detailsCache = {};
     var logoCache = {};
@@ -626,16 +628,15 @@
     // --------------------------------------------------
 
     /*
-     * Створюється окремий прозорий шар поверх Canvas-фону Lampa.
+     * Independent viewport-based blur layer.
      *
-     * Важливо:
-     * - не змінює URL фонового зображення;
-     * - не змінює Canvas Lampa;
-     * - не змінює затемнення або яскравість;
-     * - не змінює маску прозорості постера;
-     * - не перехоплює натискання;
-     * - верх залишається чітким;
-     * - розмиття поступово посилюється донизу.
+     * - Does not replace the native Lampa background.
+     * - Does not modify native Canvas.
+     * - Does not change background brightness.
+     * - Does not change poster opacity or mask.
+     * - Does not intercept touch events.
+     * - Top remains sharp.
+     * - Blur gradually increases toward the bottom.
      */
 
     function ensureBackgroundBlur() {
@@ -647,6 +648,11 @@
         var background = document.querySelector('.background');
 
         if (!background) return;
+
+        /*
+         * Якщо Lampa замінила контейнер background,
+         * створюємо шар заново для нового контейнера.
+         */
 
         if (
             backgroundBlurElement &&
@@ -668,9 +674,8 @@
         }
 
         /*
-         * Шар має бути останнім дочірнім елементом
-         * контейнера background, щоб розташовуватися
-         * над його Canvas-шарами.
+         * Шар завжди залишається останнім дочірнім
+         * елементом background.
          */
 
         if (
@@ -695,12 +700,12 @@
     }
 
     function startBackgroundBlurObserver() {
-        ensureBackgroundBlur();
-
         if (backgroundObserver) {
             backgroundObserver.disconnect();
             backgroundObserver = null;
         }
+
+        ensureBackgroundBlur();
 
         if (!document.body || !window.MutationObserver) return;
 
@@ -758,7 +763,6 @@
 
         // --------------------------------------------------
         // PREMIUM LOGO ANIMATION
-        // Only animated element in the interface
         // --------------------------------------------------
 
         css += '@keyframes mi320LogoReveal{';
@@ -829,29 +833,43 @@
         /*
          * GRADUAL BACKGROUND BLUR
          *
-         * Верхня частина:
-         * 0–34% — без розмиття.
+         * 0–34%   — sharp background.
+         * 34–43%  — blur begins.
+         * 43–64%  — gradual transition.
+         * 64–88%  — stronger blur.
+         * 88–100% — full blur.
          *
-         * Перехід:
-         * 34–76% — поступове посилення blur.
-         *
-         * Нижня частина:
-         * від 76% — повне розмиття 8px.
-         *
-         * Маска застосовується тільки до шару blur.
-         * Вихідне фонове зображення не змінюється.
+         * Blur is applied only to the independent overlay.
          */
 
         css += '.background .mi320-background-gradual-blur{';
-        css += 'position:absolute!important;';
-        css += 'inset:0!important;';
-        css += 'width:100%!important;';
-        css += 'height:100%!important;';
+
+        css += 'position:fixed!important;';
+        css += 'top:0!important;';
+        css += 'right:0!important;';
+        css += 'bottom:0!important;';
+        css += 'left:0!important;';
+
+        css += 'width:100vw!important;';
+        css += 'height:100vh!important;';
+
+        css += 'margin:0!important;';
+        css += 'padding:0!important;';
+
         css += 'z-index:999!important;';
         css += 'pointer-events:none!important;';
-        css += 'background:transparent!important;';
+
+        /*
+         * Майже прозорий фон потрібен для того,
+         * щоб браузер коректно створював backdrop layer.
+         * Візуального затемнення він не створює.
+         */
+
+        css += 'background:rgba(255,255,255,.001)!important;';
+
         css += 'backdrop-filter:blur(8px)!important;';
         css += '-webkit-backdrop-filter:blur(8px)!important;';
+
         css += 'mask-image:linear-gradient(to bottom,';
         css += 'rgba(0,0,0,0) 0%,';
         css += 'rgba(0,0,0,0) 34%,';
@@ -861,6 +879,7 @@
         css += 'rgba(0,0,0,.78) 76%,';
         css += 'rgba(0,0,0,1) 88%,';
         css += 'rgba(0,0,0,1) 100%)!important;';
+
         css += '-webkit-mask-image:linear-gradient(to bottom,';
         css += 'rgba(0,0,0,0) 0%,';
         css += 'rgba(0,0,0,0) 34%,';
@@ -870,100 +889,119 @@
         css += 'rgba(0,0,0,.78) 76%,';
         css += 'rgba(0,0,0,1) 88%,';
         css += 'rgba(0,0,0,1) 100%)!important;';
+
         css += 'mask-size:100% 100%!important;';
         css += '-webkit-mask-size:100% 100%!important;';
+
         css += 'mask-repeat:no-repeat!important;';
         css += '-webkit-mask-repeat:no-repeat!important;';
+
         css += 'transform:translateZ(0);';
+
         css += '}';
 
         /*
-         * NATIVE LAMPA BACKGROUND
+         * POSTER FADE
          *
-         * Не змінюємо:
-         * - оригінальне фонове зображення;
-         * - глобальний Canvas background;
-         * - налаштування blur;
-         * - затемнення;
-         * - яскравість.
-         *
-         * Змінюється тільки окремий шар
-         * поступового розмиття нижньої області.
+         * Original poster fade mask preserved.
          */
 
-        // POSTER FADE — START LOWER
-
         css += '.full-start-new .full-start-new__poster.with-out img{';
+
         css += 'mask-image:linear-gradient(to bottom,';
         css += 'rgba(255,255,255,1) 0%,';
         css += 'rgba(255,255,255,1) 68%,';
         css += 'rgba(255,255,255,.92) 76%,';
         css += 'rgba(255,255,255,.65) 86%,';
         css += 'rgba(255,255,255,0) 100%)!important;';
+
         css += '-webkit-mask-image:linear-gradient(to bottom,';
         css += 'rgba(255,255,255,1) 0%,';
         css += 'rgba(255,255,255,1) 68%,';
         css += 'rgba(255,255,255,.92) 76%,';
         css += 'rgba(255,255,255,.65) 86%,';
         css += 'rgba(255,255,255,0) 100%)!important;';
+
         css += 'mask-size:100% 100%!important;';
         css += '-webkit-mask-size:100% 100%!important;';
         css += 'mask-position:center top!important;';
         css += '-webkit-mask-position:center top!important;';
+
         css += '}';
 
         // MAIN CONTENT
 
         css += '.full-start-new .full-start-new__right{';
+
         css += 'position:relative!important;';
         css += 'z-index:3!important;';
+
         css += 'display:flex!important;';
         css += 'flex-direction:column!important;';
         css += 'align-items:center!important;';
+
         css += 'gap:' + blocksGap + '!important;';
         css += 'padding:0 14px!important;';
+
         css += 'background:none!important;';
+
         css += '}';
 
-        // STUDIO LOGO — NO ENTRANCE ANIMATION
+        // STUDIO LOGO
 
         css += '.full-start-new .studio-header-brand{';
+
         css += 'order:1;';
         css += 'width:100%;';
+
         css += 'display:flex;';
         css += 'justify-content:center;';
         css += 'align-items:center;';
+
         css += 'margin:0 0 2px!important;';
         css += 'min-height:20px;';
+
         css += '}';
 
         css += '.full-start-new .studio-header-brand img{';
+
         css += 'height:20px!important;';
         css += 'width:auto;';
         css += 'max-width:120px;';
+
         css += 'object-fit:contain;';
         css += 'opacity:.94;';
+
         css += 'filter:drop-shadow(0 2px 6px rgba(0,0,0,.8));';
+
         css += '}';
 
         css += '.full-start-new .studio-header-brand img.is-dark-logo{';
+
         css += 'filter:brightness(0) invert(1) drop-shadow(0 2px 6px rgba(0,0,0,.8))!important;';
+
         css += '}';
 
         // MOVIE LOGO CONTAINER
 
         css += '.full-start-new .full-start-new__title{';
+
         css += 'animation:none!important;';
         css += 'order:2;';
+
         css += 'width:100%!important;';
         css += 'min-height:60px;';
+
         css += 'display:flex!important;';
         css += 'justify-content:center!important;';
         css += 'align-items:center!important;';
+
         css += 'margin:0!important;';
         css += 'overflow:visible!important;';
+
         css += 'opacity:1!important;';
         css += 'transform:none!important;';
+
         css += '}';
 
         // HIDE TITLE WHILE LOGO IS LOADING
@@ -980,195 +1018,280 @@
         // PREMIUM LOGO IMAGE
 
         css += '.full-start-new .full-start-new__title img.mi320-movie-logo{';
+
         css += 'display:block!important;';
         css += 'height:auto!important;';
+
         css += 'max-height:' + lHeight + 'px!important;';
         css += 'width:auto!important;';
         css += 'max-width:90vw!important;';
+
         css += 'object-fit:contain!important;';
+
         css += 'filter:drop-shadow(0 4px 14px rgba(0,0,0,.82));';
+
         css += 'margin:0!important;';
+
         css += 'opacity:1;';
         css += 'transform:translate3d(0,0,0) scale(1);';
+
         css += 'animation:mi320LogoReveal .72s cubic-bezier(.16,1,.3,1) both;';
+
         css += 'backface-visibility:hidden;';
+
         css += '}';
 
-        // TAGLINE — STATIC
+        // TAGLINE
 
         css += '.full-start-new .full-start-new__tagline{';
+
         css += 'animation:none!important;';
         css += 'order:3;';
+
         css += 'display:' + (showTagline ? 'block' : 'none') + '!important;';
+
         css += 'max-width:90%;';
         css += 'margin:1px 0 2px!important;';
+
         css += 'text-align:center!important;';
+
         css += 'font-family:Georgia,serif!important;';
         css += 'font-size:.91em!important;';
         css += 'line-height:1.5!important;';
+
         css += 'font-style:italic!important;';
         css += 'font-weight:400!important;';
+
         css += 'letter-spacing:.025em;';
+
         css += 'color:rgba(255,255,255,.82)!important;';
         css += 'text-shadow:0 2px 10px rgba(0,0,0,.9);';
+
         css += '}';
 
-        // METADATA — NO ANIMATION
+        // METADATA
 
         css += '.full-start-new .plugin-meta-row{';
+
         css += 'animation:none!important;';
         css += 'order:4;';
+
         css += 'width:100%;';
         css += 'max-width:100%;';
+
         css += 'display:flex;';
         css += 'justify-content:center;';
         css += 'align-items:center;';
         css += 'flex-wrap:wrap;';
+
         css += 'gap:7px 9px;';
+
         css += 'margin:4px 0 0!important;';
         css += 'padding:3px 0;';
+
         css += 'box-sizing:border-box;';
+
         css += 'border:none!important;';
         css += 'border-radius:0!important;';
+
         css += 'background:transparent!important;';
         css += 'box-shadow:none!important;';
+
         css += 'backdrop-filter:none!important;';
         css += '-webkit-backdrop-filter:none!important;';
+
         css += 'font-family:Inter,-apple-system,system-ui,sans-serif;';
         css += 'font-size:calc(' + rSize + ' * 2.25);';
+
         css += 'line-height:1.5;';
         css += 'color:rgba(255,255,255,.91);';
+
         css += 'text-shadow:0 1px 5px rgba(0,0,0,.9);';
+
         css += '}';
 
         css += '.full-start-new .plugin-meta-row .info-text-item{';
+
         css += 'font-size:.88em;';
         css += 'font-weight:500;';
+
         css += 'white-space:normal;';
         css += 'text-align:center;';
+
         css += 'letter-spacing:.025em;';
         css += 'opacity:.94;';
+
         css += '}';
 
         // METADATA SEPARATORS
 
         css += '.full-start-new .plugin-meta-row .info-separator{';
+
         css += 'display:inline-block;';
+
         css += 'width:1px;';
         css += 'height:11px;';
         css += 'min-width:1px;';
+
         css += 'font-size:0;';
         css += 'line-height:0;';
+
         css += 'color:transparent;';
         css += 'background:rgba(255,255,255,.38);';
+
         css += 'margin:0 1px;';
         css += 'opacity:.8;';
+
         css += 'vertical-align:middle;';
+
         css += '}';
 
         // NATIVE LAMPA RATINGS
 
         css += '.full-start-new .plugin-meta-row .full-start__rates{';
+
         css += 'display:inline-flex!important;';
         css += 'align-items:center;';
         css += 'justify-content:center;';
+
         css += 'flex-wrap:wrap;';
         css += 'gap:9px;';
+
         css += 'margin:0!important;';
         css += 'padding:0!important;';
+
         css += 'background:none!important;';
+
         css += '}';
 
         css += '.full-start-new .plugin-meta-row .rate--tmdb,';
         css += '.full-start-new .plugin-meta-row .rate--imdb,';
         css += '.full-start-new .plugin-meta-row .rate--kp{';
+
         css += 'display:inline-flex!important;';
         css += 'align-items:center;';
+
         css += 'margin:0!important;';
         css += 'padding:0!important;';
+
         css += 'font-size:.9em!important;';
         css += 'white-space:nowrap!important;';
+
         css += '}';
 
-        // BUTTON CONTAINER — STATIC
+        // BUTTON CONTAINER
 
         css += '.full-start-new .full-start-new__buttons{';
+
         css += 'animation:none!important;';
         css += 'order:6;';
+
         css += 'display:flex!important;';
         css += 'justify-content:space-around!important;';
         css += 'align-items:center!important;';
+
         css += 'gap:7px;';
+
         css += 'width:100%!important;';
         css += 'max-width:100%!important;';
+
         css += 'padding:3px 0 0!important;';
         css += 'box-sizing:border-box!important;';
+
         css += 'margin:7px 0 0!important;';
+
         css += 'background:transparent!important;';
         css += 'border:none!important;';
         css += 'box-shadow:none!important;';
+
         css += '}';
 
         // BUTTONS
 
         css += '.full-start-new .full-start__button{';
+
         css += 'position:relative;';
         css += 'overflow:hidden;';
+
         css += 'background:transparent!important;';
         css += 'border:1px solid transparent!important;';
         css += 'border-radius:12px!important;';
+
         css += 'box-shadow:none!important;';
+
         css += 'display:flex!important;';
         css += 'flex-direction:column!important;';
+
         css += 'align-items:center!important;';
         css += 'justify-content:center!important;';
+
         css += 'flex:1 1 0!important;';
         css += 'min-width:0!important;';
+
         css += 'min-height:54px;';
         css += 'padding:8px 2px!important;';
+
         css += 'opacity:.9;';
+
         css += '}';
 
         css += '.full-start-new .full-start__button:before{';
+
         css += 'display:none!important;';
         css += 'content:none!important;';
+
         css += '}';
 
-        // SIMPLE PRESS FEEDBACK
+        // PRESS FEEDBACK
 
         css += '.full-start-new .full-start__button:active{';
+
         css += 'transform:scale(.97);';
+
         css += 'background:rgba(255,255,255,.075)!important;';
         css += 'border-color:transparent!important;';
+
         css += 'box-shadow:none!important;';
         css += 'opacity:1;';
+
         css += '}';
 
         // BUTTON ICONS
 
         css += '.full-start-new .full-start__button svg,';
         css += '.full-start-new .full-start__button img{';
+
         css += 'position:relative;';
         css += 'z-index:1;';
+
         css += 'width:22px!important;';
         css += 'height:22px!important;';
+
         css += 'margin:0 0 5px!important;';
+
         css += 'fill:#fff!important;';
         css += 'filter:drop-shadow(0 2px 4px rgba(0,0,0,.6));';
+
         css += '}';
 
         // BUTTON LABELS
 
         css += '.full-start-new .full-start__button span{';
+
         css += 'position:relative;';
         css += 'z-index:1;';
+
         css += 'font-size:8px!important;';
         css += 'line-height:1.2!important;';
+
         css += 'text-transform:uppercase!important;';
+
         css += 'opacity:.8!important;';
         css += 'font-weight:650;';
+
         css += 'letter-spacing:.065em;';
         css += 'text-shadow:0 1px 5px rgba(0,0,0,.8);';
+
         css += '}';
 
         css += '.full-start-new .full-start__button:active span{';
@@ -1182,9 +1305,11 @@
         css += '@media (prefers-reduced-motion:reduce){';
 
         css += '.full-start-new .full-start-new__title img.mi320-movie-logo{';
+
         css += 'animation:none!important;';
         css += 'opacity:1!important;';
         css += 'transform:none!important;';
+
         css += '}';
 
         css += '}';
@@ -1685,7 +1810,7 @@
         startBackgroundBlurObserver();
 
         console.log(
-            '[MOB_INTERFACE] 3.2.3 Premium Logo Animation initialized'
+            '[MOB_INTERFACE] 3.2.4 Premium Logo Animation initialized'
         );
     }
 
