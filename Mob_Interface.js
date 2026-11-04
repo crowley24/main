@@ -1,27 +1,28 @@
+
 (function () {
     'use strict';
 
     /*
      * @name MOB_INTERFACE
-     * @version 3.2.4
+     * @version 3.2.5
      * @author Crowley24
-     * @description Premium Mobile Interface — Logo Animation Only
+     * @description Premium Mobile Interface — Fixed Background + Gradual Blur
      * @platforms Lampa | Mobile
      *
-     * 3.2.4 CHANGES:
-     * - Improved independent gradual blur overlay
-     * - Fixed viewport-based blur positioning
-     * - Improved backdrop-filter compositing
-     * - Top background area remains sharp
-     * - Blur gradually increases toward screen bottom
-     * - Preserved native Lampa background image and canvas
-     * - Preserved native background darkness and brightness
-     * - Preserved poster opacity and fade mask
-     * - All other features preserved from 3.2.3
+     * 3.2.5 CHANGES:
+     * - Background is fixed to the viewport while the movie card is active
+     * - Independent blur overlay attached directly to document.body
+     * - Gradual blur starts at 68% of viewport height
+     * - Blur smoothly increases toward the bottom
+     * - No background darkening or brightness changes
+     * - Native Lampa background image and canvas preserved
+     * - Original poster opacity and fade mask preserved
+     * - Background positioning is restored when the card closes
+     * - All other features preserved from 3.2.4
      */
 
-    if (window.MOB_INTERFACE_V324_READY) return;
-    window.MOB_INTERFACE_V324_READY = true;
+    if (window.MOB_INTERFACE_V325_READY) return;
+    window.MOB_INTERFACE_V325_READY = true;
 
     var detailsCache = {};
     var logoCache = {};
@@ -32,6 +33,7 @@
     var currentActiveId = null;
     var activeRenderToken = 0;
     var started = false;
+    var fullCardActive = false;
 
     var backgroundObserver = null;
     var backgroundBlurElement = null;
@@ -624,24 +626,56 @@
     }
 
     // --------------------------------------------------
-    // NATIVE LAMPA BACKGROUND — GRADUAL BLUR
+    // FIXED BACKGROUND + INDEPENDENT GRADUAL BLUR
     // --------------------------------------------------
 
     /*
-     * Independent viewport-based blur layer.
+     * The native Lampa background is fixed to the viewport
+     * only while a movie card is open.
      *
-     * - Does not replace the native Lampa background.
-     * - Does not modify native Canvas.
-     * - Does not change background brightness.
-     * - Does not change poster opacity or mask.
-     * - Does not intercept touch events.
-     * - Top remains sharp.
-     * - Blur gradually increases toward the bottom.
+     * The blur layer is a separate BODY child.
+     * It is not nested inside .background.
+     *
+     * Stacking:
+     *   native background: 0
+     *   blur overlay:      1
+     *   movie card:        2
+     *
+     * This keeps the blur between the background and UI.
      */
 
+    function activateBackgroundEffect() {
+        if (window.innerWidth > 480) return;
+
+        fullCardActive = true;
+
+        if (document.body) {
+            document.body.classList.add(
+                'mi320-full-active'
+            );
+        }
+
+        ensureBackgroundBlur();
+    }
+
+    function deactivateBackgroundEffect() {
+        fullCardActive = false;
+
+        if (document.body) {
+            document.body.classList.remove(
+                'mi320-full-active'
+            );
+        }
+
+        removeBackgroundBlur();
+    }
+
     function ensureBackgroundBlur() {
-        if (window.innerWidth > 480) {
-            removeBackgroundBlur();
+        if (
+            !fullCardActive ||
+            window.innerWidth > 480 ||
+            !document.body
+        ) {
             return;
         }
 
@@ -649,19 +683,10 @@
 
         if (!background) return;
 
-        /*
-         * Якщо Lampa замінила контейнер background,
-         * створюємо шар заново для нового контейнера.
-         */
-
         if (
-            backgroundBlurElement &&
-            backgroundBlurElement.parentNode !== background
+            !backgroundBlurElement ||
+            !document.body.contains(backgroundBlurElement)
         ) {
-            backgroundBlurElement = null;
-        }
-
-        if (!backgroundBlurElement) {
             backgroundBlurElement = document.createElement('div');
 
             backgroundBlurElement.className =
@@ -671,18 +696,8 @@
                 'aria-hidden',
                 'true'
             );
-        }
 
-        /*
-         * Шар завжди залишається останнім дочірнім
-         * елементом background.
-         */
-
-        if (
-            backgroundBlurElement.parentNode !== background ||
-            background.lastElementChild !== backgroundBlurElement
-        ) {
-            background.appendChild(backgroundBlurElement);
+            document.body.appendChild(backgroundBlurElement);
         }
     }
 
@@ -705,12 +720,12 @@
             backgroundObserver = null;
         }
 
-        ensureBackgroundBlur();
-
         if (!document.body || !window.MutationObserver) return;
 
         backgroundObserver = new MutationObserver(function () {
-            ensureBackgroundBlur();
+            if (fullCardActive) {
+                ensureBackgroundBlur();
+            }
         });
 
         backgroundObserver.observe(document.body, {
@@ -720,9 +735,17 @@
 
         window.addEventListener(
             'resize',
-            ensureBackgroundBlur,
+            handleBackgroundResize,
             false
         );
+    }
+
+    function handleBackgroundResize() {
+        if (window.innerWidth > 480) {
+            deactivateBackgroundEffect();
+        } else if (fullCardActive) {
+            activateBackgroundEffect();
+        }
     }
 
     // --------------------------------------------------
@@ -790,9 +813,40 @@
 
         css += '.full-start-new{';
         css += 'position:relative!important;';
+        css += 'z-index:2!important;';
         css += 'isolation:isolate;';
         css += 'background:transparent!important;';
         css += '}';
+
+        /*
+         * FIXED NATIVE BACKGROUND
+         *
+         * While the movie card is active, the native
+         * Lampa background remains attached to viewport.
+         * No image or canvas replacement is performed.
+         */
+
+        css += 'body.mi320-full-active .background{';
+        css += 'position:fixed!important;';
+        css += 'top:0!important;';
+        css += 'right:0!important;';
+        css += 'bottom:0!important;';
+        css += 'left:0!important;';
+        css += 'width:100vw!important;';
+        css += 'height:100vh!important;';
+        css += 'margin:0!important;';
+        css += 'transform:none!important;';
+        css += 'z-index:0!important;';
+        css += 'overflow:hidden!important;';
+        css += '}';
+
+        css += 'body.mi320-full-active .background canvas,';
+        css += 'body.mi320-full-active .background img,';
+        css += 'body.mi320-full-active .background video{';
+        css += 'max-width:none;';
+        css += '}';
+
+        // HIDE REACTIONS
 
         css += '.full-start-new .full-start__reactions,';
         css += '.full-start-new [class*="reactions"]{';
@@ -831,18 +885,20 @@
         css += '}';
 
         /*
-         * GRADUAL BACKGROUND BLUR
+         * INDEPENDENT GRADUAL BLUR
          *
-         * 0–34%   — sharp background.
-         * 34–43%  — blur begins.
-         * 43–64%  — gradual transition.
-         * 64–88%  — stronger blur.
-         * 88–100% — full blur.
+         * 0–68%   — completely sharp.
+         * 68–76%  — blur begins gently.
+         * 76–86%  — blur gradually increases.
+         * 86–96%  — stronger blur.
+         * 96–100% — maximum blur.
          *
-         * Blur is applied only to the independent overlay.
+         * The overlay itself is fixed to the viewport.
+         * It is placed above the native background
+         * and below the movie card.
          */
 
-        css += '.background .mi320-background-gradual-blur{';
+        css += 'body.mi320-full-active .mi320-background-gradual-blur{';
 
         css += 'position:fixed!important;';
         css += 'top:0!important;';
@@ -856,38 +912,30 @@
         css += 'margin:0!important;';
         css += 'padding:0!important;';
 
-        css += 'z-index:999!important;';
+        css += 'z-index:1!important;';
         css += 'pointer-events:none!important;';
-
-        /*
-         * Майже прозорий фон потрібен для того,
-         * щоб браузер коректно створював backdrop layer.
-         * Візуального затемнення він не створює.
-         */
 
         css += 'background:rgba(255,255,255,.001)!important;';
 
-        css += 'backdrop-filter:blur(8px)!important;';
-        css += '-webkit-backdrop-filter:blur(8px)!important;';
+        css += 'backdrop-filter:blur(10px)!important;';
+        css += '-webkit-backdrop-filter:blur(10px)!important;';
 
         css += 'mask-image:linear-gradient(to bottom,';
         css += 'rgba(0,0,0,0) 0%,';
-        css += 'rgba(0,0,0,0) 34%,';
-        css += 'rgba(0,0,0,.08) 43%,';
-        css += 'rgba(0,0,0,.24) 53%,';
-        css += 'rgba(0,0,0,.48) 64%,';
-        css += 'rgba(0,0,0,.78) 76%,';
-        css += 'rgba(0,0,0,1) 88%,';
+        css += 'rgba(0,0,0,0) 68%,';
+        css += 'rgba(0,0,0,.08) 74%,';
+        css += 'rgba(0,0,0,.22) 80%,';
+        css += 'rgba(0,0,0,.48) 88%,';
+        css += 'rgba(0,0,0,.78) 95%,';
         css += 'rgba(0,0,0,1) 100%)!important;';
 
         css += '-webkit-mask-image:linear-gradient(to bottom,';
         css += 'rgba(0,0,0,0) 0%,';
-        css += 'rgba(0,0,0,0) 34%,';
-        css += 'rgba(0,0,0,.08) 43%,';
-        css += 'rgba(0,0,0,.24) 53%,';
-        css += 'rgba(0,0,0,.48) 64%,';
-        css += 'rgba(0,0,0,.78) 76%,';
-        css += 'rgba(0,0,0,1) 88%,';
+        css += 'rgba(0,0,0,0) 68%,';
+        css += 'rgba(0,0,0,.08) 74%,';
+        css += 'rgba(0,0,0,.22) 80%,';
+        css += 'rgba(0,0,0,.48) 88%,';
+        css += 'rgba(0,0,0,.78) 95%,';
         css += 'rgba(0,0,0,1) 100%)!important;';
 
         css += 'mask-size:100% 100%!important;';
@@ -897,6 +945,7 @@
         css += '-webkit-mask-repeat:no-repeat!important;';
 
         css += 'transform:translateZ(0);';
+        css += 'will-change:backdrop-filter;';
 
         css += '}';
 
@@ -1621,6 +1670,7 @@
             ) {
                 activeRenderToken++;
                 currentActiveId = null;
+                deactivateBackgroundEffect();
                 return;
             }
 
@@ -1650,6 +1700,10 @@
             if (!$render || !$render.length) {
                 return;
             }
+
+            // ACTIVATE FIXED BACKGROUND + BLUR
+
+            activateBackgroundEffect();
 
             // METADATA
 
@@ -1805,12 +1859,12 @@
         setupSettings();
         init();
 
-        // GRADUAL BACKGROUND BLUR
+        // BACKGROUND OBSERVER
 
         startBackgroundBlurObserver();
 
         console.log(
-            '[MOB_INTERFACE] 3.2.4 Premium Logo Animation initialized'
+            '[MOB_INTERFACE] 3.2.5 Fixed Background + Gradual Blur initialized'
         );
     }
 
