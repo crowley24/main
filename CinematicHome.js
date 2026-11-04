@@ -2,19 +2,23 @@
     'use strict';
 
     /*
-     * INTERFACE+ 1.6.5 — KINOTRAYLERY LOGO ENGINE
+     * INTERFACE+ 1.6.8 — KINOTRAYLERY LOGO ENGINE
      * TMDB ONLY
      *
-     * 1.6.5 CHANGES:
-     * - Added stronger cinematic left vignette
-     * - Added subtle top-edge darkening
-     * - Preserved existing bottom gradient
+     * 1.6.8 CHANGES:
+     * - Increased adaptive vertical logo scaling
+     * - Wide logos keep their original base size
+     * - Medium logos receive moderate enlargement
+     * - Compact logos receive stronger enlargement
+     * - Original logo proportions preserved
+     * - Increased spacing between Hero logo and metadata
+     * - Preserved premium metadata row
+     * - Preserved 1.6.5 cinematic vignette
      * - Preserved 1.6.4 Hero restoration engine
-     * - Preserved all logo engine settings and cache
      */
 
-    var VERSION = '1.6.5';
-    var READY_KEY = 'interface_plus_tmdb_only_165';
+    var VERSION = '1.6.8';
+    var READY_KEY = 'interface_plus_tmdb_only_168';
 
     if (window[READY_KEY]) return;
     window[READY_KEY] = true;
@@ -272,6 +276,98 @@
     }
 
     /* =========================
+       GENRES
+    ========================= */
+
+    var MOVIE_GENRES = {
+        28: 'Бойовик',
+        12: 'Пригоди',
+        16: 'Анімація',
+        35: 'Комедія',
+        80: 'Кримінал',
+        99: 'Документальний',
+        18: 'Драма',
+        10751: 'Сімейний',
+        14: 'Фентезі',
+        36: 'Історичний',
+        27: 'Жахи',
+        10402: 'Музика',
+        9648: 'Детектив',
+        10749: 'Мелодрама',
+        878: 'Фантастика',
+        10770: 'Телефільм',
+        53: 'Трилер',
+        10752: 'Військовий',
+        37: 'Вестерн'
+    };
+
+    var TV_GENRES = {
+        10759: 'Бойовик і пригоди',
+        16: 'Анімація',
+        35: 'Комедія',
+        80: 'Кримінал',
+        99: 'Документальний',
+        18: 'Драма',
+        10751: 'Сімейний',
+        10762: 'Дитячий',
+        9648: 'Детектив',
+        10763: 'Новини',
+        10764: 'Реаліті-шоу',
+        10765: 'Фантастика',
+        10766: 'Мильна опера',
+        10767: 'Ток-шоу',
+        10768: 'Війна і політика',
+        37: 'Вестерн'
+    };
+
+    function movieGenres(d) {
+        if (!d) return [];
+
+        var result = [];
+        var source = d.genres;
+
+        if (Array.isArray(source) && source.length) {
+            source.forEach(function (genre) {
+                var name = '';
+
+                if (typeof genre === 'string') {
+                    name = genre;
+                } else if (genre && typeof genre === 'object') {
+                    name = first(
+                        genre.name,
+                        genre.ua_name,
+                        genre.title
+                    );
+                }
+
+                if (name && result.indexOf(name) === -1) {
+                    result.push(name);
+                }
+            });
+        }
+
+        if (!result.length) {
+            var ids = d.genre_ids || d.genres_ids || [];
+
+            if (!Array.isArray(ids)) ids = [];
+
+            var dictionary = movieType(d) === 'tv'
+                ? TV_GENRES
+                : MOVIE_GENRES;
+
+            ids.forEach(function (id) {
+                var name = dictionary[Number(id)];
+
+                if (name && result.indexOf(name) === -1) {
+                    result.push(name);
+                }
+            });
+        }
+
+        return result.slice(0, 2);
+    }
+
+    /* =========================
        SETTINGS
     ========================= */
 
@@ -289,6 +385,78 @@
         if (!v || isNaN(v)) v = 100;
 
         return Math.max(70, Math.min(120, v)) / 100;
+    }
+
+    /* =========================
+       ADAPTIVE LOGO SIZE
+    ========================= */
+
+    function adaptiveLogoHeight(img, mode) {
+        if (
+            !img ||
+            !img.naturalWidth ||
+            !img.naturalHeight
+        ) {
+            return;
+        }
+
+        var ratio = img.naturalWidth / img.naturalHeight;
+
+        /*
+         * 1.6.8:
+         * - Wide logos keep their original base size.
+         * - Medium logos receive moderate enlargement.
+         * - Compact logos receive stronger enlargement.
+         * - Original logo proportions are preserved.
+         */
+
+        var factor = 1;
+
+        if (ratio >= 3.5) {
+            factor = 1.00;
+        } else if (ratio >= 3.0) {
+            factor = 1.04;
+        } else if (ratio >= 2.5) {
+            factor = 1.08;
+        } else if (ratio >= 2.0) {
+            factor = 1.12;
+        } else if (ratio >= 1.5) {
+            factor = 1.16;
+        } else if (ratio >= 1.1) {
+            factor = 1.21;
+        } else {
+            factor = 1.26;
+        }
+
+        if (mode === 'hero') {
+            var base = window.innerWidth <= 480 ? 5 : 7;
+
+            img.style.height = (base * factor) + 'em';
+        } else {
+            var cardBase = window.innerWidth <= 480 ? 75 : 105;
+
+            img.style.height = Math.round(cardBase * factor) + 'px';
+        }
+
+        img.style.width = 'auto';
+        img.style.maxWidth = '100%';
+        img.style.maxHeight = 'none';
+        img.style.objectFit = 'contain';
+        img.style.objectPosition = 'left center';
+    }
+
+    function setAdaptiveLogo(img, src, mode) {
+        if (!img || !src) return;
+
+        img.onload = function () {
+            adaptiveLogoHeight(img, mode);
+        };
+
+        img.src = src;
+
+        if (img.complete && img.naturalWidth) {
+            adaptiveLogoHeight(img, mode);
+        }
     }
 
     /* =========================
@@ -825,19 +993,6 @@
             'opacity:1;' +
         '}',
 
-        /*
-         * 1.6.5 CINEMATIC VIGNETTE
-         *
-         * First gradient:
-         * Stronger but smooth darkening from the left.
-         *
-         * Second gradient:
-         * Subtle darkening from the top edge.
-         *
-         * Third gradient:
-         * Original bottom fade preserved.
-         */
-
         '.banner-screen-bg__vignette{' +
             'position:absolute;' +
             'inset:0;' +
@@ -846,8 +1001,6 @@
             'z-index:1;' +
             'pointer-events:none;' +
             'background:' +
-
-                /* LEFT VIGNETTE */
 
                 'linear-gradient(' +
                     'to right,' +
@@ -858,8 +1011,6 @@
                     'rgba(0,0,0,0) 56%' +
                 '),' +
 
-                /* TOP VIGNETTE */
-
                 'linear-gradient(' +
                     'to bottom,' +
                     'rgba(0,0,0,.30) 0vh,' +
@@ -867,8 +1018,6 @@
                     'rgba(0,0,0,.09) 17vh,' +
                     'rgba(0,0,0,0) 30vh' +
                 '),' +
-
-                /* ORIGINAL BOTTOM GRADIENT */
 
                 'linear-gradient(' +
                     'to bottom,' +
@@ -918,7 +1067,8 @@
             'width:auto;' +
             'height:auto;' +
             'max-width:100%;' +
-            'max-height:7em;' +
+            'max-height:none;' +
+            'margin-bottom:1em;' +
             'object-fit:contain;' +
             'object-position:left center;' +
             'opacity:0;' +
@@ -939,22 +1089,60 @@
             'text-shadow:0 3px 14px rgba(0,0,0,.7);' +
         '}',
 
+        /* PREMIUM METADATA */
+
         '.banner-hero__meta{' +
-            'font-size:1.15em;' +
-            'color:#f5f5f1;' +
-            'margin-bottom:.6em;' +
+            'font-size:1.08em;' +
+            'color:rgba(245,245,241,.88);' +
+            'margin-bottom:.75em;' +
             'display:flex;' +
-            'gap:.8em;' +
+            'gap:.58em;' +
             'align-items:center;' +
             'flex-wrap:wrap;' +
+            'font-weight:500;' +
+            'line-height:1.4;' +
+            'text-shadow:0 2px 8px rgba(0,0,0,.65);' +
+        '}',
+
+        '.banner-hero__meta-item{' +
+            'display:inline-flex;' +
+            'align-items:center;' +
+            'white-space:nowrap;' +
         '}',
 
         '.banner-hero__rate{' +
-            'padding:.1em .5em;' +
-            'border-radius:6px;' +
+            'display:inline-flex;' +
+            'align-items:center;' +
+            'gap:.32em;' +
+            'padding:0;' +
+            'border:0;' +
+            'border-radius:0;' +
+            'background:transparent;' +
+            'color:#f0ca78;' +
             'font-weight:800;' +
-            'background:#1db954;' +
-            'color:#fff;' +
+            'letter-spacing:.01em;' +
+        '}',
+
+        '.banner-hero__rate-star{' +
+            'font-size:1.05em;' +
+            'color:#e9bd65;' +
+            'line-height:1;' +
+        '}',
+
+        '.banner-hero__year{' +
+            'color:rgba(245,245,241,.90);' +
+            'font-weight:500;' +
+        '}',
+
+        '.banner-hero__genre{' +
+            'color:rgba(225,229,235,.82);' +
+            'font-weight:400;' +
+        '}',
+
+        '.banner-hero__separator{' +
+            'color:rgba(255,255,255,.38);' +
+            'font-size:.9em;' +
+            'font-weight:400;' +
         '}',
 
         '.banner-hero__descr{' +
@@ -966,6 +1154,7 @@
             '-webkit-line-clamp:3;' +
             '-webkit-box-orient:vertical;' +
             'overflow:hidden;' +
+            'text-shadow:0 2px 10px rgba(0,0,0,.65);' +
         '}',
 
         '.interface-plus-logo-title{' +
@@ -977,7 +1166,7 @@
             'width:auto;' +
             'height:auto;' +
             'max-width:100%;' +
-            'max-height:105px;' +
+            'max-height:none;' +
             'object-fit:contain;' +
             'object-position:left center;' +
             'opacity:0;' +
@@ -1007,17 +1196,19 @@
 
         '@media(max-width:480px){' +
 
-            '.interface-plus-card-logo{' +
-                'max-height:75px;' +
-            '}' +
-
             '.banner-hero__info{' +
                 'left:1.5em;' +
                 'width:75%;' +
             '}' +
 
             '.banner-hero__logo{' +
-                'max-height:5em;' +
+                'max-height:none;' +
+                'margin-bottom:1em;' +
+            '}' +
+
+            '.banner-hero__meta{' +
+                'font-size:1em;' +
+                'gap:.45em;' +
             '}' +
 
             '.banner-screen-bg__image{' +
@@ -1169,6 +1360,79 @@
     }
 
     /* =========================
+       META BUILDER
+    ========================= */
+
+    function addMetaItem(container, className, value, separator) {
+        if (!value) return;
+
+        if (container.children.length && separator) {
+            var dot = document.createElement('span');
+
+            dot.className = 'banner-hero__separator';
+            dot.textContent = '·';
+
+            container.appendChild(dot);
+        }
+
+        var item = document.createElement('span');
+
+        item.className = 'banner-hero__meta-item ' + className;
+        item.textContent = value;
+
+        container.appendChild(item);
+    }
+
+    function buildHeroMeta(container, d) {
+        if (!container) return;
+
+        container.textContent = '';
+
+        var rating = Number(d.vote_average) || 0;
+
+        if (rating > 0) {
+            var rate = document.createElement('span');
+
+            rate.className =
+                'banner-hero__meta-item banner-hero__rate';
+
+            var star = document.createElement('span');
+
+            star.className = 'banner-hero__rate-star';
+            star.textContent = '★';
+
+            var value = document.createElement('span');
+
+            value.textContent = rating.toFixed(1);
+
+            rate.appendChild(star);
+            rate.appendChild(value);
+
+            container.appendChild(rate);
+        }
+
+        var year = movieYear(d);
+
+        addMetaItem(
+            container,
+            'banner-hero__year',
+            year,
+            true
+        );
+
+        var genres = movieGenres(d);
+
+        if (genres.length) {
+            addMetaItem(
+                container,
+                'banner-hero__genre',
+                genres.join(' / '),
+                true
+            );
+        }
+    }
+
+    /* =========================
        SHOW HERO
     ========================= */
 
@@ -1192,6 +1456,7 @@
         p.logo.classList.remove('ready');
         p.logo.style.display = 'none';
         p.logo.removeAttribute('src');
+        p.logo.style.height = 'auto';
 
         p.title.style.display = '';
         p.title.textContent = movieTitle(d);
@@ -1201,37 +1466,7 @@
 
         p.logo.style.transformOrigin = 'left center';
 
-        p.meta.textContent = '';
-
-        var rating = Number(d.vote_average) || 0;
-
-        if (rating > 0) {
-            var rate = document.createElement('span');
-
-            rate.className = 'banner-hero__rate';
-            rate.textContent = rating.toFixed(1);
-
-            p.meta.appendChild(rate);
-        }
-
-        var year = movieYear(d);
-
-        if (year) {
-            var y = document.createElement('span');
-
-            y.textContent = year;
-
-            p.meta.appendChild(y);
-        }
-
-        var type = document.createElement('span');
-
-        type.textContent =
-            movieType(d) === 'tv' ?
-                'Серіал' :
-                'Фільм';
-
-        p.meta.appendChild(type);
+        buildHeroMeta(p.meta, d);
 
         p.descr.textContent = d.overview || '';
 
@@ -1280,7 +1515,13 @@
                     return;
                 }
 
-                p.logo.src = src;
+                setAdaptiveLogo(p.logo, src, 'hero');
+
+                p.logo.style.transform =
+                    'scale(' + logoScale() + ')';
+
+                p.logo.style.transformOrigin = 'left center';
+
                 p.logo.style.display = 'block';
 
                 requestAnimationFrame(function () {
@@ -1662,7 +1903,7 @@
 
         logo.style.transformOrigin = 'left center';
 
-        logo.src = hit;
+        setAdaptiveLogo(logo, hit, 'card');
 
         logo.classList.add('ready');
 
@@ -1733,7 +1974,11 @@
                             logo.style.transformOrigin =
                                 'left center';
 
-                            logo.src = activeCard.src;
+                            setAdaptiveLogo(
+                                logo,
+                                activeCard.src,
+                                'card'
+                            );
 
                             logo.classList.add('ready');
 
@@ -1774,7 +2019,7 @@
             logo.style.transformOrigin =
                 'left center';
 
-            logo.src = url;
+            setAdaptiveLogo(logo, url, 'card');
 
             logo.classList.add('ready');
 
@@ -2046,7 +2291,7 @@
             'select',
             '100',
             'Розмір логотипів',
-            'Масштаб логотипів',
+            'Додатковий масштаб після автоматичного підбору',
             {
                 '70': '70%',
                 '80': '80%',
