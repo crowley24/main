@@ -10,7 +10,7 @@
             var ua = (navigator && navigator.userAgent) ? navigator.userAgent : '';  
             var isTv = false;  
   
-            if (typeof Lampa !== 'undefined' && Lampa.Platform) {  
+         if (typeof Lampa !== 'undefined' && Lampa.Platform) {  
                 try {  
                     if (typeof Lampa.Platform.is === 'function') {  
                         isTv = isTv || Lampa.Platform.is('tv') || Lampa.Platform.is('smarttv') || Lampa.Platform.is('tizen') || Lampa.Platform.is('webos') || Lampa.Platform.is('netcast');  
