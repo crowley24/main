@@ -1,26 +1,22 @@
-
 (function () {
     'use strict';
 
     /*
-     * INTERFACE+ 1.6.3 — KINOTRAYLERY LOGO ENGINE
+     * INTERFACE+ 1.6.4 — KINOTRAYLERY LOGO ENGINE
      * TMDB ONLY
      *
-     * 1.6.3 CHANGES:
-     * - Completely replaced previous logo engine
-     * - Logo loading algorithm from КіноТрейлери 2.3
-     * - TMDB images endpoint through Lampa API
-     * - Language priority: Lampa language -> English -> null -> first logo
-     * - Fixed logo resolution: w500
-     * - Per-item cache with shared pending requests
-     * - 20-second request timeout
-     * - Prefetch logos for up to 10 upcoming cards
-     * - Same logo engine for Hero and full movie card
-     * - Preserved cinematic backdrop and all interface settings
+     * 1.6.4 CHANGES:
+     * - Fixed black Hero backdrop after returning from Full card
+     * - Restores the currently focused movie
+     * - Force redraw even when movie identity is unchanged
+     * - Keeps last movie data as restoration fallback
+     * - Resets stale focus key when opening Full card
+     * - Delayed Hero restoration after Full activity destroy
+     * - Preserved 1.6.3 logo engine and all settings
      */
 
-    var VERSION = '1.6.3';
-    var READY_KEY = 'interface_plus_tmdb_only_163';
+    var VERSION = '1.6.4';
+    var READY_KEY = 'interface_plus_tmdb_only_164';
 
     if (window[READY_KEY]) return;
     window[READY_KEY] = true;
@@ -35,9 +31,9 @@
         scale: P + 'logo_scale'
     };
 
-    /*
-     * Logo engine from КіноТрейлери 2.3
-     */
+    /* =========================
+       LOGO ENGINE
+    ========================= */
 
     var LOGO_SIZE = 'w500';
     var LOGO_CACHE_TIMEOUT = 20000;
@@ -56,6 +52,8 @@
 
     var initialized = false;
     var focusTimer = null;
+    var restoreTimer = null;
+
     var activeHero = null;
     var activeCard = null;
     var activeCardToken = 0;
@@ -169,6 +167,12 @@
         return c === 'full' ||
                c === 'full_start' ||
                c === 'fullstart';
+    }
+
+    function isMain(o) {
+        var c = text(o && o.component).toLowerCase();
+
+        return c === 'main' || c === 'category';
     }
 
     function movieType(d) {
@@ -320,7 +324,7 @@
     }
 
     /* =========================
-       KINOTRAYLERY CACHE
+       LOGO CACHE
     ========================= */
 
     function getLogoHolder(item) {
@@ -382,7 +386,7 @@
     }
 
     /* =========================
-       KINOTRAYLERY LOGO SERVICE
+       LOGO SERVICE
     ========================= */
 
     function ensureLogo(item, cb) {
@@ -407,10 +411,7 @@
                     item.id
                 );
 
-                if (
-                    id &&
-                    typeof id === 'object'
-                ) {
+                if (id && typeof id === 'object') {
                     id = id.id;
                 }
 
@@ -625,11 +626,6 @@
             p;
     }
 
-    /*
-     * Start loading the next backdrop
-     * immediately when the card receives focus.
-     */
-
     function prefetchHeroBackdrop(d) {
         if (!d || !d.backdrop_path) return;
 
@@ -674,11 +670,7 @@
             currentIndex + 1 + LOGO_PREFETCH_AHEAD
         );
 
-        for (
-            var i = currentIndex;
-            i < end;
-            i++
-        ) {
+        for (var i = currentIndex; i < end; i++) {
             var element = cards[i];
 
             if (!element || !element.card_data) continue;
@@ -1079,6 +1071,7 @@
         hero.token = 0;
         hero.root = root;
         hero.activeBgIndex = 0;
+        hero.lastMovieData = null;
 
         root.__interfacePlusHero = hero;
 
@@ -1152,6 +1145,16 @@
         if (!force && hero.movieKey === key) return;
 
         hero.movieKey = key;
+
+        /*
+         * 1.6.4:
+         * Keep the last movie data.
+         * Used when returning from Full card
+         * before Lampa restores card focus.
+         */
+
+        hero.lastMovieData = d;
+
         hero.token++;
 
         var token = hero.token;
@@ -1276,9 +1279,7 @@
     function attachHero(o) {
         if (!heroEnabled() || !o) return;
 
-        var c = text(o.component).toLowerCase();
-
-        if (c !== 'main' && c !== 'category') return;
+        if (!isMain(o)) return;
 
         var root = renderActivity(o);
 
@@ -1295,6 +1296,175 @@
         activeHero = createHero(root);
 
         showHeroBackground();
+    }
+
+    /* =========================
+       1.6.4 HERO RESTORE ENGINE
+    ========================= */
+
+    /*
+     * Find the card which currently owns focus.
+     * Lampa can place the focus class on the card
+     * itself or on one of its inner elements.
+     */
+
+    function findFocusedMovie(root) {
+        if (!root) return null;
+
+        var selectors = [
+            '.card.focus',
+            '.card.hover',
+            '.card.selected',
+            '.card.is-focused',
+            '.card.focused',
+            '.card'
+        ];
+
+        var focused = null;
+
+        /*
+         * First: direct focused card selectors.
+         */
+
+        for (var i = 0; i < selectors.length - 1; i++) {
+            focused = root.querySelector(selectors[i]);
+
+            if (focused && focused.card_data) {
+                return focused;
+            }
+        }
+
+        /*
+         * Second: focused inner element.
+         */
+
+        var active = document.activeElement;
+
+        if (active && root.contains(active)) {
+            if (active.closest) {
+                focused = active.closest('.card');
+
+                if (focused && focused.card_data) {
+                    return focused;
+                }
+            }
+        }
+
+        /*
+         * Third: any focused descendant.
+         */
+
+        var focusedElement = root.querySelector('.focus');
+
+        if (focusedElement && focusedElement.closest) {
+            focused = focusedElement.closest('.card');
+
+            if (focused && focused.card_data) {
+                return focused;
+            }
+        }
+
+        return null;
+    }
+
+    /*
+     * Restore Hero after returning from Full.
+     */
+
+    function restoreHeroAfterFull() {
+        if (!heroEnabled()) return;
+
+        var activity = activeActivity();
+
+        if (!isMain(activity)) return;
+
+        var root = renderActivity(activity);
+
+        if (!root) return;
+
+        attachHero(activity);
+
+        activeHero = root.__interfacePlusHero;
+
+        if (!activeHero) return;
+
+        showHeroBackground();
+
+        /*
+         * Force restoration of the focused movie.
+         */
+
+        var focusedCard = findFocusedMovie(root);
+
+        if (focusedCard && focusedCard.card_data) {
+            var movie = focusedCard.card_data;
+            var key = identity(movie);
+
+            lastFocusKey = key;
+
+            prefetchHeroBackdrop(movie);
+
+            showHero(activeHero, movie, true);
+
+            prefetchNearbyLogos(focusedCard, root);
+
+            log('Hero restored from focused card:', movieTitle(movie));
+
+            return;
+        }
+
+        /*
+         * Fallback:
+         * If focus is not ready yet, restore
+         * the previously displayed movie.
+         */
+
+        if (activeHero.lastMovieData) {
+            var previous = activeHero.lastMovieData;
+
+            lastFocusKey = identity(previous);
+
+            showHero(activeHero, previous, true);
+
+            log('Hero restored from previous movie:', movieTitle(previous));
+
+            return;
+        }
+
+        /*
+         * Last fallback:
+         * Try the first card in the activity.
+         */
+
+        var firstCard = root.querySelector('.card');
+
+        if (firstCard && firstCard.card_data) {
+            lastFocusKey = identity(firstCard.card_data);
+
+            showHero(
+                activeHero,
+                firstCard.card_data,
+                true
+            );
+        }
+    }
+
+    /*
+     * Delayed restoration.
+     * Activity switching in Lampa can take
+     * more than one animation frame.
+     */
+
+    function scheduleHeroRestore() {
+        clearTimeout(restoreTimer);
+
+        restoreTimer = setTimeout(function () {
+            requestAnimationFrame(function () {
+                requestAnimationFrame(function () {
+                    restoreHeroAfterFull();
+                });
+            });
+        }, 100);
     }
 
     /* =========================
@@ -1352,6 +1522,7 @@
 
         if (!on) {
             clearTimeout(focusTimer);
+            clearTimeout(restoreTimer);
 
             lastFocusKey = '';
 
@@ -1555,9 +1726,7 @@
             observer: null
         };
 
-        if (
-            showCardLogoInstant(root, d)
-        ) {
+        if (showCardLogoInstant(root, d)) {
             return;
         }
 
@@ -1975,6 +2144,16 @@
                 if (e.type === 'start') {
                     requestAnimationFrame(function () {
                         if (isFull(e.object)) {
+                            /*
+                             * 1.6.4:
+                             * Reset focus key before opening Full.
+                             */
+
+                            clearTimeout(restoreTimer);
+                            clearTimeout(focusTimer);
+
+                            lastFocusKey = '';
+
                             hideHeroBackground();
 
                             stopCard(false);
@@ -1992,6 +2171,13 @@
                     isFull(e.object)
                 ) {
                     stopCard(false);
+
+                    /*
+                     * 1.6.4:
+                     * Restore Hero after returning to Main.
+                     */
+
+                    scheduleHeroRestore();
                 }
 
                 if (e.type === 'destroy') {
