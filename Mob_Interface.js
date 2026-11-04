@@ -1,28 +1,32 @@
-
 (function () {
     'use strict';
 
     /*
      * @name MOB_INTERFACE
-     * @version 3.2.5
+     * @version 3.2.1
      * @author Crowley24
-     * @description Premium Mobile Interface — Fixed Background + Gradual Blur
+     * @description Premium Mobile Interface — Logo Animation Only
      * @platforms Lampa | Mobile
      *
-     * 3.2.5 CHANGES:
-     * - Background is fixed to the viewport while the movie card is active
-     * - Independent blur overlay attached directly to document.body
-     * - Gradual blur starts at 68% of viewport height
-     * - Blur smoothly increases toward the bottom
-     * - No background darkening or brightness changes
-     * - Native Lampa background image and canvas preserved
-     * - Original poster opacity and fade mask preserved
-     * - Background positioning is restored when the card closes
-     * - All other features preserved from 3.2.4
+     * 3.2.1 CHANGES:
+     * - Adjusted movie logo position (shifted slightly downward)
+     * - Removed all general interface entrance animations
+     * - Removed metadata row animation
+     * - Removed tagline and studio entrance animations
+     * - Removed heavy blur and brightness animations
+     * - Removed unnecessary transitions
+     * - Added premium cinematic movie logo reveal
+     * - Logo animation uses opacity + transform only
+     * - Preserved native Lampa background
+     * - Preserved TMDB logo loading and caching
+     * - Preserved studio logos
+     * - Preserved metadata and native ratings
+     * - Preserved native Lampa buttons
+     * - Improved rendering performance
      */
 
-    if (window.MOB_INTERFACE_V325_READY) return;
-    window.MOB_INTERFACE_V325_READY = true;
+    if (window.MOB_INTERFACE_V321_READY) return;
+    window.MOB_INTERFACE_V321_READY = true;
 
     var detailsCache = {};
     var logoCache = {};
@@ -33,10 +37,6 @@
     var currentActiveId = null;
     var activeRenderToken = 0;
     var started = false;
-    var fullCardActive = false;
-
-    var backgroundObserver = null;
-    var backgroundBlurElement = null;
 
     // --------------------------------------------------
     // SETTINGS
@@ -626,129 +626,6 @@
     }
 
     // --------------------------------------------------
-    // FIXED BACKGROUND + INDEPENDENT GRADUAL BLUR
-    // --------------------------------------------------
-
-    /*
-     * The native Lampa background is fixed to the viewport
-     * only while a movie card is open.
-     *
-     * The blur layer is a separate BODY child.
-     * It is not nested inside .background.
-     *
-     * Stacking:
-     *   native background: 0
-     *   blur overlay:      1
-     *   movie card:        2
-     *
-     * This keeps the blur between the background and UI.
-     */
-
-    function activateBackgroundEffect() {
-        if (window.innerWidth > 480) return;
-
-        fullCardActive = true;
-
-        if (document.body) {
-            document.body.classList.add(
-                'mi320-full-active'
-            );
-        }
-
-        ensureBackgroundBlur();
-    }
-
-    function deactivateBackgroundEffect() {
-        fullCardActive = false;
-
-        if (document.body) {
-            document.body.classList.remove(
-                'mi320-full-active'
-            );
-        }
-
-        removeBackgroundBlur();
-    }
-
-    function ensureBackgroundBlur() {
-        if (
-            !fullCardActive ||
-            window.innerWidth > 480 ||
-            !document.body
-        ) {
-            return;
-        }
-
-        var background = document.querySelector('.background');
-
-        if (!background) return;
-
-        if (
-            !backgroundBlurElement ||
-            !document.body.contains(backgroundBlurElement)
-        ) {
-            backgroundBlurElement = document.createElement('div');
-
-            backgroundBlurElement.className =
-                'mi320-background-gradual-blur';
-
-            backgroundBlurElement.setAttribute(
-                'aria-hidden',
-                'true'
-            );
-
-            document.body.appendChild(backgroundBlurElement);
-        }
-    }
-
-    function removeBackgroundBlur() {
-        if (
-            backgroundBlurElement &&
-            backgroundBlurElement.parentNode
-        ) {
-            backgroundBlurElement.parentNode.removeChild(
-                backgroundBlurElement
-            );
-        }
-
-        backgroundBlurElement = null;
-    }
-
-    function startBackgroundBlurObserver() {
-        if (backgroundObserver) {
-            backgroundObserver.disconnect();
-            backgroundObserver = null;
-        }
-
-        if (!document.body || !window.MutationObserver) return;
-
-        backgroundObserver = new MutationObserver(function () {
-            if (fullCardActive) {
-                ensureBackgroundBlur();
-            }
-        });
-
-        backgroundObserver.observe(document.body, {
-            childList: true,
-            subtree: true
-        });
-
-        window.addEventListener(
-            'resize',
-            handleBackgroundResize,
-            false
-        );
-    }
-
-    function handleBackgroundResize() {
-        if (window.innerWidth > 480) {
-            deactivateBackgroundEffect();
-        } else if (fullCardActive) {
-            activateBackgroundEffect();
-        }
-    }
-
-    // --------------------------------------------------
     // STYLES
     // --------------------------------------------------
 
@@ -786,9 +663,10 @@
 
         // --------------------------------------------------
         // PREMIUM LOGO ANIMATION
+        // Only animated element in the interface
         // --------------------------------------------------
 
-        css += '@keyframes mi320LogoReveal{';
+        css += '@keyframes mi321LogoReveal{';
 
         css += '0%{';
         css += 'opacity:0;';
@@ -813,40 +691,9 @@
 
         css += '.full-start-new{';
         css += 'position:relative!important;';
-        css += 'z-index:2!important;';
         css += 'isolation:isolate;';
         css += 'background:transparent!important;';
         css += '}';
-
-        /*
-         * FIXED NATIVE BACKGROUND
-         *
-         * While the movie card is active, the native
-         * Lampa background remains attached to viewport.
-         * No image or canvas replacement is performed.
-         */
-
-        css += 'body.mi320-full-active .background{';
-        css += 'position:fixed!important;';
-        css += 'top:0!important;';
-        css += 'right:0!important;';
-        css += 'bottom:0!important;';
-        css += 'left:0!important;';
-        css += 'width:100vw!important;';
-        css += 'height:100vh!important;';
-        css += 'margin:0!important;';
-        css += 'transform:none!important;';
-        css += 'z-index:0!important;';
-        css += 'overflow:hidden!important;';
-        css += '}';
-
-        css += 'body.mi320-full-active .background canvas,';
-        css += 'body.mi320-full-active .background img,';
-        css += 'body.mi320-full-active .background video{';
-        css += 'max-width:none;';
-        css += '}';
-
-        // HIDE REACTIONS
 
         css += '.full-start-new .full-start__reactions,';
         css += '.full-start-new [class*="reactions"]{';
@@ -884,173 +731,58 @@
         css += 'display:none!important;';
         css += '}';
 
-        /*
-         * INDEPENDENT GRADUAL BLUR
-         *
-         * 0–68%   — completely sharp.
-         * 68–76%  — blur begins gently.
-         * 76–86%  — blur gradually increases.
-         * 86–96%  — stronger blur.
-         * 96–100% — maximum blur.
-         *
-         * The overlay itself is fixed to the viewport.
-         * It is placed above the native background
-         * and below the movie card.
-         */
-
-        css += 'body.mi320-full-active .mi320-background-gradual-blur{';
-
-        css += 'position:fixed!important;';
-        css += 'top:0!important;';
-        css += 'right:0!important;';
-        css += 'bottom:0!important;';
-        css += 'left:0!important;';
-
-        css += 'width:100vw!important;';
-        css += 'height:100vh!important;';
-
-        css += 'margin:0!important;';
-        css += 'padding:0!important;';
-
-        css += 'z-index:1!important;';
-        css += 'pointer-events:none!important;';
-
-        css += 'background:rgba(255,255,255,.001)!important;';
-
-        css += 'backdrop-filter:blur(10px)!important;';
-        css += '-webkit-backdrop-filter:blur(10px)!important;';
-
-        css += 'mask-image:linear-gradient(to bottom,';
-        css += 'rgba(0,0,0,0) 0%,';
-        css += 'rgba(0,0,0,0) 68%,';
-        css += 'rgba(0,0,0,.08) 74%,';
-        css += 'rgba(0,0,0,.22) 80%,';
-        css += 'rgba(0,0,0,.48) 88%,';
-        css += 'rgba(0,0,0,.78) 95%,';
-        css += 'rgba(0,0,0,1) 100%)!important;';
-
-        css += '-webkit-mask-image:linear-gradient(to bottom,';
-        css += 'rgba(0,0,0,0) 0%,';
-        css += 'rgba(0,0,0,0) 68%,';
-        css += 'rgba(0,0,0,.08) 74%,';
-        css += 'rgba(0,0,0,.22) 80%,';
-        css += 'rgba(0,0,0,.48) 88%,';
-        css += 'rgba(0,0,0,.78) 95%,';
-        css += 'rgba(0,0,0,1) 100%)!important;';
-
-        css += 'mask-size:100% 100%!important;';
-        css += '-webkit-mask-size:100% 100%!important;';
-
-        css += 'mask-repeat:no-repeat!important;';
-        css += '-webkit-mask-repeat:no-repeat!important;';
-
-        css += 'transform:translateZ(0);';
-        css += 'will-change:backdrop-filter;';
-
-        css += '}';
-
-        /*
-         * POSTER FADE
-         *
-         * Original poster fade mask preserved.
-         */
-
-        css += '.full-start-new .full-start-new__poster.with-out img{';
-
-        css += 'mask-image:linear-gradient(to bottom,';
-        css += 'rgba(255,255,255,1) 0%,';
-        css += 'rgba(255,255,255,1) 68%,';
-        css += 'rgba(255,255,255,.92) 76%,';
-        css += 'rgba(255,255,255,.65) 86%,';
-        css += 'rgba(255,255,255,0) 100%)!important;';
-
-        css += '-webkit-mask-image:linear-gradient(to bottom,';
-        css += 'rgba(255,255,255,1) 0%,';
-        css += 'rgba(255,255,255,1) 68%,';
-        css += 'rgba(255,255,255,.92) 76%,';
-        css += 'rgba(255,255,255,.65) 86%,';
-        css += 'rgba(255,255,255,0) 100%)!important;';
-
-        css += 'mask-size:100% 100%!important;';
-        css += '-webkit-mask-size:100% 100%!important;';
-        css += 'mask-position:center top!important;';
-        css += '-webkit-mask-position:center top!important;';
-
-        css += '}';
-
         // MAIN CONTENT
 
         css += '.full-start-new .full-start-new__right{';
-
         css += 'position:relative!important;';
         css += 'z-index:3!important;';
-
         css += 'display:flex!important;';
         css += 'flex-direction:column!important;';
         css += 'align-items:center!important;';
-
         css += 'gap:' + blocksGap + '!important;';
         css += 'padding:0 14px!important;';
-
         css += 'background:none!important;';
-
         css += '}';
 
         // STUDIO LOGO
 
         css += '.full-start-new .studio-header-brand{';
-
         css += 'order:1;';
         css += 'width:100%;';
-
         css += 'display:flex;';
         css += 'justify-content:center;';
         css += 'align-items:center;';
-
         css += 'margin:0 0 2px!important;';
         css += 'min-height:20px;';
-
         css += '}';
 
         css += '.full-start-new .studio-header-brand img{';
-
         css += 'height:20px!important;';
         css += 'width:auto;';
         css += 'max-width:120px;';
-
         css += 'object-fit:contain;';
         css += 'opacity:.94;';
-
         css += 'filter:drop-shadow(0 2px 6px rgba(0,0,0,.8));';
-
         css += '}';
 
         css += '.full-start-new .studio-header-brand img.is-dark-logo{';
-
         css += 'filter:brightness(0) invert(1) drop-shadow(0 2px 6px rgba(0,0,0,.8))!important;';
-
         css += '}';
 
-        // MOVIE LOGO CONTAINER
+        // MOVIE LOGO CONTAINER — SHIFTED DOWNWARD
 
         css += '.full-start-new .full-start-new__title{';
-
         css += 'animation:none!important;';
         css += 'order:2;';
-
         css += 'width:100%!important;';
         css += 'min-height:60px;';
-
         css += 'display:flex!important;';
         css += 'justify-content:center!important;';
         css += 'align-items:center!important;';
-
-        css += 'margin:0!important;';
+        css += 'margin:12px 0 0!important;'; // Збільшено відступ зверху, щоб опустити логотип
         css += 'overflow:visible!important;';
-
         css += 'opacity:1!important;';
         css += 'transform:none!important;';
-
         css += '}';
 
         // HIDE TITLE WHILE LOGO IS LOADING
@@ -1067,280 +799,195 @@
         // PREMIUM LOGO IMAGE
 
         css += '.full-start-new .full-start-new__title img.mi320-movie-logo{';
-
         css += 'display:block!important;';
         css += 'height:auto!important;';
-
         css += 'max-height:' + lHeight + 'px!important;';
         css += 'width:auto!important;';
         css += 'max-width:90vw!important;';
-
         css += 'object-fit:contain!important;';
-
         css += 'filter:drop-shadow(0 4px 14px rgba(0,0,0,.82));';
-
         css += 'margin:0!important;';
-
         css += 'opacity:1;';
         css += 'transform:translate3d(0,0,0) scale(1);';
-
-        css += 'animation:mi320LogoReveal .72s cubic-bezier(.16,1,.3,1) both;';
-
+        css += 'animation:mi321LogoReveal .72s cubic-bezier(.16,1,.3,1) both;';
         css += 'backface-visibility:hidden;';
-
         css += '}';
 
-        // TAGLINE
+        // TAGLINE — STATIC
 
         css += '.full-start-new .full-start-new__tagline{';
-
         css += 'animation:none!important;';
         css += 'order:3;';
-
         css += 'display:' + (showTagline ? 'block' : 'none') + '!important;';
-
         css += 'max-width:90%;';
         css += 'margin:1px 0 2px!important;';
-
         css += 'text-align:center!important;';
-
         css += 'font-family:Georgia,serif!important;';
         css += 'font-size:.91em!important;';
         css += 'line-height:1.5!important;';
-
         css += 'font-style:italic!important;';
         css += 'font-weight:400!important;';
-
         css += 'letter-spacing:.025em;';
-
         css += 'color:rgba(255,255,255,.82)!important;';
         css += 'text-shadow:0 2px 10px rgba(0,0,0,.9);';
-
         css += '}';
 
-        // METADATA
+        // METADATA — NO ANIMATION
 
         css += '.full-start-new .plugin-meta-row{';
-
         css += 'animation:none!important;';
         css += 'order:4;';
-
         css += 'width:100%;';
         css += 'max-width:100%;';
-
         css += 'display:flex;';
         css += 'justify-content:center;';
         css += 'align-items:center;';
         css += 'flex-wrap:wrap;';
-
         css += 'gap:7px 9px;';
-
         css += 'margin:4px 0 0!important;';
         css += 'padding:3px 0;';
-
         css += 'box-sizing:border-box;';
-
         css += 'border:none!important;';
         css += 'border-radius:0!important;';
-
         css += 'background:transparent!important;';
         css += 'box-shadow:none!important;';
-
         css += 'backdrop-filter:none!important;';
         css += '-webkit-backdrop-filter:none!important;';
-
         css += 'font-family:Inter,-apple-system,system-ui,sans-serif;';
         css += 'font-size:calc(' + rSize + ' * 2.25);';
-
         css += 'line-height:1.5;';
         css += 'color:rgba(255,255,255,.91);';
-
         css += 'text-shadow:0 1px 5px rgba(0,0,0,.9);';
-
         css += '}';
 
         css += '.full-start-new .plugin-meta-row .info-text-item{';
-
         css += 'font-size:.88em;';
         css += 'font-weight:500;';
-
         css += 'white-space:normal;';
         css += 'text-align:center;';
-
         css += 'letter-spacing:.025em;';
         css += 'opacity:.94;';
-
         css += '}';
 
         // METADATA SEPARATORS
 
         css += '.full-start-new .plugin-meta-row .info-separator{';
-
         css += 'display:inline-block;';
-
         css += 'width:1px;';
         css += 'height:11px;';
         css += 'min-width:1px;';
-
         css += 'font-size:0;';
         css += 'line-height:0;';
-
         css += 'color:transparent;';
         css += 'background:rgba(255,255,255,.38);';
-
         css += 'margin:0 1px;';
         css += 'opacity:.8;';
-
         css += 'vertical-align:middle;';
-
         css += '}';
 
         // NATIVE LAMPA RATINGS
 
         css += '.full-start-new .plugin-meta-row .full-start__rates{';
-
         css += 'display:inline-flex!important;';
         css += 'align-items:center;';
         css += 'justify-content:center;';
-
         css += 'flex-wrap:wrap;';
         css += 'gap:9px;';
-
         css += 'margin:0!important;';
         css += 'padding:0!important;';
-
         css += 'background:none!important;';
-
         css += '}';
 
         css += '.full-start-new .plugin-meta-row .rate--tmdb,';
         css += '.full-start-new .plugin-meta-row .rate--imdb,';
         css += '.full-start-new .plugin-meta-row .rate--kp{';
-
         css += 'display:inline-flex!important;';
         css += 'align-items:center;';
-
         css += 'margin:0!important;';
         css += 'padding:0!important;';
-
         css += 'font-size:.9em!important;';
         css += 'white-space:nowrap!important;';
-
         css += '}';
 
-        // BUTTON CONTAINER
+        // BUTTON CONTAINER — STATIC
 
         css += '.full-start-new .full-start-new__buttons{';
-
         css += 'animation:none!important;';
         css += 'order:6;';
-
         css += 'display:flex!important;';
         css += 'justify-content:space-around!important;';
         css += 'align-items:center!important;';
-
         css += 'gap:7px;';
-
         css += 'width:100%!important;';
         css += 'max-width:100%!important;';
-
         css += 'padding:3px 0 0!important;';
         css += 'box-sizing:border-box!important;';
-
         css += 'margin:7px 0 0!important;';
-
         css += 'background:transparent!important;';
         css += 'border:none!important;';
         css += 'box-shadow:none!important;';
-
         css += '}';
 
         // BUTTONS
 
         css += '.full-start-new .full-start__button{';
-
         css += 'position:relative;';
         css += 'overflow:hidden;';
-
         css += 'background:transparent!important;';
         css += 'border:1px solid transparent!important;';
         css += 'border-radius:12px!important;';
-
         css += 'box-shadow:none!important;';
-
         css += 'display:flex!important;';
         css += 'flex-direction:column!important;';
-
         css += 'align-items:center!important;';
         css += 'justify-content:center!important;';
-
         css += 'flex:1 1 0!important;';
         css += 'min-width:0!important;';
-
         css += 'min-height:54px;';
         css += 'padding:8px 2px!important;';
-
         css += 'opacity:.9;';
-
         css += '}';
 
         css += '.full-start-new .full-start__button:before{';
-
         css += 'display:none!important;';
         css += 'content:none!important;';
-
         css += '}';
 
-        // PRESS FEEDBACK
+        // SIMPLE PRESS FEEDBACK
 
         css += '.full-start-new .full-start__button:active{';
-
         css += 'transform:scale(.97);';
-
         css += 'background:rgba(255,255,255,.075)!important;';
         css += 'border-color:transparent!important;';
-
         css += 'box-shadow:none!important;';
         css += 'opacity:1;';
-
         css += '}';
 
         // BUTTON ICONS
 
         css += '.full-start-new .full-start__button svg,';
         css += '.full-start-new .full-start__button img{';
-
         css += 'position:relative;';
         css += 'z-index:1;';
-
         css += 'width:22px!important;';
         css += 'height:22px!important;';
-
         css += 'margin:0 0 5px!important;';
-
         css += 'fill:#fff!important;';
         css += 'filter:drop-shadow(0 2px 4px rgba(0,0,0,.6));';
-
         css += '}';
 
         // BUTTON LABELS
 
         css += '.full-start-new .full-start__button span{';
-
         css += 'position:relative;';
         css += 'z-index:1;';
-
         css += 'font-size:8px!important;';
         css += 'line-height:1.2!important;';
-
         css += 'text-transform:uppercase!important;';
-
         css += 'opacity:.8!important;';
         css += 'font-weight:650;';
-
         css += 'letter-spacing:.065em;';
         css += 'text-shadow:0 1px 5px rgba(0,0,0,.8);';
-
         css += '}';
 
         css += '.full-start-new .full-start__button:active span{';
@@ -1354,11 +1001,9 @@
         css += '@media (prefers-reduced-motion:reduce){';
 
         css += '.full-start-new .full-start-new__title img.mi320-movie-logo{';
-
         css += 'animation:none!important;';
         css += 'opacity:1!important;';
         css += 'transform:none!important;';
-
         css += '}';
 
         css += '}';
@@ -1670,7 +1315,6 @@
             ) {
                 activeRenderToken++;
                 currentActiveId = null;
-                deactivateBackgroundEffect();
                 return;
             }
 
@@ -1700,10 +1344,6 @@
             if (!$render || !$render.length) {
                 return;
             }
-
-            // ACTIVATE FIXED BACKGROUND + BLUR
-
-            activateBackgroundEffect();
 
             // METADATA
 
@@ -1859,12 +1499,8 @@
         setupSettings();
         init();
 
-        // BACKGROUND OBSERVER
-
-        startBackgroundBlurObserver();
-
         console.log(
-            '[MOB_INTERFACE] 3.2.5 Fixed Background + Gradual Blur initialized'
+            '[MOB_INTERFACE] 3.2.1 Premium Logo Animation initialized'
         );
     }
 
