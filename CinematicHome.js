@@ -2,21 +2,19 @@
     'use strict';
 
     /*
-     * INTERFACE+ 1.6.4 — KINOTRAYLERY LOGO ENGINE
+     * INTERFACE+ 1.6.5 — KINOTRAYLERY LOGO ENGINE
      * TMDB ONLY
      *
-     * 1.6.4 CHANGES:
-     * - Fixed black Hero backdrop after returning from Full card
-     * - Restores the currently focused movie
-     * - Force redraw even when movie identity is unchanged
-     * - Keeps last movie data as restoration fallback
-     * - Resets stale focus key when opening Full card
-     * - Delayed Hero restoration after Full activity destroy
-     * - Preserved 1.6.3 logo engine and all settings
+     * 1.6.5 CHANGES:
+     * - Added stronger cinematic left vignette
+     * - Added subtle top-edge darkening
+     * - Preserved existing bottom gradient
+     * - Preserved 1.6.4 Hero restoration engine
+     * - Preserved all logo engine settings and cache
      */
 
-    var VERSION = '1.6.4';
-    var READY_KEY = 'interface_plus_tmdb_only_164';
+    var VERSION = '1.6.5';
+    var READY_KEY = 'interface_plus_tmdb_only_165';
 
     if (window[READY_KEY]) return;
     window[READY_KEY] = true;
@@ -827,6 +825,19 @@
             'opacity:1;' +
         '}',
 
+        /*
+         * 1.6.5 CINEMATIC VIGNETTE
+         *
+         * First gradient:
+         * Stronger but smooth darkening from the left.
+         *
+         * Second gradient:
+         * Subtle darkening from the top edge.
+         *
+         * Third gradient:
+         * Original bottom fade preserved.
+         */
+
         '.banner-screen-bg__vignette{' +
             'position:absolute;' +
             'inset:0;' +
@@ -835,6 +846,30 @@
             'z-index:1;' +
             'pointer-events:none;' +
             'background:' +
+
+                /* LEFT VIGNETTE */
+
+                'linear-gradient(' +
+                    'to right,' +
+                    'rgba(0,0,0,.48) 0%,' +
+                    'rgba(0,0,0,.36) 12%,' +
+                    'rgba(0,0,0,.23) 24%,' +
+                    'rgba(0,0,0,.10) 38%,' +
+                    'rgba(0,0,0,0) 56%' +
+                '),' +
+
+                /* TOP VIGNETTE */
+
+                'linear-gradient(' +
+                    'to bottom,' +
+                    'rgba(0,0,0,.30) 0vh,' +
+                    'rgba(0,0,0,.20) 8vh,' +
+                    'rgba(0,0,0,.09) 17vh,' +
+                    'rgba(0,0,0,0) 30vh' +
+                '),' +
+
+                /* ORIGINAL BOTTOM GRADIENT */
+
                 'linear-gradient(' +
                     'to bottom,' +
                     'rgba(0,0,0,0) 0vh,' +
@@ -1145,14 +1180,6 @@
         if (!force && hero.movieKey === key) return;
 
         hero.movieKey = key;
-
-        /*
-         * 1.6.4:
-         * Keep the last movie data.
-         * Used when returning from Full card
-         * before Lampa restores card focus.
-         */
-
         hero.lastMovieData = d;
 
         hero.token++;
@@ -1299,14 +1326,8 @@
     }
 
     /* =========================
-       1.6.4 HERO RESTORE ENGINE
+       HERO RESTORE ENGINE
     ========================= */
-
-    /*
-     * Find the card which currently owns focus.
-     * Lampa can place the focus class on the card
-     * itself or on one of its inner elements.
-     */
 
     function findFocusedMovie(root) {
         if (!root) return null;
@@ -1322,10 +1343,6 @@
 
         var focused = null;
 
-        /*
-         * First: direct focused card selectors.
-         */
-
         for (var i = 0; i < selectors.length - 1; i++) {
             focused = root.querySelector(selectors[i]);
 
@@ -1333,10 +1350,6 @@
                 return focused;
             }
         }
-
-        /*
-         * Second: focused inner element.
-         */
 
         var active = document.activeElement;
 
@@ -1350,10 +1363,6 @@
             }
         }
 
-        /*
-         * Third: any focused descendant.
-         */
-
         var focusedElement = root.querySelector('.focus');
 
         if (focusedElement && focusedElement.closest) {
@@ -1366,10 +1375,6 @@
 
         return null;
     }
-
-    /*
-     * Restore Hero after returning from Full.
-     */
 
     function restoreHeroAfterFull() {
         if (!heroEnabled()) return;
@@ -1390,10 +1395,6 @@
 
         showHeroBackground();
 
-        /*
-         * Force restoration of the focused movie.
-         */
-
         var focusedCard = findFocusedMovie(root);
 
         if (focusedCard && focusedCard.card_data) {
@@ -1413,12 +1414,6 @@
             return;
         }
 
-        /*
-         * Fallback:
-         * If focus is not ready yet, restore
-         * the previously displayed movie.
-         */
-
         if (activeHero.lastMovieData) {
             var previous = activeHero.lastMovieData;
 
@@ -1430,11 +1425,6 @@
 
             return;
         }
-
-        /*
-         * Last fallback:
-         * Try the first card in the activity.
-         */
 
         var firstCard = root.querySelector('.card');
 
@@ -1448,12 +1438,6 @@
             );
         }
     }
-
-    /*
-     * Delayed restoration.
-     * Activity switching in Lampa can take
-     * more than one animation frame.
-     */
 
     function scheduleHeroRestore() {
         clearTimeout(restoreTimer);
@@ -1490,11 +1474,6 @@
         var key = identity(d);
 
         if (lastFocusKey === key) return;
-
-        /*
-         * Start backdrop and logo preloading
-         * immediately when focus changes.
-         */
 
         prefetchHeroBackdrop(d);
         prefetchNearbyLogos(item, root);
@@ -2144,11 +2123,6 @@
                 if (e.type === 'start') {
                     requestAnimationFrame(function () {
                         if (isFull(e.object)) {
-                            /*
-                             * 1.6.4:
-                             * Reset focus key before opening Full.
-                             */
-
                             clearTimeout(restoreTimer);
                             clearTimeout(focusTimer);
 
@@ -2171,11 +2145,6 @@
                     isFull(e.object)
                 ) {
                     stopCard(false);
-
-                    /*
-                     * 1.6.4:
-                     * Restore Hero after returning to Main.
-                     */
 
                     scheduleHeroRestore();
                 }
