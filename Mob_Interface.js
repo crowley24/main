@@ -3,20 +3,22 @@
 
     /*
      * @name MOB_INTERFACE
-     * @version 3.2.1
+     * @version 3.2.2
      * @author Crowley24
      * @description Premium Mobile Interface — Logo Animation Only
      * @platforms Lampa | Mobile
      *
-     * 3.2.1 CHANGES:
-     * - Background fade mask moved lower (130%)
-     * - More clear background around studio and movie logos
+     * 3.2.2 CHANGES:
+     * - Fixed background fade selector for the NEW Lampa card
+     * - Poster fade now starts lower (68%)
+     * - Smooth transition to transparency at the bottom
+     * - Studio and movie logos remain visually clear
      * - Preserved native Lampa background image
-     * - All other features preserved from 3.2.0
+     * - All other features preserved from 3.2.1
      */
 
-    if (window.MOB_INTERFACE_V321_READY) return;
-    window.MOB_INTERFACE_V321_READY = true;
+    if (window.MOB_INTERFACE_V322_READY) return;
+    window.MOB_INTERFACE_V322_READY = true;
 
     var detailsCache = {};
     var logoCache = {};
@@ -725,20 +727,33 @@
          * NATIVE LAMPA BACKGROUND
          *
          * Не змінюємо:
-         * - poster
-         * - background image
-         * - poster dimensions
-         * - gradients
-         * - blur settings
+         * - оригінальне фонове зображення
+         * - глобальний Canvas background
+         * - налаштування blur
+         *
+         * Змінюємо лише нижню маску постера
+         * нової картки full-start-new.
          */
 
-        // BACKGROUND FADE — MOVED LOWER
+        // POSTER FADE — START LOWER
 
-        css += '.full-start__background{';
-        css += 'mask-size:100% 130%!important;';
-        css += '-webkit-mask-size:100% 130%!important;';
-        css += 'mask-position:100% 0!important;';
-        css += '-webkit-mask-position:100% 0!important;';
+        css += '.full-start-new .full-start-new__poster.with-out img{';
+        css += 'mask-image:linear-gradient(to bottom,';
+        css += 'rgba(255,255,255,1) 0%,';
+        css += 'rgba(255,255,255,1) 68%,';
+        css += 'rgba(255,255,255,.92) 76%,';
+        css += 'rgba(255,255,255,.65) 86%,';
+        css += 'rgba(255,255,255,0) 100%)!important;';
+        css += '-webkit-mask-image:linear-gradient(to bottom,';
+        css += 'rgba(255,255,255,1) 0%,';
+        css += 'rgba(255,255,255,1) 68%,';
+        css += 'rgba(255,255,255,.92) 76%,';
+        css += 'rgba(255,255,255,.65) 86%,';
+        css += 'rgba(255,255,255,0) 100%)!important;';
+        css += 'mask-size:100% 100%!important;';
+        css += '-webkit-mask-size:100% 100%!important;';
+        css += 'mask-position:center top!important;';
+        css += '-webkit-mask-position:center top!important;';
         css += '}';
 
         // MAIN CONTENT
@@ -1510,7 +1525,7 @@
         init();
 
         console.log(
-            '[MOB_INTERFACE] 3.2.1 Premium Logo Animation initialized'
+            '[MOB_INTERFACE] 3.2.2 Premium Logo Animation initialized'
         );
     }
 
