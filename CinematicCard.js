@@ -1,20 +1,11 @@
 (function () {
     'use strict';
-
     /*
      * @name NEWCARD
-     * @version 3.3.7
+     * @version 3.3.7 + Interface+ Bridge + Staggered Animation + Smart Studio Logos
      * @author Crowley24
-     * @description Cinematic TV interface with Trailer Feed logo behavior
+     * @description Cinematic TV interface with Trailer Feed logo behavior, Interface+ cache integration, Stagger animations and smart studio logos styling
      * @platforms Lampa | Android TV
-     *
-     * 3.3.7 CHANGES:
-     * - Restored original NEWCARD 3.0 background behavior
-     * - Restored .full-start__background.dim opacity: 0.35
-     * - Restored original slideshow fade and dim sequence
-     * - No full-screen gradient overlay
-     * - Preserved slideshow generation safeguards
-     * - All other NEWCARD 3.3.6 functionality preserved
      */
 
     const PLUGIN_NAME = 'NewCard';
@@ -484,12 +475,13 @@
             transform-origin: center center;
         }
 
-        /* TRAILER FEED INFORMATION BLOCK */
+        /* NETFLIX-STYLE STAGGERED FADE-IN SYSTEM */
 
-        .cas-tagline,
         .cas-studios-row,
+        .cas-tagline,
+        .cas-logo,
+        .cas-meta-line,
         .cas-description,
-        .cas-details-wrapper,
         .full-start-new__buttons {
             opacity: 0 !important;
             will-change: transform, opacity;
@@ -542,19 +534,20 @@
             gap: 0;
         }
 
-        /* STUDIOS */
+        /* STUDIOS — UNIFIED SIZE & SMART WHITE ADAPTATION */
 
         .cas-studios-row {
             display: flex;
             flex-wrap: wrap;
             justify-content: flex-start !important;
             align-items: center;
-            gap: 8px;
-            margin: 0 0 8px 0;
+            gap: 12px;
+            margin: 0 0 10px 0;
         }
 
         .cas-studio-item {
-            height: 24px !important;
+            height: 22px !important;
+            max-width: 110px;
             display: flex;
             align-items: center;
             justify-content: flex-start;
@@ -564,13 +557,20 @@
         .cas-studio-item img {
             height: 100%;
             width: auto;
-            max-width: 140px;
+            max-width: 100%;
+            max-height: 22px;
             object-fit: contain;
-            filter: none;
-            opacity: 0.95;
+            object-position: left center;
+            opacity: 0.9;
+            filter: brightness(0) invert(1) drop-shadow(0 1px 2px rgba(0,0,0,0.8));
+            transition: opacity 0.3s ease;
         }
 
-        /* LOGO — SAME DISPLAY RULES AS TRAILER FEED 2.3 */
+        .cas-studio-item img:hover {
+            opacity: 1;
+        }
+
+        /* LOGO */
 
         .cas-logo {
             display: block;
@@ -631,10 +631,6 @@
             min-width: 0;
             overflow: hidden;
             margin: 0 0 8px 0;
-            opacity: 0.82 !important;
-            transform: none !important;
-            transition: none !important;
-            animation: none !important;
         }
 
         .cas-meta-info {
@@ -651,10 +647,6 @@
             font-weight: 400;
             line-height: 1.4;
             color: rgba(255,255,255,0.82);
-            opacity: 1 !important;
-            transform: none !important;
-            transition: none !important;
-            animation: none !important;
         }
 
         .cas-meta-item {
@@ -696,7 +688,7 @@
             white-space: nowrap;
         }
 
-        /* DESCRIPTION — THREE LINES */
+        /* DESCRIPTION */
 
         .cas-description {
             display: -webkit-box;
@@ -724,76 +716,94 @@
             padding: 0;
         }
 
-        /* CONTENT ANIMATION — LOGO AND METADATA EXCLUDED */
+        /* STAGGER ANIMATION TIMELINE (SLIDE STYLE) */
 
-        .cas-anim-slide .cas-tagline,
         .cas-anim-slide .cas-studios-row,
+        .cas-anim-slide .cas-tagline,
+        .cas-anim-slide .cas-logo,
+        .cas-anim-slide .cas-meta-line,
         .cas-anim-slide .cas-description,
-        .cas-anim-slide .cas-details-wrapper,
         .cas-anim-slide .full-start-new__buttons {
-            transform: translate3d(0,8px,0);
+            transform: translate3d(0, 12px, 0);
             transition:
-                opacity 0.35s var(--cas-curve-slide),
-                transform 0.35s var(--cas-curve-slide);
+                opacity 0.4s var(--cas-curve-slide),
+                transform 0.4s var(--cas-curve-slide);
         }
 
         .cas-anim-slide.cas-animated .cas-studios-row {
             opacity: 0.9 !important;
-            transform: translate3d(0,0,0);
-            transition-delay: 0.03s;
+            transform: translate3d(0, 0, 0);
+            transition-delay: 0.0s;
         }
-
         .cas-anim-slide.cas-animated .cas-tagline {
             opacity: 0.85 !important;
-            transform: translate3d(0,0,0);
-            transition-delay: 0.06s;
+            transform: translate3d(0, 0, 0);
+            transition-delay: 0.05s;
         }
-
+        .cas-anim-slide.cas-animated .cas-logo {
+            opacity: 1 !important;
+            transform: translate3d(0, 0, 0);
+            transition-delay: 0.1s;
+        }
+        .cas-anim-slide.cas-animated .cas-meta-line {
+            opacity: 0.82 !important;
+            transform: translate3d(0, 0, 0);
+            transition-delay: 0.18s;
+        }
         .cas-anim-slide.cas-animated .cas-description {
             opacity: 0.75 !important;
-            transform: translate3d(0,0,0);
-            transition-delay: 0.12s;
+            transform: translate3d(0, 0, 0);
+            transition-delay: 0.25s;
         }
-
         .cas-anim-slide.cas-animated .full-start-new__buttons {
             opacity: 1 !important;
-            transform: translate3d(0,0,0);
-            transition-delay: 0.16s;
+            transform: translate3d(0, 0, 0);
+            transition-delay: 0.32s;
         }
 
-        .cas-anim-spring .cas-tagline,
+        /* STAGGER ANIMATION TIMELINE (SPRING STYLE) */
+
         .cas-anim-spring .cas-studios-row,
+        .cas-anim-spring .cas-tagline,
+        .cas-anim-spring .cas-logo,
+        .cas-anim-spring .cas-meta-line,
         .cas-anim-spring .cas-description,
-        .cas-anim-spring .cas-details-wrapper,
         .cas-anim-spring .full-start-new__buttons {
-            transform: scale3d(0.92,0.92,1) translate3d(0,6px,0);
+            transform: scale3d(0.95, 0.95, 1) translate3d(0, 10px, 0);
             transition:
-                opacity 0.4s cubic-bezier(0.175,0.885,0.32,1.275),
-                transform 0.4s var(--cas-curve-spring);
+                opacity 0.45s cubic-bezier(0.175, 0.885, 0.32, 1.275),
+                transform 0.45s var(--cas-curve-spring);
         }
 
         .cas-anim-spring.cas-animated .cas-studios-row {
             opacity: 0.9 !important;
-            transform: scale3d(1,1,1) translate3d(0,0,0);
-            transition-delay: 0.03s;
+            transform: scale3d(1, 1, 1) translate3d(0, 0, 0);
+            transition-delay: 0.0s;
         }
-
         .cas-anim-spring.cas-animated .cas-tagline {
             opacity: 0.85 !important;
-            transform: scale3d(1,1,1) translate3d(0,0,0);
-            transition-delay: 0.06s;
+            transform: scale3d(1, 1, 1) translate3d(0, 0, 0);
+            transition-delay: 0.05s;
         }
-
+        .cas-anim-spring.cas-animated .cas-logo {
+            opacity: 1 !important;
+            transform: scale3d(1, 1, 1) translate3d(0, 0, 0);
+            transition-delay: 0.1s;
+        }
+        .cas-anim-spring.cas-animated .cas-meta-line {
+            opacity: 0.82 !important;
+            transform: scale3d(1, 1, 1) translate3d(0, 0, 0);
+            transition-delay: 0.18s;
+        }
         .cas-anim-spring.cas-animated .cas-description {
             opacity: 0.75 !important;
-            transform: scale3d(1,1,1) translate3d(0,0,0);
-            transition-delay: 0.12s;
+            transform: scale3d(1, 1, 1) translate3d(0, 0, 0);
+            transition-delay: 0.25s;
         }
-
         .cas-anim-spring.cas-animated .full-start-new__buttons {
             opacity: 1 !important;
-            transform: scale3d(1,1,1) translate3d(0,0,0);
-            transition-delay: 0.16s;
+            transform: scale3d(1, 1, 1) translate3d(0, 0, 0);
+            transition-delay: 0.32s;
         }
 
         /* MOBILE */
@@ -1026,8 +1036,9 @@
 
         window.casBgInterval = currentInterval;
     }
-        // =====================================================
-    // TMDB LOGO SYSTEM — TRAILER FEED LANGUAGE PRIORITY
+
+    // =====================================================
+    // TMDB LOGO SYSTEM — INTERFACE+ BRIDGE + TRAILER FEED
     // =====================================================
 
     function getPreferredLogoLanguage() {
@@ -1135,16 +1146,6 @@
         );
     }
 
-    /*
-     * Trailer Feed 2.3 behavior:
-     * - Wait for the image to load.
-     * - Insert the image.
-     * - Show it directly.
-     * - No opacity transition.
-     * - No transform transition.
-     * - No animation class.
-     */
-
     async function displayMovieLogo(render, data, logos, requestId) {
         if (requestId !== logoRequestId) return;
 
@@ -1201,9 +1202,30 @@
         const cacheId = 'tmdb_logo_' + data.id;
 
         const logoContainer = render.find('.cas-logo');
-
         logoContainer.empty();
 
+        // 1. СПРОБА ОТРИМАТИ ЛОГОТИП З КЕШУ INTERFACE+
+        let bridgeLogoUrl = null;
+        if (window.InterfacePlusBridge && typeof window.InterfacePlusBridge.getLogo === 'function') {
+            bridgeLogoUrl = window.InterfacePlusBridge.getLogo(data);
+        }
+
+        if (bridgeLogoUrl) {
+            preloadImage(bridgeLogoUrl).then(() => {
+                if (requestId !== logoRequestId) return;
+                logoContainer.empty();
+                const image = $('<img>');
+                image.attr('alt', data.title || data.name || '');
+                image.attr('src', bridgeLogoUrl);
+                logoContainer.append(image);
+                image.show();
+            }).catch(() => {
+                showLogoFallback(render, data, requestId);
+            });
+            return;
+        }
+
+        // 2. ВЛАСНИЙ КЕШ / TMDB ЗАПИТ
         const cachedLogo = getCachedLogo(cacheId);
 
         if (cachedLogo && cachedLogo.file_path) {
@@ -1376,8 +1398,6 @@
             .slice(0, 3)
             .join(', ');
 
-        // 1. RATING
-
         if (rating > 0) {
             const ratingElement = $(`
                 <span class="cas-meta-item cas-wave-rating">
@@ -1393,20 +1413,9 @@
             container.append(ratingElement);
         }
 
-        // 2. YEAR
-
         appendMetaItem(container, year, 'cas-wave-year');
-
-        // 3. COUNTRY
-
         appendMetaItem(container, country, 'cas-wave-country');
-
-        // 4. RUNTIME
-
         appendMetaItem(container, runtime, 'cas-wave-time');
-
-        // 5. GENRES
-
         appendMetaItem(container, genres, 'cas-wave-genre');
 
         container.css('display', 'flex');
@@ -1784,7 +1793,7 @@
             initializePlugin();
 
             console.log(
-                'NewCard 3.3.7 initialized successfully'
+                'NewCard 3.3.7 + Interface+ Bridge + Staggered Animation + Smart Studio Logos initialized successfully'
             );
 
         } catch (error) {
