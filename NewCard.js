@@ -2,9 +2,9 @@
     'use strict';
     /*
      * @name NEWCARD
-     * @version 3.3.7 + Interface+ Bridge + Staggered Animation + Smart Studio Logos
+     * @version 3.3.8 + Interface+ Bridge + Staggered Animation + Smart Studio Logos + Logo Scale
      * @author Crowley24
-     * @description Cinematic TV interface with Trailer Feed logo behavior, Interface+ cache integration, Stagger animations and smart studio logos styling
+     * @description Cinematic TV interface with Trailer Feed logo behavior, Interface+ cache integration, Stagger animations, smart studio logos and scalable logos
      * @platforms Lampa | Android TV
      */
 
@@ -27,7 +27,7 @@
 
     const TRANSLATIONS = {
         'settings_cas_meta_size': 'Розмір шрифту',
-        'settings_cas_blocks_gap': 'Відступи між блоками',
+        'settings_cas_logo_scale': 'Розмір логотипів',
         'settings_cas_bg_animation': 'Анімація фону',
         'settings_cas_animation_style': 'Стиль анімації появи',
         'settings_cas_slideshow_enabled': 'Слайд-шоу фону',
@@ -149,7 +149,7 @@
             'cas_bg_animation': 'kenburns',
             'cas_animation_style': 'slide',
             'cas_slideshow_enabled': true,
-            'cas_blocks_gap': '20',
+            'cas_logo_scale': '1',
             'cas_meta_size': '1.3',
             'cas_show_studios': true,
             'cas_show_tagline': true
@@ -180,14 +180,14 @@
                 }
             },
             {
-                name: 'cas_blocks_gap',
+                name: 'cas_logo_scale',
                 type: 'select',
                 values: {
-                    '10': 'Дуже тісно',
-                    '15': 'Тісно',
-                    '20': 'Стандарт',
-                    '25': 'Просторе',
-                    '30': 'Дуже просторе'
+                    '0.85': 'Зменшений',
+                    '1': 'Стандартний',
+                    '1.15': 'Збільшений (+15%)',
+                    '1.3': 'Великий (+30%)',
+                    '1.45': 'Максимальний (+45%)'
                 }
             },
             {
@@ -235,12 +235,12 @@
     function applySettings() {
         const root = document.documentElement;
 
-        const gap = Lampa.Storage.get('cas_blocks_gap') || '20';
+        const logoScale = Lampa.Storage.get('cas_logo_scale') || '1';
         const metaSize = Lampa.Storage.get('cas_meta_size') || '1.3';
         const animStyle = Lampa.Storage.get('cas_animation_style') || 'slide';
         const bgAnim = Lampa.Storage.get('cas_bg_animation') || 'kenburns';
 
-        root.style.setProperty('--cas-blocks-gap', gap + 'px');
+        root.style.setProperty('--cas-logo-scale', logoScale);
         root.style.setProperty('--cas-meta-size', metaSize + 'em');
 
         const bodyEl = $('body');
@@ -410,7 +410,7 @@
         const styles = `<style id="cas-main-styles">
 
         :root {
-            --cas-blocks-gap: 20px;
+            --cas-logo-scale: 1;
             --cas-meta-size: 1.3em;
             --cas-curve-slide: cubic-bezier(0.25, 1, 0.5, 1);
             --cas-curve-spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
@@ -530,11 +530,11 @@
             height: auto;
             max-height: none;
             overflow: visible;
-            margin: 0 0 .5em 0;
+            margin: 0 0 12px 0;
             gap: 0;
         }
 
-        /* STUDIOS — UNIFIED SIZE & SMART WHITE ADAPTATION */
+        /* STUDIOS — SCALABLE & SMART WHITE ADAPTATION */
 
         .cas-studios-row {
             display: flex;
@@ -546,8 +546,8 @@
         }
 
         .cas-studio-item {
-            height: 22px !important;
-            max-width: 110px;
+            height: calc(22px * var(--cas-logo-scale)) !important;
+            max-width: calc(110px * var(--cas-logo-scale));
             display: flex;
             align-items: center;
             justify-content: flex-start;
@@ -555,15 +555,16 @@
         }
 
         .cas-studio-item img {
-            height: 100%;
-            width: auto;
-            max-width: 100%;
-            max-height: 22px;
+            display: block;
+            height: calc(1.3em * var(--cas-logo-scale)) !important;
+            width: auto !important;
+            max-height: calc(1.3em * var(--cas-logo-scale)) !important;
+            max-width: calc(6.5em * var(--cas-logo-scale)) !important;
             object-fit: contain;
             object-position: left center;
             opacity: 0.9;
-            filter: brightness(0) invert(1) drop-shadow(0 1px 2px rgba(0,0,0,0.8));
-            transition: opacity 0.3s ease;
+            filter: drop-shadow(0 1px 2px rgba(0,0,0,0.8));
+            transition: opacity 0.3s ease, filter 0.25s ease;
         }
 
         .cas-studio-item img:hover {
@@ -574,10 +575,10 @@
 
         .cas-logo {
             display: block;
-            width: 30em;
+            width: calc(30em * var(--cas-logo-scale));
             max-width: 100%;
-            height: 8em;
-            max-height: 8em;
+            height: calc(8em * var(--cas-logo-scale));
+            max-height: calc(8em * var(--cas-logo-scale));
             overflow: visible;
             margin-bottom: .5em;
         }
@@ -586,19 +587,21 @@
             display: block;
             width: auto;
             height: auto;
-            max-width: 30em;
-            max-height: 8em;
+            max-width: calc(30em * var(--cas-logo-scale));
+            max-height: calc(8em * var(--cas-logo-scale));
             object-fit: contain;
             object-position: left center;
             border: none;
             background: transparent;
+            transform: scale(var(--cas-logo-scale));
+            transform-origin: left center;
         }
 
         .cas-logo-fallback {
             max-width: 30em;
             max-height: 8em;
             overflow: hidden;
-            font-size: 3em;
+            font-size: calc(3em * var(--cas-logo-scale));
             font-weight: 800;
             line-height: 1.05;
             text-transform: uppercase;
@@ -865,7 +868,7 @@
             }
 
             .cas-studio-item {
-                height: 20px !important;
+                height: calc(20px * var(--cas-logo-scale)) !important;
             }
 
             .full-start-new__buttons {
@@ -1335,7 +1338,7 @@
     }
 
     // =====================================================
-    // STUDIO LOGOS
+    // STUDIO LOGOS (WITH COLOR ANALYSIS)
     // =====================================================
 
     function renderStudioLogosWithColorAnalysis(container, data) {
@@ -1350,7 +1353,11 @@
                 '/t/p/w200' + studio.logo_path
             );
 
-            const item = $('<div class="cas-studio-item cas-wave-studio"></div>');
+            const id = 'cas_studio_' + Math.random().toString(36).substr(2, 9);
+
+            const item = $(
+                `<div class="cas-studio-item cas-wave-studio" id="${id}"></div>`
+            );
             const image = $('<img>');
 
             image.attr('src', logoUrl);
@@ -1358,6 +1365,52 @@
 
             item.append(image);
             container.append(item);
+
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+
+            img.onload = function () {
+                try {
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    
+                    canvas.width = this.width;
+                    canvas.height = this.height;
+                    ctx.drawImage(this, 0, 0);
+
+                    const imageData = ctx.getImageData(
+                        0,
+                        0,
+                        canvas.width,
+                        canvas.height
+                    ).data;
+
+                    let r = 0, g = 0, b = 0, count = 0;
+
+                    for (let i = 0; i < imageData.length; i += 4) {
+                        if (imageData[i + 3] > 50) {
+                            r += imageData[i];
+                            g += imageData[i + 1];
+                            b += imageData[i + 2];
+                            count++;
+                        }
+                    }
+
+                    if (count > 0) {
+                        const brightness =
+                            (0.299 * r + 0.587 * g + 0.114 * b) / count;
+
+                        if (brightness < 40) {
+                            $('#' + id + ' img').css(
+                                'filter',
+                                'brightness(0) invert(1) drop-shadow(0 1px 2px rgba(0,0,0,0.8))'
+                            );
+                        }
+                    }
+                } catch (e) {}
+            };
+
+            img.src = logoUrl;
         });
     }
 
@@ -1793,7 +1846,7 @@
             initializePlugin();
 
             console.log(
-                'NewCard 3.3.7 + Interface+ Bridge + Staggered Animation + Smart Studio Logos initialized successfully'
+                'NewCard 3.3.8 + Interface+ Bridge + Staggered Animation + Smart Studio Logos + Logo Scale initialized successfully'
             );
 
         } catch (error) {
