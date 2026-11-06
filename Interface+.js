@@ -1675,6 +1675,18 @@
         } catch (e) {}
     }
 
+    /* Експорт містка для інших плагінів */
+    window.InterfacePlusBridge = {
+        getVersion: function() { return VERSION; },
+        getLogo: function(item) {
+            var holder = getLogoHolder(item);
+            return holder ? holder.tfeed_logo : null;
+        },
+        getLastMovie: function() {
+            return activeHero ? activeHero.lastMovieData : null;
+        }
+    };
+
     /* Ініціалізація */
 
     function init() {
